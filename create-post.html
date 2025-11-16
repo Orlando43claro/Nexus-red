@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Create New Post</title>
+    <style>
+        /* Minimal and Responsive Styles (using standard CSS for simplicity) */
+        body { 
+            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; padding: 20px;
+        }
+        .container { 
+            background-color: white; padding: 30px; border-radius: 12px; 
+            max-width: 600px; width: 100%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+        }
+        h2 { color: #0077b6; text-align: center; margin-bottom: 20px; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #333; margin-bottom: 5px;}
+        textarea, select { 
+            width: 100%; padding: 12px; margin-top: 5px; 
+            border: 1px solid #ddd; border-radius: 8px; 
+            box-sizing: border-box; font-size: 16px;
+        }
+        textarea { resize: vertical; min-height: 150px; }
+        button { 
+            background-color: #0077b6; color: white; padding: 14px 20px; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            width: 100%; margin-top: 25px; font-weight: bold; 
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #005f93; }
+        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; text-align: center; }
+        .loading-message { color: #0077b6; text-align: center; padding: 20px; }
+    </style>
+
+    <!-- 1. Load Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, getDoc, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        
+        // 2. Firebase Configuration (Your Credentials)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        // 3. Initialize Firebase and Services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null; 
+
+        // 4. Function to load user's circles from Firestore
+        async function loadCircles() {
+            const circleSelect = document.getElementById('circleTarget');
+            circleSelect.innerHTML = '<option value="" disabled selected>Cargando Círculos...</option>';
+            
+            if (!currentUser) return;
+
+            try {
+                // Fetch user document from Firestore to get the list of circles
+                const userDocRef = doc(db, "users", currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists() && userDoc.data().circles) {
+                    const circles = userDoc.data().circles;
+                    circleSelect.innerHTML = ''; // Clear loading message
+                    
+                    circles.forEach(circle => {
+                        const option = document.createElement('option');
+                        option.value = circle.name;
+                        option.textContent = circle.name; // Display circle name
+                        circleSelect.appendChild(option);
+                    });
+                    
+                    // Select the first circle by default
+                    if (circles.length > 0) {
+                        circleSelect.value = circles[0].name;
+                    }
+                } else {
+                    // Fallback if no circles found (shouldn't happen after profile-setup)
+                    circleSelect.innerHTML = '<option value="" disabled selected>No circles found. Please check profile-setup.</option>';
+                }
+
+            } catch (error) {
+                console.error("Error loading circles:", error);
+                document.getElementById('errorMessage').textContent = 'Error loading circles.';
+            }
+        }
+
+        // 5. Main logic on load
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('postForm');
+            const errorDisplay = document.getElementById('errorMessage');
+            const contentDiv = document.getElementById('postContent');
+
+            // Check Auth State
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    contentDiv.style.display = 'block'; // Show form content
+                    document.getElementById('loading').style.display = 'none'; // Hide loading
+                    loadCircles(); // Load the circles after user is authenticated
+                } else {
+                    // Not logged in: Redirect to login
+                    alert("You must be logged in to create a post.");
+                    window.location.href = 'login.html'; 
+                }
+            });
+
+            // Handle Post Submission
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                errorDisplay.textContent = '';
+                
+                if (!currentUser) {
+                    errorDisplay.textContent = 'User not authenticated.';
+                    return;
+                }
+
+                const postText = document.getElementById('postText').value.trim();
+                const circleTarget = document.getElementById('circleTarget').value;
+
+                if (!postText || !circleTarget) {
+                    errorDisplay.textContent = 'Please write a message and select a Circle.';
+                    return;
+                }
+
+                try {
+                    // A. Add post to 'posts' collection in Firestore
+                    await addDoc(collection(db, "posts"), {
+                        userId: currentUser.uid,
+                        username: currentUser.displayName, // @username
+                        text: postText,
+                        circleTarget: circleTarget, // The crucial field for Nexus filtering
+                        likes: 0,
+                        commentsCount: 0,
+                        createdAt: serverTimestamp()
+                    });
+
+                    alert("Post successfully published to " + circleTarget + "!");
+                    document.getElementById('postText').value = ''; // Clear textarea
+                    window.location.href = 'feed.html'; // Redirect to feed
+
+                } catch (error) {
+                    errorDisplay.textContent = 'Error publishing post. Check console.';
+                    console.error("Error publishing post to Firestore:", error);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Crear Nueva Publicación</h2>
+
+        <div id="loading" class="loading-message">
+            Cargando Circles de Influencia...
+        </div>
+
+        <form id="postForm" style="display:none;">
+            
+            <label for="postText">¿Qué tienes que decir?</label>
+            <textarea id="postText" placeholder="Escribe tu mensaje..."></textarea>
+
+            <label for="circleTarget">Seleccionar Círculo de Influencia (¡Es lo más importante!)</label>
+            <select id="circleTarget" required>
+                <!-- Opciones cargadas por loadCircles() -->
+            </select>
+            <small style="display: block; color: #888; margin-top: 5px;">Solo los miembros de este Círculo podrán ver esta publicación, a menos que sea un Círculo Público.</small>
+
+            <button type="submit">Publicar en Nexus</button>
+        </form>
+
+        <p id="errorMessage" class="error-message"></p>
+    </div>
+</body>
+</html>
+
