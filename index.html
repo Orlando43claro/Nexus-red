@@ -9,6 +9,7 @@
         body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
         .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { margin: 0; font-size: 1.5em; }
+        .header nav { display: flex; gap: 10px; }
         .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
         .header a:hover { background-color: #005f93; }
         .filter-bar { padding: 10px; background-color: white; border-bottom: 1px solid #ddd; text-align: center; }
@@ -24,7 +25,15 @@
         .interaction-bar button:hover { color: #0077b6; }
         .post-meta { font-size: 0.8em; color: #888; text-align: left; margin-top: 5px;}
         
-        /* Estilos para el Pop-up (Modal) - Se mantienen iguales */
+        /* Estilos de Comentarios */
+        .comments-section { margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; }
+        .comment-input { display: flex; gap: 10px; margin-bottom: 10px; }
+        .comment-input input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+        .comment-input button { padding: 8px 15px; background-color: #0077b6; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        .comment-item { font-size: 0.9em; margin-bottom: 5px; }
+        .comment-author { font-weight: bold; color: #333; margin-right: 5px; }
+
+        /* Estilos para el Pop-up (Modal) */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
@@ -59,8 +68,6 @@
         <div id="loading-posts" style="text-align: center; padding: 50px; color: #555;">
             Cargando publicaciones...
         </div>
-        <!-- Las publicaciones dinámicas se insertarán aquí -->
-        <!-- La antigua publicación estática fue eliminada -->
     </main>
 
     <!-- Modal para usuarios no logueados -->
@@ -82,7 +89,7 @@
         // 1. Importar las funciones necesarias
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, doc, query, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // 2. Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
@@ -110,9 +117,11 @@
         function renderPost(post) {
             const postElement = document.createElement('article');
             postElement.className = 'post';
+            postElement.setAttribute('data-post-id', post.id);
 
             const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
             
+            // Renderizar la publicación
             postElement.innerHTML = `
                 <div class="post-header">
                     <span class="post-author">@${post.username || 'Usuario Desconocido'}</span>
@@ -120,36 +129,102 @@
                 </div>
                 <p class="post-content">${post.text}</p>
                 <div class="interaction-bar">
-                    <button onclick="checkUserStatus('like', '${post.id}')">❤️ Me Gusta</button>
-                    <button onclick="checkUserStatus('comment', '${post.id}')">💬 Comentar</button>
+                    <button onclick="handleInteraction('like', '${post.id}')">
+                        <span id="like-icon-${post.id}">❤️</span> Me Gusta
+                    </button>
+                    <button onclick="handleInteraction('comment', '${post.id}')">
+                        💬 Comentar
+                    </button>
                     <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
                 </div>
-                <p class="post-meta">${post.likes || 0} Me Gusta · ${post.commentsCount || 0} Comentarios - ${formattedDate}</p>
+                <p class="post-meta">
+                    <span id="likes-count-${post.id}">${post.likes || 0}</span> Me Gusta · 
+                    <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios - ${formattedDate}
+                </p>
+                <!-- Sección de Comentarios (Inicialmente vacía o con un placeholder) -->
+                <div id="comments-section-${post.id}" class="comments-section">
+                    <div class="comment-input">
+                        <input type="text" id="comment-text-${post.id}" placeholder="Escribe un comentario...">
+                        <button onclick="handleInteraction('submit-comment', '${post.id}')">Enviar</button>
+                    </div>
+                    <div id="comments-list-${post.id}">
+                        <!-- Aquí se mostrarán los comentarios (Simulación por ahora) -->
+                        <div class="comment-item"><span class="comment-author">@Jane</span> ¡Gran post!</div>
+                    </div>
+                </div>
             `;
             return postElement;
         }
 
-        // 5. Configurar el Listener del Feed de Firestore
+        // 5. Función para manejar las interacciones (Like/Comment)
+        window.handleInteraction = async function(action, postId) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+
+            const postRef = doc(db, "posts", postId);
+
+            try {
+                if (action === 'like') {
+                    // Implementación de Like: Sumar 1 al contador
+                    await updateDoc(postRef, {
+                        likes: increment(1)
+                    });
+                    // Opcional: Podrías cambiar el color del corazón o el texto aquí, pero Firestore lo actualizará por onSnapshot.
+                    console.log(`Like añadido al post: ${postId}`);
+
+                } else if (action === 'submit-comment') {
+                    const commentInput = document.getElementById(`comment-text-${postId}`);
+                    const commentText = commentInput.value.trim();
+
+                    if (!commentText) {
+                        alert('El comentario no puede estar vacío.');
+                        return;
+                    }
+                    
+                    // Lógica para añadir comentario:
+                    // 1. Incrementar el contador de comentarios en el post (para esta demo)
+                    await updateDoc(postRef, {
+                        commentsCount: increment(1)
+                    });
+                    
+                    // 2. Simulación de renderizado de comentario (lo ideal sería guardarlo en una subcolección 'comments')
+                    const commentsList = document.getElementById(`comments-list-${postId}`);
+                    const newComment = document.createElement('div');
+                    newComment.className = 'comment-item';
+                    newComment.innerHTML = `<span class="comment-author">@${currentUser.displayName || 'Tú'}</span> ${commentText}`;
+                    commentsList.prepend(newComment); 
+
+                    commentInput.value = ''; // Limpiar el input
+
+                } else if (action === 'comment') {
+                    // Lógica para enfocar el input de comentario o expandir la sección
+                    const commentInput = document.getElementById(`comment-text-${postId}`);
+                    commentInput.focus();
+                }
+
+            } catch (error) {
+                console.error(`Error al procesar ${action} en el post ${postId}:`, error);
+                alert(`Error al procesar ${action}. Revisa la consola.`);
+            }
+        }
+        
+        // El resto del código del feed (setupFeedListener, showRegistrationModal, onAuthStateChanged) se mantiene igual
+        
+        // 6. Configurar el Listener del Feed de Firestore
         function setupFeedListener() {
-            // Consulta para obtener las publicaciones, ordenadas por fecha de creación descendente
-            // IMPORTANTE: Se ha quitado el 'orderBy' para evitar errores de índice en el entorno Canvas.
-            // La base de datos Firebase requiere índices específicos si se utiliza 'orderBy' y 'where' simultáneamente.
-            // Para mantener la simplicidad, ordenamos manualmente después de obtener los datos.
-            
-            // Si estuviéramos filtrando por Círculos, usaríamos query(collection(db, "posts"), where("circleTarget", "==", "Nombre del Círculo"))
             const postsQuery = collection(db, "posts"); 
 
-            // onSnapshot mantiene la interfaz sincronizada en tiempo real
             onSnapshot(postsQuery, (querySnapshot) => {
                 loadingMessage.style.display = 'none';
-                feedContainer.innerHTML = ''; // Limpiar el feed actual
+                feedContainer.innerHTML = ''; 
 
                 const posts = [];
                 querySnapshot.forEach((doc) => {
                     posts.push({ id: doc.id, ...doc.data() });
                 });
 
-                // Ordenar manualmente por fecha de creación (descendente)
                 posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
 
                 if (posts.length === 0) {
@@ -176,16 +251,7 @@
             }
         }
 
-        // 6. Lógica Principal de Interacción (depende de isUserLoggedIn)
-        window.checkUserStatus = function(action, postId) {
-            if (isUserLoggedIn) {
-                console.log(`Usuario ${currentUser.uid} registrado. Procesando acción '${action}' en el post ID: ${postId}`);
-                // Aquí iría la lógica real para actualizar Firestore (e.g., likes/comments)
-            } else {
-                showRegistrationModal();
-            }
-        }
-
+        // Lógica de Compartir (se mantiene igual)
         window.sharePost = function(postId) {
              console.log(`Compartiendo enlace externo del post ID: ${postId}. No requiere registro.`);
              // Usamos un modal o mensaje en lugar de alert()
@@ -193,19 +259,19 @@
         }
 
         // 7. Observar el estado de autenticación al cargar
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                isUserLoggedIn = true;
-                currentUser = user;
-                console.log("Usuario logueado:", user.uid);
-                // Si está logueado, podríamos añadir filtros por Círculo aquí, pero por ahora solo cargamos el feed.
-            } else {
-                isUserLoggedIn = false;
-                currentUser = null;
-                console.log("Usuario no logueado.");
-            }
-            // Inicia la carga del feed tan pronto como sepa si hay un usuario o no
-            setupFeedListener(); 
+        document.addEventListener('DOMContentLoaded', () => {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    isUserLoggedIn = true;
+                    currentUser = user;
+                    console.log("Usuario logueado:", user.uid);
+                } else {
+                    isUserLoggedIn = false;
+                    currentUser = null;
+                    console.log("Usuario no logueado.");
+                }
+                setupFeedListener(); 
+            });
         });
     </script>
 </body>
