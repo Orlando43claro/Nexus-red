@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Configurar Perfil</title>
+    <style>
+        /* Estilos Mínimos y Responsivos */
+        body { 
+            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; padding: 20px;
+        }
+        .container { 
+            background-color: white; padding: 30px; border-radius: 12px; 
+            max-width: 500px; width: 100%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+            text-align: center;
+        }
+        h2 { color: #0077b6; margin-bottom: 5px; }
+        p { color: #555; margin-bottom: 30px; }
+        label { display: block; text-align: left; margin-top: 15px; font-weight: bold; color: #333; }
+        textarea, input[type="text"] { 
+            width: 100%; padding: 12px; margin-top: 5px; 
+            border: 1px solid #ddd; border-radius: 8px; 
+            box-sizing: border-box; font-size: 16px;
+        }
+        textarea { resize: vertical; min-height: 100px; }
+        button { 
+            background-color: #28a745; /* Verde para acción de guardar/finalizar */
+            color: white; padding: 14px 20px; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            width: 100%; margin-top: 25px; font-weight: bold; 
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #1e7e34; }
+        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; }
+        .info-message { color: #0077b6; margin-bottom: 20px; }
+    </style>
+
+    <!-- 1. Carga de SDKs de Firebase (Auth y Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        
+        // 2. Configuración de Firebase (Tus Credenciales)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        // 3. Inicializar Firebase y Servicios
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null; // Variable para almacenar el usuario autenticado
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const setupForm = document.getElementById('setupForm');
+            const errorDisplay = document.getElementById('errorMessage');
+
+            // 4. Verificar el estado de Autenticación
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    console.log("Usuario autenticado. UID:", user.uid);
+                    // Mostrar el nombre de usuario que viene de la etapa de registro
+                    document.getElementById('welcome-message').textContent = `Bienvenido, @${user.displayName || 'nuevo usuario'}!`;
+                } else {
+                    // Si el usuario no está logueado, lo enviamos de vuelta al inicio de sesión
+                    alert("Debes iniciar sesión para configurar tu perfil.");
+                    window.location.href = 'login.html'; 
+                }
+            });
+
+            // 5. Manejar el envío del formulario para guardar datos en Firestore
+            setupForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                errorDisplay.textContent = '';
+                
+                if (!currentUser) {
+                    errorDisplay.textContent = 'Error: Sesión no encontrada. Por favor, reinicia la página.';
+                    return;
+                }
+
+                const bio = document.getElementById('bio').value;
+                const firstCircleName = document.getElementById('firstCircleName').value;
+
+                try {
+                    // Crear el documento de perfil en la colección 'users' usando el UID como ID del documento
+                    await setDoc(doc(db, "users", currentUser.uid), {
+                        username: currentUser.displayName, // Nombre de usuario guardado de Authentication
+                        email: currentUser.email,
+                        bio: bio,
+                        // El primer Círculo de Influencia es crucial para la experiencia Nexus
+                        circles: [
+                            { name: firstCircleName, isPrivate: true, membersCount: 1 }
+                        ],
+                        profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', // Placeholder por ahora
+                        createdAt: serverTimestamp()
+                    });
+
+                    // Éxito: Redirigir al Feed, ahora con el usuario logueado
+                    alert("¡Perfil configurado! Ya puedes empezar a conectar en Nexus.");
+                    window.location.href = 'feed.html';
+
+                } catch (error) {
+                    errorDisplay.textContent = 'Error al guardar el perfil. Revisa la consola para más detalles.';
+                    console.error("Error al guardar en Firestore:", error);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <h2 id="welcome-message">Configuración de Perfil</h2>
+        <p class="info-message">¡Es el último paso! Crea tu biografía y define tu primer Círculo de Influencia para empezar a usar Nexus.</p>
+
+        <form id="setupForm">
+            
+            <label for="bio">Biografía (Cuéntale al mundo quién eres):</label>
+            <textarea id="bio" placeholder="Ej: Viajero digital, amante del café y creador del Círculo #ViajesEnSolitario." maxlength="200" required></textarea>
+
+            <label for="firstCircleName">Nombre de tu Primer Círculo de Influencia:</label>
+            <input type="text" id="firstCircleName" placeholder="Ej: Amigos Cercanos, Familia, Proyectos de Trabajo" required>
+            <small style="display: block; text-align: left; color: #888;">Este es el grupo donde compartirás tu contenido más privado o específico.</small>
+            
+            <!-- Nota: La carga de fotos a Firebase Storage es omitida por simplicidad en un solo archivo -->
+            <!-- <label for="profilePic">Foto de Perfil (Opcional):</label>
+            <input type="file" id="profilePic" accept="image/*"> -->
+
+            <button type="submit">Finalizar y Entrar a Nexus</button>
+        </form>
+
+        <p id="errorMessage" class="error-message"></p>
+    </div>
+</body>
+</html>
+
