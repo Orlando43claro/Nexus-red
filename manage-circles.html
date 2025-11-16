@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Gestionar Círculos</title>
+    <style>
+        /* Estilos Mínimos y Responsivos */
+        body { 
+            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
+            display: flex; justify-content: center; align-items: center; 
+            min-height: 100vh; padding: 20px;
+        }
+        .container { 
+            background-color: white; padding: 30px; border-radius: 12px; 
+            max-width: 500px; width: 100%; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+        }
+        h2 { color: #0077b6; text-align: center; margin-bottom: 20px; }
+        label { display: block; margin-top: 15px; font-weight: bold; color: #333; margin-bottom: 5px;}
+        input[type="text"] { 
+            width: 100%; padding: 12px; margin-top: 5px; 
+            border: 1px solid #ddd; border-radius: 8px; 
+            box-sizing: border-box; font-size: 16px;
+        }
+        .checkbox-container {
+            display: flex; align-items: center; margin-top: 10px;
+        }
+        .checkbox-container input {
+            width: auto; margin-right: 10px;
+        }
+        button { 
+            background-color: #28a745; color: white; padding: 14px 20px; 
+            border: none; border-radius: 8px; cursor: pointer; 
+            width: 100%; margin-top: 25px; font-weight: bold; 
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #1e7e34; }
+        .error-message, .success-message { 
+            margin-top: 15px; font-weight: 500; text-align: center; 
+        }
+        .error-message { color: #d9534f; }
+        .success-message { color: #28a745; }
+        .circle-list-item { 
+            background-color: #f0f8ff; padding: 10px; margin-bottom: 8px; 
+            border-radius: 5px; border-left: 5px solid #0077b6; 
+            font-size: 0.9em;
+        }
+    </style>
+
+    <!-- 1. Load Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        
+        // 2. Firebase Configuration (Your Credentials)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        // 3. Initialize Firebase and Services
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null; 
+
+        // 4. Función para cargar y mostrar la lista de círculos actuales
+        async function loadCurrentCircles() {
+            const listContainer = document.getElementById('currentCirclesList');
+            listContainer.innerHTML = '<p style="text-align:center;">Cargando...</p>';
+            
+            if (!currentUser) return;
+
+            try {
+                const userDocRef = doc(db, "users", currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                if (userDoc.exists() && userDoc.data().circles) {
+                    const circles = userDoc.data().circles;
+                    listContainer.innerHTML = ''; 
+                    
+                    circles.forEach(circle => {
+                        const privacy = circle.isPrivate ? '🔒 Privado' : '🌐 Público';
+                        listContainer.innerHTML += `
+                            <div class="circle-list-item">
+                                <strong>${circle.name}</strong> (${privacy}) - ${circle.membersCount || 1} Miembro(s)
+                            </div>
+                        `;
+                    });
+                } else {
+                    listContainer.innerHTML = '<p style="text-align:center; color:#888;">Aún no tienes Círculos.</p>';
+                }
+
+            } catch (error) {
+                console.error("Error loading circles:", error);
+                document.getElementById('errorMessage').textContent = 'Error al cargar círculos.';
+            }
+        }
+
+        // 5. Manejar la adición de un nuevo Círculo
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('addCircleForm');
+            const errorDisplay = document.getElementById('errorMessage');
+            const successDisplay = document.getElementById('successMessage');
+
+            // Check Auth State
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    loadCurrentCircles();
+                } else {
+                    alert("Debes iniciar sesión para gestionar tus círculos.");
+                    window.location.href = 'login.html'; 
+                }
+            });
+
+            // Handle Form Submission
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                errorDisplay.textContent = '';
+                successDisplay.textContent = '';
+                
+                if (!currentUser) return;
+
+                const circleName = document.getElementById('newCircleName').value.trim();
+                const isPrivate = document.getElementById('isPrivate').checked;
+
+                if (!circleName) {
+                    errorDisplay.textContent = 'El nombre del Círculo no puede estar vacío.';
+                    return;
+                }
+
+                try {
+                    const userDocRef = doc(db, "users", currentUser.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    
+                    if (userDoc.exists()) {
+                        const currentCircles = userDoc.data().circles || [];
+                        
+                        // Verificar si el círculo ya existe (simple check por nombre)
+                        if (currentCircles.some(c => c.name.toLowerCase() === circleName.toLowerCase())) {
+                            errorDisplay.textContent = `El Círculo "${circleName}" ya existe.`;
+                            return;
+                        }
+                        
+                        // Nuevo objeto Círculo
+                        const newCircle = { 
+                            name: circleName, 
+                            isPrivate: isPrivate, 
+                            membersCount: 1 
+                        };
+
+                        // Añadir el nuevo círculo al array existente en Firestore
+                        await updateDoc(userDocRef, {
+                            circles: [...currentCircles, newCircle]
+                        });
+
+                        successDisplay.textContent = `¡Círculo "${circleName}" añadido con éxito!`;
+                        document.getElementById('newCircleName').value = '';
+                        document.getElementById('isPrivate').checked = true; // Resetear el checkbox
+                        
+                        // Recargar la lista de círculos
+                        loadCurrentCircles(); 
+
+                    } else {
+                        errorDisplay.textContent = 'Error: Documento de perfil de usuario no encontrado.';
+                    }
+
+                } catch (error) {
+                    errorDisplay.textContent = 'Error al guardar el nuevo Círculo. Revisa la consola.';
+                    console.error("Error adding circle:", error);
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Gestionar Círculos de Influencia</h2>
+        <p style="text-align:center; color:#555;">Aquí puedes añadir nuevos grupos para segmentar tu audiencia.</p>
+
+        <div id="currentCirclesList">
+            <!-- Lista de círculos actuales -->
+        </div>
+
+        <hr style="margin: 25px 0; border-top: 1px solid #eee;">
+
+        <form id="addCircleForm">
+            <label for="newCircleName">Nombre del Nuevo Círculo:</label>
+            <input type="text" id="newCircleName" placeholder="Ej: Compañeros de Hobby, Familia Lejana" required>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="isPrivate" checked>
+                <label for="isPrivate" style="margin-top: 0; font-weight: normal;">Hacer Círculo Privado (Solo tú puedes añadir miembros)</label>
+            </div>
+            
+            <button type="submit">Añadir Nuevo Círculo</button>
+        </form>
+
+        <p id="successMessage" class="success-message"></p>
+        <p id="errorMessage" class="error-message"></p>
+        
+        <p style="text-align:center; margin-top: 20px;"><a href="profile.html">Volver a Mi Perfil</a></p>
+    </div>
+</body>
+</html>
+
