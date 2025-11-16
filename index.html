@@ -3,35 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reproductor de Video TikTok</title>
+    <title>Nexus | El Flujo (Feed)</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: black;
+        /* Estilos Mínimos (se mantienen iguales) */
+        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
+        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; }
+        .filter-bar { padding: 10px; background-color: white; border-bottom: 1px solid #ddd; text-align: center; }
+        .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .interaction-bar button { background: none; border: none; cursor: pointer; color: #555; padding: 5px 10px; }
+        .interaction-bar button:hover { color: #0077b6; }
+        
+        /* Estilos para el Pop-up (Modal) (se mantienen iguales) */
+        .modal {
+            display: none; 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            justify-content: center; align-items: center; z-index: 1000;
         }
-
-        .video-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        .modal-content {
+            background-color: white; padding: 30px; border-radius: 10px;
+            text-align: center; max-width: 400px;
         }
-
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
+        .btn-register {
+            background-color: #0077b6; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div class="video-container">
-        <video controls poster="uno.png">
-            <source src="uno.mp4" type="video/mp4">
-            Tu navegador no soporta el elemento de video.
-        </video>
+
+    <header class="header">
+        <h1>NEXUS</h1>
+    </header>
+
+    <div class="filter-bar">
+        <button>#Noticias</button>
+        <button>#Tendencias</button>
+        <button>#ArteVisual</button>
     </div>
+
+    <main id="feed-container">
+        <article class="post">
+            <p><strong>@ViajeroDigital</strong> ha publicado:</p>
+            <p>¡El amanecer de hoy en la Patagonia fue increíble! Compartiendo esta vista con el Círculo #AmantesDeViajes.</p>
+            <hr>
+            
+            <div class="interaction-bar">
+                <button onclick="checkUserStatus('like')">❤️ Me Gusta</button>
+                <button onclick="checkUserStatus('comment')">💬 Comentar</button>
+                <button onclick="sharePost()">🔗 Compartir</button> 
+            </div>
+            
+            <p style="font-size: 0.8em; color: #888;">0 Me Gusta · 0 Comentarios</p>
+        </article>
+    </main>
+
+    <div id="registration-modal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content">
+            <h2>¡Únete a la Conversación!</h2>
+            <p>Para interactuar con la comunidad, dar 'Me Gusta', comentar y crear tus propios Círculos de Influencia, necesitas unirte a Nexus.</p>
+            
+            <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
+            
+            <p style="margin-top: 15px;">¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        // 1. Importar las funciones necesarias de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+
+        // 2. Configuración de Firebase (usando tus credenciales)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        // 3. Inicializar Firebase y Authentication
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        
+        let isUserLoggedIn = false; // Variable global para rastrear el estado
+
+        // 4. Observar el estado de autenticación (Firebase lo hace automáticamente)
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // El usuario está logueado
+                isUserLoggedIn = true;
+                console.log("Usuario logueado:", user.uid);
+            } else {
+                // El usuario NO está logueado
+                isUserLoggedIn = false;
+                console.log("Usuario no logueado.");
+            }
+        });
+
+        // Lógica de Interacción (Funciones globales)
+        const registrationModal = document.getElementById('registration-modal');
+
+        function showRegistrationModal() {
+            registrationModal.style.display = 'flex';
+        }
+
+        function closeModal(event) {
+            if (event.target === registrationModal) {
+                registrationModal.style.display = 'none';
+            }
+        }
+
+        // 5. Lógica Principal de Interacción (USA la variable 'isUserLoggedIn' real)
+        window.checkUserStatus = function(action) {
+            if (isUserLoggedIn) {
+                // El usuario puede interactuar
+                console.log("Usuario registrado. Procesando acción: " + action);
+                // Aquí iría la lógica para enviar el 'like' a Firestore.
+            } else {
+                // El usuario debe registrarse
+                showRegistrationModal();
+            }
+        }
+
+        window.sharePost = function() {
+             console.log("Compartiendo enlace externo del post. No requiere registro.");
+             alert("Enlace copiado al portapapeles. ¡Compártelo!");
+        }
+    </script>
 </body>
 </html>
