@@ -17,35 +17,52 @@
         /* Estilos del Post Dinámico */
         .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .post-author { font-weight: bold; color: #0077b6; }
+        .post-author { 
+            font-weight: bold; color: #0077b6; cursor: pointer; text-decoration: none;
+            transition: color 0.2s; 
+        }
+        .post-author:hover { text-decoration: underline; color: #004d7a; }
+
         .post-target { font-size: 0.75em; color: #555; background-color: #e0f7fa; padding: 4px 8px; border-radius: 12px; }
         .post-content { margin: 10px 0; line-height: 1.5; color: #333; }
         .interaction-bar { display: flex; justify-content: space-around; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;}
         .interaction-bar button { background: none; border: none; cursor: pointer; color: #555; padding: 5px 10px; font-weight: 600; }
         .interaction-bar button:hover { color: #0077b6; }
         .post-meta { font-size: 0.8em; color: #888; text-align: left; margin-top: 5px;}
+        .likes-info { cursor: pointer; text-decoration: underline; }
         
-        /* Estilos de Comentarios */
-        .comments-section { margin-top: 20px; padding-top: 10px; border-top: 1px solid #eee; }
-        .comment-input { display: flex; gap: 10px; margin-bottom: 10px; }
-        .comment-input input { flex-grow: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
-        .comment-input button { padding: 8px 15px; background-color: #0077b6; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .comment-item { font-size: 0.9em; margin-bottom: 5px; }
-        .comment-author { font-weight: bold; color: #333; margin-right: 5px; }
-
-        /* Estilos para el Pop-up (Modal) */
+        /* Estilos de Modal (General) */
         .modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
         }
         .modal-content {
             background-color: white; padding: 30px; border-radius: 10px;
-            text-align: center; max-width: 400px;
+            text-align: center; max-width: 400px; width: 90%; 
+            max-height: 80vh; overflow-y: auto; /* Para modales de comentarios */
         }
         .btn-register {
             background-color: #0077b6; color: white; padding: 10px 20px;
             border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;
         }
+        
+        /* Estilos del Modal de Comentarios y Likes */
+        .comment-item { 
+            display: flex; flex-direction: column; text-align: left;
+            padding: 10px 0; border-bottom: 1px solid #eee;
+        }
+        .comment-author { font-weight: bold; color: #333; margin-right: 5px; }
+        .comment-text { font-size: 0.9em; color: #555; }
+        .comment-input-area { margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .comment-input-area textarea { 
+            width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 5px;
+            margin-bottom: 10px; box-sizing: border-box; resize: none;
+        }
+        .comment-input-area button { width: 100%; padding: 10px; background-color: #28a745; color: white; border-radius: 5px; }
+
+        .like-user-item { text-align: left; padding: 8px 0; border-bottom: 1px solid #eee; }
+        .like-user-item a { color: #0077b6; font-weight: bold; text-decoration: none; }
+        .like-user-item a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -70,28 +87,48 @@
         </div>
     </main>
 
-    <!-- Modal para usuarios no logueados -->
-    <div id="registration-modal" class="modal" onclick="closeModal(event)">
+    <!-- Modal 1: Registro/Login (Se mantiene igual) -->
+    <div id="registration-modal" class="modal" onclick="closeModal(event, 'registration-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
             <h2>¡Únete a la Conversación!</h2>
             <p>Para interactuar, dar 'Me Gusta', comentar o crear contenido, necesitas unirte a Nexus.</p>
-            
             <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
-            
             <p style="margin-top: 15px;">¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a></p>
         </div>
     </div>
+
+    <!-- Modal 2: Comentarios / Ver Likes -->
+    <div id="comments-likes-modal" class="modal" onclick="closeModal(event, 'comments-likes-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="modal-title">Comentarios</h3>
+            <div id="modal-content-area">
+                <!-- Contenido de comentarios o likes -->
+            </div>
+            
+            <div id="comment-input-area" class="comment-input-area" style="display: none;">
+                <p style="font-weight: bold; margin-bottom: 5px; text-align: left;">Añadir Comentario:</p>
+                <textarea id="modal-comment-text" placeholder="Tu comentario..."></textarea>
+                <button onclick="submitCommentFromModal()">Comentar</button>
+            </div>
+            
+            <button style="margin-top: 20px; background-color: #888; padding: 8px 15px;" onclick="closeModal(null, 'comments-likes-modal')">Cerrar</button>
+        </div>
+    </div>
+
 
     <!-- ****************************************************** -->
     <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE FEED DINÁMICO -->
     <!-- ****************************************************** -->
     <script type="module">
-        // 1. Importar las funciones necesarias
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, doc, query, onSnapshot, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { 
+            getFirestore, collection, doc, query, onSnapshot, 
+            updateDoc, increment, setDoc, deleteDoc, getDoc, 
+            addDoc, serverTimestamp, orderBy 
+        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // 2. Configuración de Firebase (Tus Credenciales)
+        // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -101,19 +138,24 @@
             appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
         };
 
-        // 3. Inicializar Firebase y Servicios
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
         let isUserLoggedIn = false;
         let currentUser = null; 
+        let currentPostIdForModal = null; // Para saber qué post estamos comentando/viendo
 
         const feedContainer = document.getElementById('feed-container');
         const loadingMessage = document.getElementById('loading-posts');
         const registrationModal = document.getElementById('registration-modal');
+        const commentsLikesModal = document.getElementById('comments-likes-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalContentArea = document.getElementById('modal-content-area');
+        const commentInputArea = document.getElementById('comment-input-area');
+        const modalCommentText = document.getElementById('modal-comment-text');
 
-        // 4. Función para renderizar una publicación
+        // Función para renderizar una publicación
         function renderPost(post) {
             const postElement = document.createElement('article');
             postElement.className = 'post';
@@ -121,42 +163,37 @@
 
             const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
             
-            // Renderizar la publicación
+            // Determinar si el usuario ya le dio like para cambiar el icono
+            const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
+            const likeIcon = isLiked ? '💖' : '❤️';
+            const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
+            
             postElement.innerHTML = `
                 <div class="post-header">
-                    <span class="post-author">@${post.username || 'Usuario Desconocido'}</span>
+                    <!-- ENLACE AL PERFIL DEL AUTOR -->
+                    <a href="profile.html?uid=${post.userId}" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
                     <span class="post-target">${post.circleTarget}</span>
                 </div>
                 <p class="post-content">${post.text}</p>
                 <div class="interaction-bar">
-                    <button onclick="handleInteraction('like', '${post.id}')">
-                        <span id="like-icon-${post.id}">❤️</span> Me Gusta
+                    <button onclick="handleInteraction('like', '${post.id}')" id="like-btn-${post.id}">
+                        <span id="like-icon-${post.id}">${likeIcon}</span> ${likeButtonText}
                     </button>
-                    <button onclick="handleInteraction('comment', '${post.id}')">
+                    <!-- ABRE EL MODAL DE COMENTARIOS -->
+                    <button onclick="showCommentsModal('${post.id}')">
                         💬 Comentar
                     </button>
                     <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
                 </div>
                 <p class="post-meta">
-                    <span id="likes-count-${post.id}">${post.likes || 0}</span> Me Gusta · 
+                    <span id="likes-count-${post.id}" class="likes-info" onclick="showLikesModal('${post.id}')">${post.likes || 0}</span> Me Gusta · 
                     <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios - ${formattedDate}
                 </p>
-                <!-- Sección de Comentarios (Inicialmente vacía o con un placeholder) -->
-                <div id="comments-section-${post.id}" class="comments-section">
-                    <div class="comment-input">
-                        <input type="text" id="comment-text-${post.id}" placeholder="Escribe un comentario...">
-                        <button onclick="handleInteraction('submit-comment', '${post.id}')">Enviar</button>
-                    </div>
-                    <div id="comments-list-${post.id}">
-                        <!-- Aquí se mostrarán los comentarios (Simulación por ahora) -->
-                        <div class="comment-item"><span class="comment-author">@Jane</span> ¡Gran post!</div>
-                    </div>
-                </div>
             `;
             return postElement;
         }
 
-        // 5. Función para manejar las interacciones (Like/Comment)
+        // 7. Lógica del Botón "Me Gusta" (Likes Únicos)
         window.handleInteraction = async function(action, postId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -164,101 +201,228 @@
             }
 
             const postRef = doc(db, "posts", postId);
+            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
 
             try {
                 if (action === 'like') {
-                    // Implementación de Like: Sumar 1 al contador
-                    await updateDoc(postRef, {
-                        likes: increment(1)
-                    });
-                    // Opcional: Podrías cambiar el color del corazón o el texto aquí, pero Firestore lo actualizará por onSnapshot.
-                    console.log(`Like añadido al post: ${postId}`);
+                    // 1. Verificar si el usuario ya le dio like
+                    const likeDoc = await getDoc(likeRef);
 
-                } else if (action === 'submit-comment') {
-                    const commentInput = document.getElementById(`comment-text-${postId}`);
-                    const commentText = commentInput.value.trim();
-
-                    if (!commentText) {
-                        alert('El comentario no puede estar vacío.');
-                        return;
+                    if (likeDoc.exists()) {
+                        // YA DIO LIKE -> QUITAR LIKE
+                        await deleteDoc(likeRef);
+                        await updateDoc(postRef, {
+                            likes: increment(-1)
+                        });
+                        console.log(`Like quitado al post: ${postId}`);
+                    } else {
+                        // NO DIO LIKE -> DAR LIKE
+                        await setDoc(likeRef, {
+                            userId: currentUser.uid,
+                            username: currentUser.displayName || 'Usuario Nexus',
+                            timestamp: serverTimestamp()
+                        });
+                        await updateDoc(postRef, {
+                            likes: increment(1)
+                        });
+                        console.log(`Like añadido al post: ${postId}`);
                     }
-                    
-                    // Lógica para añadir comentario:
-                    // 1. Incrementar el contador de comentarios en el post (para esta demo)
-                    await updateDoc(postRef, {
-                        commentsCount: increment(1)
-                    });
-                    
-                    // 2. Simulación de renderizado de comentario (lo ideal sería guardarlo en una subcolección 'comments')
-                    const commentsList = document.getElementById(`comments-list-${postId}`);
-                    const newComment = document.createElement('div');
-                    newComment.className = 'comment-item';
-                    newComment.innerHTML = `<span class="comment-author">@${currentUser.displayName || 'Tú'}</span> ${commentText}`;
-                    commentsList.prepend(newComment); 
-
-                    commentInput.value = ''; // Limpiar el input
-
-                } else if (action === 'comment') {
-                    // Lógica para enfocar el input de comentario o expandir la sección
-                    const commentInput = document.getElementById(`comment-text-${postId}`);
-                    commentInput.focus();
-                }
-
+                } 
+                // La lógica de 'comment' se mueve al modal
             } catch (error) {
                 console.error(`Error al procesar ${action} en el post ${postId}:`, error);
                 alert(`Error al procesar ${action}. Revisa la consola.`);
             }
         }
+
+        // 8. FUNCIONES DEL MODAL DE COMENTARIOS/LIKES
+
+        // Función general para cerrar modales
+        window.closeModal = function(event, modalId) {
+            const modal = document.getElementById(modalId);
+            if (!event || event.target === modal) {
+                modal.style.display = 'none';
+                currentPostIdForModal = null;
+            }
+        }
         
-        // El resto del código del feed (setupFeedListener, showRegistrationModal, onAuthStateChanged) se mantiene igual
+        // Muestra el modal de registro si no está logueado
+        function showRegistrationModal() {
+            registrationModal.style.display = 'flex';
+        }
+
+        // Muestra el modal de comentarios
+        window.showCommentsModal = function(postId) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+
+            currentPostIdForModal = postId;
+            modalTitle.textContent = 'Comentarios de la Publicación';
+            commentInputArea.style.display = 'block';
+            commentsLikesModal.style.display = 'flex';
+            
+            // Inicia la escucha de comentarios
+            setupCommentsListener(postId);
+        }
+
+        // Muestra el modal de Likes
+        window.showLikesModal = function(postId) {
+            currentPostIdForModal = postId;
+            modalTitle.textContent = 'Usuarios que dieron Me Gusta';
+            commentInputArea.style.display = 'none';
+            commentsLikesModal.style.display = 'flex';
+            
+            // Inicia la escucha de likes
+            setupLikesListener(postId);
+        }
+
+        // Listener para COMENTARIOS
+        function setupCommentsListener(postId) {
+            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando comentarios...</p>';
+            
+            // Crear query para subcolección 'comments' ordenada por fecha
+            const commentsQuery = query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc"));
+
+            onSnapshot(commentsQuery, (querySnapshot) => {
+                modalContentArea.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Sé el primero en comentar.</p>';
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    const comment = doc.data();
+                    modalContentArea.innerHTML += `
+                        <div class="comment-item">
+                            <span class="comment-author">@${comment.username || 'Desconocido'}</span>
+                            <span class="comment-text">${comment.text}</span>
+                        </div>
+                    `;
+                });
+            }, (error) => {
+                modalContentArea.innerHTML = '<p style="color:red;">Error al cargar comentarios.</p>';
+                console.error("Error loading comments:", error);
+            });
+        }
         
-        // 6. Configurar el Listener del Feed de Firestore
+        // Listener para LIKES
+        function setupLikesListener(postId) {
+            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando lista de likes...</p>';
+            
+            // Crear query para subcolección 'likes'
+            const likesQuery = collection(db, "posts", postId, "likes");
+
+            onSnapshot(likesQuery, (querySnapshot) => {
+                modalContentArea.innerHTML = '';
+                
+                if (querySnapshot.empty) {
+                    modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Aún no hay Me Gusta.</p>';
+                    return;
+                }
+                
+                querySnapshot.forEach((doc) => {
+                    const like = doc.data();
+                    modalContentArea.innerHTML += `
+                        <div class="like-user-item">
+                            <a href="profile.html?uid=${like.userId}" onclick="closeModal(null, 'comments-likes-modal')">@${like.username || 'Desconocido'}</a>
+                        </div>
+                    `;
+                });
+            }, (error) => {
+                modalContentArea.innerHTML = '<p style="color:red;">Error al cargar likes.</p>';
+                console.error("Error loading likes:", error);
+            });
+        }
+
+        // Envía un comentario desde el modal
+        window.submitCommentFromModal = async function() {
+            const text = modalCommentText.value.trim();
+            if (!text) {
+                alert('El comentario no puede estar vacío.');
+                return;
+            }
+
+            const postId = currentPostIdForModal;
+            if (!postId) return;
+
+            try {
+                // 1. Añadir el comentario a la subcolección 'comments'
+                await addDoc(collection(db, "posts", postId, "comments"), {
+                    userId: currentUser.uid,
+                    username: currentUser.displayName || 'Usuario Nexus',
+                    text: text,
+                    timestamp: serverTimestamp()
+                });
+                
+                // 2. Incrementar el contador de comentarios en el documento del post
+                await updateDoc(doc(db, "posts", postId), {
+                    commentsCount: increment(1)
+                });
+
+                modalCommentText.value = ''; // Limpiar
+                // setupCommentsListener se encargará de refrescar la lista
+                
+            } catch (error) {
+                alert('Error al enviar el comentario.');
+                console.error("Error submitting comment:", error);
+            }
+        }
+        
+        // 9. Configurar el Listener del Feed de Firestore (Actualizado para el icono de Like)
         function setupFeedListener() {
-            const postsQuery = collection(db, "posts"); 
+            const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
 
             onSnapshot(postsQuery, (querySnapshot) => {
                 loadingMessage.style.display = 'none';
                 feedContainer.innerHTML = ''; 
 
-                const posts = [];
-                querySnapshot.forEach((doc) => {
-                    posts.push({ id: doc.id, ...doc.data() });
+                querySnapshot.forEach((docSnapshot) => {
+                    const postData = { id: docSnapshot.id, ...docSnapshot.data() };
+                    
+                    // Listener extra para saber si el usuario actual le dio like
+                    if (currentUser) {
+                        const likeRef = doc(db, "posts", postData.id, "likes", currentUser.uid);
+                        onSnapshot(likeRef, (likeDoc) => {
+                            // Este callback se dispara cuando cambia el estado del like del usuario
+                            const postElement = document.querySelector(`[data-post-id="${postData.id}"]`);
+                            if (postElement) {
+                                const likeIcon = postElement.querySelector(`#like-icon-${postData.id}`);
+                                const likeBtn = postElement.querySelector(`#like-btn-${postData.id}`);
+                                
+                                if (likeDoc.exists()) {
+                                    likeIcon.textContent = '💖';
+                                    likeBtn.lastChild.textContent = ' Quitar Me Gusta';
+                                } else {
+                                    likeIcon.textContent = '❤️';
+                                    likeBtn.lastChild.textContent = ' Me Gusta';
+                                }
+                            }
+                        });
+                    }
+                    
+                    feedContainer.appendChild(renderPost(postData));
                 });
 
-                posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
-                if (posts.length === 0) {
+                if (querySnapshot.empty) {
                     feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. Sé el primero en compartir en create-post.html!</p>';
-                } else {
-                    posts.forEach(post => {
-                        feedContainer.appendChild(renderPost(post));
-                    });
                 }
+                
             }, (error) => {
                 console.error("Error al obtener publicaciones:", error);
                 feedContainer.innerHTML = `<p style="text-align:center; padding: 20px; color: red;">Error al cargar el feed: ${error.message}</p>`;
             });
         }
-
-        // Lógica de Modal (se mantiene igual)
-        function showRegistrationModal() {
-            registrationModal.style.display = 'flex';
-        }
-
-        window.closeModal = function(event) {
-            if (event.target === registrationModal) {
-                registrationModal.style.display = 'none';
-            }
-        }
-
+        
         // Lógica de Compartir (se mantiene igual)
         window.sharePost = function(postId) {
              console.log(`Compartiendo enlace externo del post ID: ${postId}. No requiere registro.`);
-             // Usamos un modal o mensaje en lugar de alert()
              alert("Enlace copiado al portapapeles. ¡Compártelo!"); 
         }
 
-        // 7. Observar el estado de autenticación al cargar
+        // 10. Observar el estado de autenticación al cargar
         document.addEventListener('DOMContentLoaded', () => {
             onAuthStateChanged(auth, (user) => {
                 if (user) {
@@ -270,6 +434,7 @@
                     currentUser = null;
                     console.log("Usuario no logueado.");
                 }
+                // Inicia la carga del feed SÓLO después de saber el estado de autenticación
                 setupFeedListener(); 
             });
         });
