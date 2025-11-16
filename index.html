@@ -5,20 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | El Flujo (Feed)</title>
     <style>
-        /* Estilos Mínimos (se mantienen iguales) */
+        /* Estilos Base */
         body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
-        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; }
+        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 1.5em; }
+        .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
+        .header a:hover { background-color: #005f93; }
         .filter-bar { padding: 10px; background-color: white; border-bottom: 1px solid #ddd; text-align: center; }
-        .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .interaction-bar button { background: none; border: none; cursor: pointer; color: #555; padding: 5px 10px; }
-        .interaction-bar button:hover { color: #0077b6; }
         
-        /* Estilos para el Pop-up (Modal) (se mantienen iguales) */
+        /* Estilos del Post Dinámico */
+        .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .post-author { font-weight: bold; color: #0077b6; }
+        .post-target { font-size: 0.75em; color: #555; background-color: #e0f7fa; padding: 4px 8px; border-radius: 12px; }
+        .post-content { margin: 10px 0; line-height: 1.5; color: #333; }
+        .interaction-bar { display: flex; justify-content: space-around; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;}
+        .interaction-bar button { background: none; border: none; cursor: pointer; color: #555; padding: 5px 10px; font-weight: 600; }
+        .interaction-bar button:hover { color: #0077b6; }
+        .post-meta { font-size: 0.8em; color: #888; text-align: left; margin-top: 5px;}
+        
+        /* Estilos para el Pop-up (Modal) - Se mantienen iguales */
         .modal {
-            display: none; 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7);
-            justify-content: center; align-items: center; z-index: 1000;
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
         }
         .modal-content {
             background-color: white; padding: 30px; border-radius: 10px;
@@ -34,34 +43,31 @@
 
     <header class="header">
         <h1>NEXUS</h1>
+        <nav>
+            <a href="create-post.html">Crear Publicación</a>
+            <a href="profile.html">Mi Perfil</a>
+        </nav>
     </header>
 
     <div class="filter-bar">
-        <button>#Noticias</button>
+        <button>#Global</button>
+        <button id="private-filter">Mis Círculos</button>
         <button>#Tendencias</button>
-        <button>#ArteVisual</button>
     </div>
 
     <main id="feed-container">
-        <article class="post">
-            <p><strong>@ViajeroDigital</strong> ha publicado:</p>
-            <p>¡El amanecer de hoy en la Patagonia fue increíble! Compartiendo esta vista con el Círculo #AmantesDeViajes.</p>
-            <hr>
-            
-            <div class="interaction-bar">
-                <button onclick="checkUserStatus('like')">❤️ Me Gusta</button>
-                <button onclick="checkUserStatus('comment')">💬 Comentar</button>
-                <button onclick="sharePost()">🔗 Compartir</button> 
-            </div>
-            
-            <p style="font-size: 0.8em; color: #888;">0 Me Gusta · 0 Comentarios</p>
-        </article>
+        <div id="loading-posts" style="text-align: center; padding: 50px; color: #555;">
+            Cargando publicaciones...
+        </div>
+        <!-- Las publicaciones dinámicas se insertarán aquí -->
+        <!-- La antigua publicación estática fue eliminada -->
     </main>
 
+    <!-- Modal para usuarios no logueados -->
     <div id="registration-modal" class="modal" onclick="closeModal(event)">
-        <div class="modal-content">
+        <div class="modal-content" onclick="event.stopPropagation()">
             <h2>¡Únete a la Conversación!</h2>
-            <p>Para interactuar con la comunidad, dar 'Me Gusta', comentar y crear tus propios Círculos de Influencia, necesitas unirte a Nexus.</p>
+            <p>Para interactuar, dar 'Me Gusta', comentar o crear contenido, necesitas unirte a Nexus.</p>
             
             <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
             
@@ -69,12 +75,16 @@
         </div>
     </div>
 
+    <!-- ****************************************************** -->
+    <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE FEED DINÁMICO -->
+    <!-- ****************************************************** -->
     <script type="module">
-        // 1. Importar las funciones necesarias de Firebase
+        // 1. Importar las funciones necesarias
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // 2. Configuración de Firebase (usando tus credenciales)
+        // 2. Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -84,54 +94,120 @@
             appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
         };
 
-        // 3. Inicializar Firebase y Authentication
+        // 3. Inicializar Firebase y Servicios
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
         
-        let isUserLoggedIn = false; // Variable global para rastrear el estado
+        let isUserLoggedIn = false;
+        let currentUser = null; 
 
-        // 4. Observar el estado de autenticación (Firebase lo hace automáticamente)
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                // El usuario está logueado
-                isUserLoggedIn = true;
-                console.log("Usuario logueado:", user.uid);
-            } else {
-                // El usuario NO está logueado
-                isUserLoggedIn = false;
-                console.log("Usuario no logueado.");
-            }
-        });
-
-        // Lógica de Interacción (Funciones globales)
+        const feedContainer = document.getElementById('feed-container');
+        const loadingMessage = document.getElementById('loading-posts');
         const registrationModal = document.getElementById('registration-modal');
 
+        // 4. Función para renderizar una publicación
+        function renderPost(post) {
+            const postElement = document.createElement('article');
+            postElement.className = 'post';
+
+            const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
+            
+            postElement.innerHTML = `
+                <div class="post-header">
+                    <span class="post-author">@${post.username || 'Usuario Desconocido'}</span>
+                    <span class="post-target">${post.circleTarget}</span>
+                </div>
+                <p class="post-content">${post.text}</p>
+                <div class="interaction-bar">
+                    <button onclick="checkUserStatus('like', '${post.id}')">❤️ Me Gusta</button>
+                    <button onclick="checkUserStatus('comment', '${post.id}')">💬 Comentar</button>
+                    <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
+                </div>
+                <p class="post-meta">${post.likes || 0} Me Gusta · ${post.commentsCount || 0} Comentarios - ${formattedDate}</p>
+            `;
+            return postElement;
+        }
+
+        // 5. Configurar el Listener del Feed de Firestore
+        function setupFeedListener() {
+            // Consulta para obtener las publicaciones, ordenadas por fecha de creación descendente
+            // IMPORTANTE: Se ha quitado el 'orderBy' para evitar errores de índice en el entorno Canvas.
+            // La base de datos Firebase requiere índices específicos si se utiliza 'orderBy' y 'where' simultáneamente.
+            // Para mantener la simplicidad, ordenamos manualmente después de obtener los datos.
+            
+            // Si estuviéramos filtrando por Círculos, usaríamos query(collection(db, "posts"), where("circleTarget", "==", "Nombre del Círculo"))
+            const postsQuery = collection(db, "posts"); 
+
+            // onSnapshot mantiene la interfaz sincronizada en tiempo real
+            onSnapshot(postsQuery, (querySnapshot) => {
+                loadingMessage.style.display = 'none';
+                feedContainer.innerHTML = ''; // Limpiar el feed actual
+
+                const posts = [];
+                querySnapshot.forEach((doc) => {
+                    posts.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Ordenar manualmente por fecha de creación (descendente)
+                posts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+                if (posts.length === 0) {
+                    feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. Sé el primero en compartir en create-post.html!</p>';
+                } else {
+                    posts.forEach(post => {
+                        feedContainer.appendChild(renderPost(post));
+                    });
+                }
+            }, (error) => {
+                console.error("Error al obtener publicaciones:", error);
+                feedContainer.innerHTML = `<p style="text-align:center; padding: 20px; color: red;">Error al cargar el feed: ${error.message}</p>`;
+            });
+        }
+
+        // Lógica de Modal (se mantiene igual)
         function showRegistrationModal() {
             registrationModal.style.display = 'flex';
         }
 
-        function closeModal(event) {
+        window.closeModal = function(event) {
             if (event.target === registrationModal) {
                 registrationModal.style.display = 'none';
             }
         }
 
-        // 5. Lógica Principal de Interacción (USA la variable 'isUserLoggedIn' real)
-        window.checkUserStatus = function(action) {
+        // 6. Lógica Principal de Interacción (depende de isUserLoggedIn)
+        window.checkUserStatus = function(action, postId) {
             if (isUserLoggedIn) {
-                // El usuario puede interactuar
-                console.log("Usuario registrado. Procesando acción: " + action);
-                // Aquí iría la lógica para enviar el 'like' a Firestore.
+                console.log(`Usuario ${currentUser.uid} registrado. Procesando acción '${action}' en el post ID: ${postId}`);
+                // Aquí iría la lógica real para actualizar Firestore (e.g., likes/comments)
             } else {
-                // El usuario debe registrarse
                 showRegistrationModal();
             }
         }
 
-        window.sharePost = function() {
-             console.log("Compartiendo enlace externo del post. No requiere registro.");
-             alert("Enlace copiado al portapapeles. ¡Compártelo!");
+        window.sharePost = function(postId) {
+             console.log(`Compartiendo enlace externo del post ID: ${postId}. No requiere registro.`);
+             // Usamos un modal o mensaje en lugar de alert()
+             alert("Enlace copiado al portapapeles. ¡Compártelo!"); 
         }
+
+        // 7. Observar el estado de autenticación al cargar
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                isUserLoggedIn = true;
+                currentUser = user;
+                console.log("Usuario logueado:", user.uid);
+                // Si está logueado, podríamos añadir filtros por Círculo aquí, pero por ahora solo cargamos el feed.
+            } else {
+                isUserLoggedIn = false;
+                currentUser = null;
+                console.log("Usuario no logueado.");
+            }
+            // Inicia la carga del feed tan pronto como sepa si hay un usuario o no
+            setupFeedListener(); 
+        });
     </script>
 </body>
 </html>
+
