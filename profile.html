@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Mi Perfil</title>
+    <style>
+        /* Estilos Mínimos y Responsivos */
+        body { 
+            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
+            padding: 20px;
+        }
+        .profile-container { 
+            background-color: white; padding: 30px; border-radius: 12px; 
+            max-width: 700px; margin: 40px auto; 
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+            text-align: center;
+        }
+        .profile-header { margin-bottom: 30px; }
+        .profile-pic { 
+            width: 100px; height: 100px; border-radius: 50%; 
+            background-color: #ccc; margin: 0 auto 15px;
+            display: flex; justify-content: center; align-items: center; 
+            font-size: 30px; color: white; font-weight: bold;
+        }
+        .username { color: #0077b6; font-size: 1.8em; margin-bottom: 5px; }
+        .bio { color: #555; margin-bottom: 25px; border-bottom: 1px solid #eee; padding-bottom: 20px; }
+
+        .circles-section h3 { color: #333; border-bottom: 2px solid #ddd; padding-bottom: 10px; margin-bottom: 15px; }
+        .circles-list { 
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+        }
+        .circle-item {
+            background-color: #f0f8ff; color: #0077b6; 
+            border: 1px solid #b3e5fc; padding: 10px 15px; 
+            border-radius: 20px; font-size: 0.9em; font-weight: bold;
+            display: flex; align-items: center;
+        }
+        .circle-item span { margin-left: 8px; font-weight: normal; color: #555; }
+        
+        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; text-align: center; }
+        .loading-message { color: #0077b6; text-align: center; padding: 20px; }
+        .logout-button { background-color: #d9534f; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; margin-top: 30px; transition: background-color 0.3s; }
+        .logout-button:hover { background-color: #c9302c; }
+    </style>
+
+    <!-- 1. Carga de SDKs de Firebase (Auth y Firestore) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        
+        // 2. Configuración de Firebase (Tus Credenciales)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        // 3. Inicializar Firebase y Servicios
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let currentUser = null; 
+
+        // 4. Función para cargar los datos del perfil desde Firestore
+        async function loadProfileData() {
+            const errorDisplay = document.getElementById('errorMessage');
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('profileContent');
+
+            if (!currentUser) {
+                loading.textContent = 'Error: Usuario no encontrado.';
+                return;
+            }
+
+            try {
+                // Obtener el documento del usuario desde la colección 'users'
+                const userDocRef = doc(db, "users", currentUser.uid);
+                const userDoc = await getDoc(userDocRef);
+
+                loading.style.display = 'none'; // Ocultar mensaje de carga
+
+                if (userDoc.exists()) {
+                    const userData = userDoc.data();
+
+                    // Rellenar la información del perfil
+                    document.getElementById('profileUsername').textContent = '@' + (userData.username || currentUser.displayName || 'Usuario Nexus');
+                    document.getElementById('profileBio').textContent = userData.bio || '¡Hola! Este es mi perfil en Nexus.';
+                    document.getElementById('profilePicInitial').textContent = (userData.username || 'N').charAt(0).toUpperCase();
+
+                    // Rellenar la lista de Círculos
+                    const circlesList = document.getElementById('circlesList');
+                    circlesList.innerHTML = '';
+                    
+                    if (userData.circles && userData.circles.length > 0) {
+                        userData.circles.forEach(circle => {
+                            const item = document.createElement('div');
+                            item.className = 'circle-item';
+                            // Icono para privado/público
+                            const icon = circle.isPrivate ? '🔒' : '🌐'; 
+                            item.innerHTML = `${icon} ${circle.name} <span>(${circle.membersCount || 1} Miembro)</span>`;
+                            circlesList.appendChild(item);
+                        });
+                    } else {
+                        circlesList.innerHTML = '<p style="color:#888;">Aún no has creado ningún Círculo de Influencia.</p>';
+                    }
+
+                    content.style.display = 'block'; // Mostrar contenido del perfil
+
+                } else {
+                    errorDisplay.textContent = 'Error: Perfil no encontrado en Firestore. Por favor, completa la configuración inicial.';
+                }
+
+            } catch (error) {
+                errorDisplay.textContent = 'Error al cargar los datos del perfil.';
+                console.error("Error loading profile from Firestore:", error);
+            }
+        }
+
+        // 5. Función para cerrar sesión
+        window.handleLogout = async function() {
+            try {
+                await signOut(auth);
+                alert("Sesión cerrada correctamente.");
+                window.location.href = 'feed.html'; // Redirigir al feed no logueado
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+                document.getElementById('errorMessage').textContent = 'Error al cerrar sesión.';
+            }
+        }
+
+        // 6. Verificar el estado de Autenticación al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    currentUser = user;
+                    // El usuario está logueado, cargar sus datos
+                    loadProfileData(); 
+                } else {
+                    // El usuario NO está logueado, redirigir
+                    alert("Debes iniciar sesión para ver tu perfil.");
+                    window.location.href = 'login.html'; 
+                }
+            });
+        });
+    </script>
+</head>
+<body>
+
+    <div class="profile-container">
+        
+        <div id="loading" class="loading-message">
+            Cargando datos del Perfil Nexus...
+        </div>
+
+        <div id="profileContent" style="display:none;">
+            
+            <div class="profile-header">
+                <div id="profilePicInitial" class="profile-pic">N</div> 
+                <h1 id="profileUsername" class="username">@CargandoUsuario</h1>
+                <p id="profileBio" class="bio">...</p>
+            </div>
+
+            <div class="circles-section">
+                <h3>Círculos de Influencia Creados</h3>
+                <div id="circlesList" class="circles-list">
+                    <!-- Los círculos se cargarán aquí -->
+                </div>
+            </div>
+            
+            <button onclick="handleLogout()" class="logout-button">Cerrar Sesión</button>
+        </div>
+
+        <p id="errorMessage" class="error-message"></p>
+    </div>
+</body>
+</html>
+
