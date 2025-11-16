@@ -17,11 +17,20 @@
         /* Estilos del Post Dinámico */
         .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .author-info { display: flex; align-items: center; gap: 10px; }
         .post-author { 
             font-weight: bold; color: #0077b6; cursor: pointer; text-decoration: none;
             transition: color 0.2s; 
         }
         .post-author:hover { text-decoration: underline; color: #004d7a; }
+        .follow-button {
+            background-color: #ff9900; color: white; border: none; padding: 5px 10px;
+            border-radius: 5px; font-size: 0.8em; cursor: pointer; transition: background-color 0.2s;
+        }
+        .follow-button:hover { background-color: #cc7a00; }
+        .following { background-color: #28a745; }
+        .following:hover { background-color: #1e7e34; }
+
 
         .post-target { font-size: 0.75em; color: #555; background-color: #e0f7fa; padding: 4px 8px; border-radius: 12px; }
         .post-content { margin: 10px 0; line-height: 1.5; color: #333; }
@@ -70,8 +79,8 @@
     <header class="header">
         <h1>NEXUS</h1>
         <nav>
-            <a href="create-post.html">Crear Publicación</a>
-            <a href="profile.html">Mi Perfil</a>
+            <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear Publicación</a>
+            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Mi Perfil</a>
         </nav>
     </header>
 
@@ -87,7 +96,7 @@
         </div>
     </main>
 
-    <!-- Modal 1: Registro/Login (Se mantiene igual) -->
+    <!-- Modal 1: Registro/Login -->
     <div id="registration-modal" class="modal" onclick="closeModal(event, 'registration-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
             <h2>¡Únete a la Conversación!</h2>
@@ -155,6 +164,72 @@
         const commentInputArea = document.getElementById('comment-input-area');
         const modalCommentText = document.getElementById('modal-comment-text');
 
+
+        // Lógica de protección de navegación del encabezado
+        window.checkAuthAndNavigate = function(url) {
+            if (isUserLoggedIn) {
+                window.location.href = url;
+            } else {
+                showRegistrationModal();
+            }
+        }
+        
+        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR
+        window.handleFollow = async function(authorId) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+            if (authorId === currentUser.uid) return; // No seguirte a ti mismo
+
+            const followerRef = doc(db, "users", currentUser.uid, "following", authorId);
+            const followingRef = doc(db, "users", authorId, "followers", currentUser.uid);
+
+            try {
+                const followDoc = await getDoc(followerRef);
+
+                if (followDoc.exists()) {
+                    // YA SIGUE -> DEJAR DE SEGUIR
+                    await deleteDoc(followerRef);
+                    await deleteDoc(followingRef);
+                    console.log(`Dejó de seguir a ${authorId}`);
+                    // Actualizar el texto del botón en el feed si es visible
+                    updateFollowButton(authorId, false);
+                } else {
+                    // NO SIGUE -> SEGUIR
+                    const followData = {
+                        userId: authorId, // El ID del usuario que está siendo seguido
+                        username: '', // Lo podríamos llenar con el nombre del autor, pero lo dejamos simple por ahora
+                        timestamp: serverTimestamp()
+                    };
+                    await setDoc(followerRef, followData);
+                    await setDoc(followingRef, {
+                         userId: currentUser.uid, // El ID del usuario que sigue
+                         timestamp: serverTimestamp()
+                    });
+                    console.log(`Siguiendo a ${authorId}`);
+                    updateFollowButton(authorId, true);
+                }
+            } catch (error) {
+                console.error("Error al seguir/dejar de seguir:", error);
+            }
+        }
+
+        // Función para actualizar el botón sin recargar toda la publicación
+        function updateFollowButton(targetId, isFollowing) {
+             const buttons = document.querySelectorAll(`[data-author-id="${targetId}"]`);
+             buttons.forEach(button => {
+                 if (isFollowing) {
+                     button.textContent = 'Siguiendo';
+                     button.classList.add('following');
+                 } else {
+                     button.textContent = 'Seguir';
+                     button.classList.remove('following');
+                 }
+             });
+        }
+
+
         // Función para renderizar una publicación
         function renderPost(post) {
             const postElement = document.createElement('article');
@@ -167,11 +242,44 @@
             const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
             const likeIcon = isLiked ? '💖' : '❤️';
             const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
+
+            // Determinar el estado de seguimiento (Por defecto: no seguir)
+            const isAuthor = currentUser && post.userId === currentUser.uid;
+            let followButtonHTML = '';
+            
+            if (isUserLoggedIn && !isAuthor) {
+                // Verificar en tiempo real el estado de seguimiento para cada post
+                 const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
+                 onSnapshot(followerRef, (docSnapshot) => {
+                     const isFollowing = docSnapshot.exists();
+                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
+                     const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
+                     
+                     const existingButton = postElement.querySelector(`#follow-btn-${post.id}`);
+                     if (existingButton) {
+                        existingButton.textContent = buttonText;
+                        existingButton.className = buttonClass;
+                     }
+                 });
+
+                // Botón inicial
+                followButtonHTML = `
+                    <button 
+                        id="follow-btn-${post.id}"
+                        data-author-id="${post.userId}"
+                        class="follow-button"
+                        onclick="handleFollow('${post.userId}')"
+                    >Seguir</button>
+                `;
+            }
             
             postElement.innerHTML = `
                 <div class="post-header">
-                    <!-- ENLACE AL PERFIL DEL AUTOR -->
-                    <a href="profile.html?uid=${post.userId}" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
+                    <div class="author-info">
+                        <!-- ENLACE AL PERFIL DEL AUTOR -->
+                        <a href="profile.html?uid=${post.userId}" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
+                        ${followButtonHTML}
+                    </div>
                     <span class="post-target">${post.circleTarget}</span>
                 </div>
                 <p class="post-content">${post.text}</p>
@@ -193,8 +301,9 @@
             return postElement;
         }
 
-        // 7. Lógica del Botón "Me Gusta" (Likes Únicos)
+        // 7. Lógica del Botón "Me Gusta" (Likes Únicos - Se mantiene)
         window.handleInteraction = async function(action, postId) {
+             // ... [Lógica de Likes Únicos] ...
             if (!isUserLoggedIn) {
                 showRegistrationModal();
                 return;
@@ -228,16 +337,13 @@
                         console.log(`Like añadido al post: ${postId}`);
                     }
                 } 
-                // La lógica de 'comment' se mueve al modal
             } catch (error) {
                 console.error(`Error al procesar ${action} en el post ${postId}:`, error);
                 alert(`Error al procesar ${action}. Revisa la consola.`);
             }
         }
 
-        // 8. FUNCIONES DEL MODAL DE COMENTARIOS/LIKES
-
-        // Función general para cerrar modales
+        // 8. FUNCIONES DEL MODAL (Se mantienen)
         window.closeModal = function(event, modalId) {
             const modal = document.getElementById(modalId);
             if (!event || event.target === modal) {
@@ -246,58 +352,45 @@
             }
         }
         
-        // Muestra el modal de registro si no está logueado
         function showRegistrationModal() {
             registrationModal.style.display = 'flex';
         }
 
-        // Muestra el modal de comentarios
         window.showCommentsModal = function(postId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
                 return;
             }
-
             currentPostIdForModal = postId;
             modalTitle.textContent = 'Comentarios de la Publicación';
             commentInputArea.style.display = 'block';
             commentsLikesModal.style.display = 'flex';
-            
-            // Inicia la escucha de comentarios
             setupCommentsListener(postId);
         }
 
-        // Muestra el modal de Likes
         window.showLikesModal = function(postId) {
             currentPostIdForModal = postId;
             modalTitle.textContent = 'Usuarios que dieron Me Gusta';
             commentInputArea.style.display = 'none';
             commentsLikesModal.style.display = 'flex';
-            
-            // Inicia la escucha de likes
             setupLikesListener(postId);
         }
 
-        // Listener para COMENTARIOS
         function setupCommentsListener(postId) {
             modalContentArea.innerHTML = '<p style="text-align:center;">Cargando comentarios...</p>';
-            
-            // Crear query para subcolección 'comments' ordenada por fecha
             const commentsQuery = query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc"));
 
             onSnapshot(commentsQuery, (querySnapshot) => {
                 modalContentArea.innerHTML = '';
-                
                 if (querySnapshot.empty) {
                     modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Sé el primero en comentar.</p>';
                     return;
                 }
-                
                 querySnapshot.forEach((doc) => {
                     const comment = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="comment-item">
-                            <span class="comment-author">@${comment.username || 'Desconocido'}</span>
+                            <a href="profile.html?uid=${comment.userId}" class="comment-author" onclick="closeModal(null, 'comments-likes-modal')">@${comment.username || 'Desconocido'}</a>
                             <span class="comment-text">${comment.text}</span>
                         </div>
                     `;
@@ -308,21 +401,16 @@
             });
         }
         
-        // Listener para LIKES
         function setupLikesListener(postId) {
             modalContentArea.innerHTML = '<p style="text-align:center;">Cargando lista de likes...</p>';
-            
-            // Crear query para subcolección 'likes'
             const likesQuery = collection(db, "posts", postId, "likes");
 
             onSnapshot(likesQuery, (querySnapshot) => {
                 modalContentArea.innerHTML = '';
-                
                 if (querySnapshot.empty) {
                     modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Aún no hay Me Gusta.</p>';
                     return;
                 }
-                
                 querySnapshot.forEach((doc) => {
                     const like = doc.data();
                     modalContentArea.innerHTML += `
@@ -337,7 +425,6 @@
             });
         }
 
-        // Envía un comentario desde el modal
         window.submitCommentFromModal = async function() {
             const text = modalCommentText.value.trim();
             if (!text) {
@@ -349,7 +436,6 @@
             if (!postId) return;
 
             try {
-                // 1. Añadir el comentario a la subcolección 'comments'
                 await addDoc(collection(db, "posts", postId, "comments"), {
                     userId: currentUser.uid,
                     username: currentUser.displayName || 'Usuario Nexus',
@@ -357,13 +443,11 @@
                     timestamp: serverTimestamp()
                 });
                 
-                // 2. Incrementar el contador de comentarios en el documento del post
                 await updateDoc(doc(db, "posts", postId), {
                     commentsCount: increment(1)
                 });
 
-                modalCommentText.value = ''; // Limpiar
-                // setupCommentsListener se encargará de refrescar la lista
+                modalCommentText.value = ''; 
                 
             } catch (error) {
                 alert('Error al enviar el comentario.');
@@ -382,16 +466,17 @@
                 querySnapshot.forEach((docSnapshot) => {
                     const postData = { id: docSnapshot.id, ...docSnapshot.data() };
                     
-                    // Listener extra para saber si el usuario actual le dio like
+                    const postElement = renderPost(postData);
+                    feedContainer.appendChild(postElement);
+                    
+                    // Listener para actualizar el botón de like en tiempo real
                     if (currentUser) {
                         const likeRef = doc(db, "posts", postData.id, "likes", currentUser.uid);
                         onSnapshot(likeRef, (likeDoc) => {
-                            // Este callback se dispara cuando cambia el estado del like del usuario
-                            const postElement = document.querySelector(`[data-post-id="${postData.id}"]`);
-                            if (postElement) {
-                                const likeIcon = postElement.querySelector(`#like-icon-${postData.id}`);
-                                const likeBtn = postElement.querySelector(`#like-btn-${postData.id}`);
-                                
+                            const likeIcon = postElement.querySelector(`#like-icon-${postData.id}`);
+                            const likeBtn = postElement.querySelector(`#like-btn-${postData.id}`);
+                            
+                            if (likeIcon && likeBtn) {
                                 if (likeDoc.exists()) {
                                     likeIcon.textContent = '💖';
                                     likeBtn.lastChild.textContent = ' Quitar Me Gusta';
@@ -402,8 +487,6 @@
                             }
                         });
                     }
-                    
-                    feedContainer.appendChild(renderPost(postData));
                 });
 
                 if (querySnapshot.empty) {
@@ -434,7 +517,6 @@
                     currentUser = null;
                     console.log("Usuario no logueado.");
                 }
-                // Inicia la carga del feed SÓLO después de saber el estado de autenticación
                 setupFeedListener(); 
             });
         });
