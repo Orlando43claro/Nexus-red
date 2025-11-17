@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Perfil de Usuario</title>
+    <!-- Incluir Font Awesome para el icono del corazón -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Estilos Generales */
         body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
@@ -23,18 +25,18 @@
         .profile-info h2 { color: #333; margin-bottom: 5px; }
         .profile-info p { color: #555; margin-top: 0; font-size: 0.9em; }
         
-        /* NUEVO: Indicador de Estado */
+        /* Indicador de Estado */
         .status-indicator {
             width: 12px;
             height: 12px;
             border-radius: 50%;
-            background-color: #ccc; /* Gris para Desconectado/Desconocido */
+            background-color: #ccc;
             border: 2px solid white;
             box-shadow: 0 0 0 1px #888;
             margin-left: 10px;
         }
         .online {
-            background-color: #28a745; /* Verde para Activo */
+            background-color: #28a745; 
             box-shadow: 0 0 0 1px #28a745;
         }
 
@@ -78,7 +80,32 @@
             border-radius: 8px; border-left: 5px solid #0077b6;
         }
         .post-card p { margin: 0; color: #333; }
-        .post-card small { display: block; margin-top: 5px; color: #888; }
+        .post-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .post-footer small {
+            color: #888;
+        }
+        
+        /* Estilo del botón de Like */
+        .like-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px 10px;
+            color: #555;
+            transition: color 0.2s;
+            font-size: 1em;
+        }
+        .liked {
+            color: #dc3545; /* Rojo para el like */
+        }
+        .like-btn:hover {
+            color: #dc3545;
+        }
 
 
         /* Estilos de Modal (Comunes para todos) */
@@ -188,7 +215,8 @@
         import { 
             getFirestore, doc, getDoc, updateDoc, 
             collection, query, where, getDocs, onSnapshot,
-            setDoc, deleteDoc, serverTimestamp // <-- serverTimestamp importado para tracking
+            setDoc, deleteDoc, serverTimestamp, increment, // <-- increment importado para los likes
+            runTransaction // <-- runTransaction importado para likes seguros
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
         // Configuración de Firebase (Tus Credenciales)
@@ -206,8 +234,8 @@
         const db = getFirestore(app);
 
         let currentUser = null;
-        let profileUserId = null; // ID del usuario cuyo perfil estamos viendo
-        let profileUserData = {}; // Datos del usuario del perfil
+        let profileUserId = null; 
+        let profileUserData = {}; 
 
         const urlParams = new URLSearchParams(window.location.search);
         
@@ -221,7 +249,7 @@
         const logoutConfirmModal = document.getElementById('logout-confirm-modal');
         const followersCountSpan = document.getElementById('followers-count');
         const followingCountSpan = document.getElementById('following-count');
-        const onlineStatusIndicator = document.getElementById('online-status-indicator'); // <-- NUEVO
+        const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
 
 
         // Función para cerrar cualquier modal
@@ -233,15 +261,87 @@
         }
         
         // ******************************************************
-        // LÓGICA DE PRESENCIA Y ESTADO ACTIVO (NUEVO)
+        // LÓGICA DE LIKES (NUEVA)
         // ******************************************************
 
-        // Función para actualizar el estado de presencia del usuario actual
+        /**
+         * Maneja el evento de dar o quitar "Me Gusta" a una publicación.
+         * Usa una transacción para actualizar el contador de likes de forma segura.
+         * @param {string} postId El ID del documento de la publicación.
+         * @param {string} isCurrentlyLiked Un string 'true' o 'false' para el estado actual.
+         */
+        window.handleLikePost = async function(postId, isCurrentlyLiked) {
+            if (!currentUser) {
+                console.error("Debes iniciar sesión para dar Me Gusta.");
+                return;
+            }
+
+            const isLiked = isCurrentlyLiked === 'true';
+            const postRef = doc(db, "posts", postId);
+            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
+
+            try {
+                // Ejecutar la transacción para garantizar la atomicidad (seguridad)
+                await runTransaction(db, async (transaction) => {
+                    const postDoc = await transaction.get(postRef);
+                    if (!postDoc.exists()) {
+                        throw new Error("La publicación ya no existe.");
+                    }
+
+                    if (isLiked) {
+                        // 1. Quitar like
+                        transaction.delete(likeRef);
+                        // 2. Decrementar el contador
+                        transaction.update(postRef, {
+                            likes: increment(-1)
+                        });
+                        console.log("Like quitado con éxito.");
+                    } else {
+                        // 1. Dar like
+                        transaction.set(likeRef, { 
+                            userId: currentUser.uid, 
+                            timestamp: serverTimestamp() 
+                        });
+                        // 2. Incrementar el contador
+                        transaction.update(postRef, {
+                            likes: increment(1)
+                        });
+                        console.log("Like dado con éxito.");
+                    }
+                });
+                
+                // La función loadUserPosts se llamará de nuevo para actualizar el UI
+                // Pero para un UX más rápido, podríamos actualizar el botón inmediatamente (lo hacemos en loadUserPosts)
+
+            } catch (error) {
+                console.error("Error al manejar el like:", error);
+            }
+        }
+        
+        /**
+         * Verifica si el usuario actual le ha dado like a una publicación.
+         * @param {string} postId 
+         * @returns {Promise<boolean>}
+         */
+        async function checkUserLiked(postId) {
+            if (!currentUser) return false;
+            try {
+                const likeDoc = await getDoc(doc(db, "posts", postId, "likes", currentUser.uid));
+                return likeDoc.exists();
+            } catch (e) {
+                console.error("Error checking like status:", e);
+                return false;
+            }
+        }
+        
+
+        // ******************************************************
+        // LÓGICA DE PRESENCIA Y ESTADO ACTIVO (MANTENIDA)
+        // ******************************************************
         function updatePresence() {
             if (currentUser) {
                 try {
                     const userRef = doc(db, "users", currentUser.uid);
-                    // Solo actualizamos 'lastSeen'. El resto de campos se mantiene.
                     updateDoc(userRef, {
                         lastSeen: serverTimestamp()
                     }).catch(err => console.error("Error al actualizar lastSeen:", err));
@@ -251,15 +351,13 @@
             }
         }
 
-        // Función para verificar y mostrar el estado de actividad del perfil visitado
         function checkAndDisplayStatus(userData) {
             const lastSeen = userData.lastSeen;
             const now = Date.now();
-            const activeThreshold = 60 * 1000; // Considerar "Activo" si la última actividad fue hace 60 segundos o menos
+            const activeThreshold = 60 * 1000;
             let isOnline = false;
 
             if (lastSeen) {
-                // Convertir el Timestamp de Firebase a milisegundos
                 const lastSeenTime = lastSeen.toDate ? lastSeen.toDate().getTime() : (lastSeen.seconds * 1000) + (lastSeen.nanoseconds / 1000000); 
                 
                 if (now - lastSeenTime < activeThreshold) {
@@ -274,7 +372,6 @@
                 onlineStatusIndicator.classList.add('online');
                 onlineStatusIndicator.title = "Activo ahora";
             } else if (lastSeen) {
-                // Opcional: Mostrar cuándo fue la última vez que estuvo activo si está "desconectado"
                 onlineStatusIndicator.title = `Últ. vez activo: ${new Date(lastSeen.toDate()).toLocaleTimeString()}`;
             }
         }
@@ -284,7 +381,6 @@
         // LÓGICA DE SEGUIMIENTO Y LISTAS (MANTENIDA)
         // ******************************************************
         function setupFollowListeners(userId) {
-            // Listener de Seguidores (Followers)
             const followersRef = collection(db, "users", userId, "followers");
             onSnapshot(followersRef, (snapshot) => {
                 followersCountSpan.textContent = snapshot.size;
@@ -292,7 +388,6 @@
                 console.error("Error al obtener seguidores:", error);
             });
 
-            // Listener de Siguiendo (Following)
             const followingRef = collection(db, "users", userId, "following");
             onSnapshot(followingRef, (snapshot) => {
                 followingCountSpan.textContent = snapshot.size;
@@ -371,7 +466,6 @@
             const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
 
             try {
-                // Obtener el nombre de usuario del usuario actual para el registro del seguidor
                 const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
                 const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
 
@@ -406,11 +500,12 @@
         }
 
         // ******************************************************
-        // LÓGICA DE RENDERIZADO PRINCIPAL (MODIFICADA)
+        // LÓGICA DE RENDERIZADO PRINCIPAL
         // ******************************************************
         
-        // 1. Carga los datos del perfil (usa onSnapshot para el estado activo en tiempo real)
+        // 1. Carga los datos del perfil y sus publicaciones (MODIFICADA: Se agrega un listener de publicaciones)
         let profileDocListener = null;
+        let postSnapshotListener = null;
 
         function loadProfileData() {
             if (!profileUserId) {
@@ -419,45 +514,95 @@
                 return;
             }
             
-            // Si ya hay un listener, lo desuscribimos primero
-            if (profileDocListener) {
-                profileDocListener();
-            }
+            // Desuscribir listeners previos
+            if (profileDocListener) profileDocListener();
+            if (postSnapshotListener) postSnapshotListener();
 
             const userRef = doc(db, "users", profileUserId);
             
-            // Usamos onSnapshot para escuchar cambios en el documento, incluyendo 'lastSeen'
+            // Listener de Datos de Perfil y Estado Activo
             profileDocListener = onSnapshot(userRef, (userDoc) => {
                 if (!userDoc.exists()) {
                     profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
                     return;
                 }
                 
-                // Actualizar los datos del perfil
                 profileUserData = userDoc.data();
-                
-                // 1. Actualizar el UI del perfil (Nombre y Bio)
                 document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
-                // 2. Verificar y mostrar el estado de actividad (NUEVO)
                 checkAndDisplayStatus(profileUserData);
-
-                // 3. Renderizar botones de acción y publicaciones
                 renderActionButtons();
-                setupFollowListeners(profileUserId); // Se mantiene el listener de contadores
-
-                // Cargamos publicaciones solo una vez al iniciar la vista
-                if (!window._postsLoaded) { 
-                    loadUserPosts();
-                    window._postsLoaded = true;
-                }
-                
+                setupFollowListeners(profileUserId); 
             }, (error) => {
                 console.error("Error al cargar datos del perfil:", error);
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
             });
+            
+            // 2. Listener en tiempo real para las publicaciones (Incluye likes)
+            const postsQuery = query(
+                collection(db, "posts"), 
+                where("userId", "==", profileUserId)
+            );
+
+            postSnapshotListener = onSnapshot(postsQuery, (snapshot) => {
+                let posts = [];
+                snapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+
+                // Ordenar localmente por 'createdAt' (descendente)
+                posts.sort((a, b) => {
+                    const timeA = a.createdAt ? (a.createdAt.seconds * 1000) + (a.createdAt.nanoseconds / 1000000) : 0;
+                    const timeB = b.createdAt ? (b.createdAt.seconds * 1000) + (b.createdAt.nanoseconds / 1000000) : 0;
+                    return timeB - timeA;
+                });
+                
+                renderPosts(posts); // Llamar a la función de renderizado
+            }, (error) => {
+                console.error("Error al escuchar publicaciones:", error);
+                userPostsDiv.innerHTML = '<p style="color: red;">Error al cargar las publicaciones del usuario en tiempo real.</p>';
+            });
         }
+        
+        /**
+         * Renderiza las publicaciones y el botón de like.
+         * @param {Array<Object>} posts - Array de objetos de publicación.
+         */
+        async function renderPosts(posts) {
+            userPostsDiv.innerHTML = '';
+
+            if (posts.length === 0) {
+                userPostsDiv.innerHTML = '<p>Este usuario aún no tiene publicaciones.</p>';
+                return;
+            }
+
+            // Mapear posts a promesas para obtener el estado de "like" para cada uno
+            const postRenderPromises = posts.map(async (post) => {
+                const isLiked = await checkUserLiked(post.id);
+                const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
+                
+                const heartClass = isLiked ? 'fa-heart liked' : 'fa-heart-o';
+                const likeStatus = isLiked ? 'true' : 'false';
+                
+                // Usamos el id del post y el estado actual para la función handleLikePost
+                return `
+                    <div class="post-card">
+                        <p>${post.text}</p>
+                        <div class="post-footer">
+                            <small>Publicado: ${formattedDate} | Círculo: ${post.circleTarget || 'Global'}</small>
+                            <button class="like-btn" onclick="handleLikePost('${post.id}', '${likeStatus}')">
+                                <i id="like-icon-${post.id}" class="fa ${heartClass}"></i> 
+                                <span id="like-count-${post.id}">${post.likes || 0}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Esperar a que se resuelvan todas las promesas y luego agregarlas al DOM
+            const postHTML = await Promise.all(postRenderPromises);
+            userPostsDiv.innerHTML = postHTML.join('');
+        }
+        
 
         // 2. Renderiza los botones de acción (MANTENIDA)
         function renderActionButtons() {
@@ -490,50 +635,7 @@
             }
         }
 
-        // 3. Carga las publicaciones del perfil (MANTENIDA)
-        async function loadUserPosts() {
-            userPostsDiv.innerHTML = '<p style="color: #888;">Cargando publicaciones...</p>';
-            try {
-                const postsQuery = query(
-                    collection(db, "posts"), 
-                    where("userId", "==", profileUserId)
-                );
-                
-                let querySnapshot = await getDocs(postsQuery);
-                let posts = [];
-                querySnapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
-
-                // Ordenar localmente por 'createdAt' (descendente)
-                posts.sort((a, b) => {
-                    const timeA = a.createdAt ? (a.createdAt.seconds * 1000) + (a.createdAt.nanoseconds / 1000000) : 0;
-                    const timeB = b.createdAt ? (b.createdAt.seconds * 1000) + (b.createdAt.nanoseconds / 1000000) : 0;
-                    return timeB - timeA;
-                });
-                
-                userPostsDiv.innerHTML = '';
-
-                if (posts.length === 0) {
-                    userPostsDiv.innerHTML = '<p>Este usuario aún no tiene publicaciones.</p>';
-                    return;
-                }
-
-                posts.forEach((post) => {
-                    const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
-                    userPostsDiv.innerHTML += `
-                        <div class="post-card">
-                            <p>${post.text}</p>
-                            <small>Publicado: ${formattedDate} | Likes: ${post.likes || 0} | Círculo: ${post.circleTarget || 'Global'}</small>
-                        </div>
-                    `;
-                });
-
-            } catch (error) {
-                console.error("Error al cargar publicaciones:", error);
-                userPostsDiv.innerHTML = '<p style="color: red;">Error al cargar las publicaciones del usuario.</p>';
-            }
-        }
-
-        // 4. Lógica de edición de perfil (MANTENIDA)
+        // 3. Lógica de edición de perfil (MANTENIDA)
         window.showEditModal = function() {
             document.getElementById('edit-username').value = profileUserData.username || '';
             document.getElementById('edit-bio').value = profileUserData.bio || '';
@@ -556,7 +658,6 @@
                 });
                 
                 closeModal(null, 'edit-modal');
-                // loadProfileData se actualizará automáticamente gracias a onSnapshot
             } catch (error) {
                 console.error("Error al guardar cambios:", error);
             }
@@ -569,19 +670,14 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
-                    // Determinar el perfil a mostrar
                     profileUserId = urlParams.get('uid') || currentUser.uid;
                     
-                    // 1. Iniciar seguimiento de presencia para el usuario actual
                     updatePresence(); 
-                    // 2. Establecer actualización periódica (cada 30 segundos)
                     setInterval(updatePresence, 30000); 
 
-                    // 3. Cargar los datos del perfil (con listener de estado)
                     loadProfileData();
 
                 } else {
-                    // Si no está logueado, redirigir al login
                     window.location.href = 'login.html';
                 }
             });
