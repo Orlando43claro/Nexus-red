@@ -68,6 +68,7 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .status-message a { color: #0077b6; font-weight: bold; text-decoration: none; }
+        .error-message { color: #cc0000; font-weight: bold; }
 
         /* Estilos de Modal */
         .modal {
@@ -90,7 +91,6 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Flujo</a>
-            <!-- ENLACE DIRECTO A EXPLORAR -->
             <a href="explore.html">Explorar</a> 
             <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear</a>
             <a href="#" onclick="checkAuthAndNavigate('profile.html')">Perfil</a>
@@ -129,7 +129,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { 
-            getFirestore, collection, doc, query, onSnapshot, orderBy, where, 
+            getFirestore, collection, doc, query, onSnapshot, where, 
             setDoc, deleteDoc, getDoc, getDocs
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
@@ -143,7 +143,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         
-        let isAuthReady = false;
+        let isFirebaseReady = false; 
         let isUserLoggedIn = false;
         let currentUser = null; 
         let userId = null;
@@ -166,49 +166,52 @@
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("Sesión iniciada con Custom Token.");
                 } else {
                     await signInAnonymously(auth);
+                    console.log("Sesión iniciada anónimamente.");
                 }
             } catch (error) {
                 console.error("Error signing in:", error);
+                isFirebaseReady = true; 
             }
         }
         
         // Listener de estado de autenticación
         onAuthStateChanged(auth, (user) => {
-            isAuthReady = true; 
             if (user) {
-                // Si el usuario no es anónimo, está logueado
                 isUserLoggedIn = !user.isAnonymous;
                 currentUser = user;
                 userId = user.uid;
             } else {
                 isUserLoggedIn = false;
                 currentUser = null;
-                // Usar el UID del anónimo si existe, o un placeholder si no (debería existir)
-                userId = auth.currentUser?.uid || 'anonymous'; 
+                userId = auth.currentUser?.uid || null; 
             }
             
-            // Si el usuario está logueado, necesitamos saber a quién sigue
+            isFirebaseReady = true; 
+
+            console.log(`Auth Ready. Logueado: ${isUserLoggedIn}, UID: ${userId}`);
+
             if (isUserLoggedIn) {
                 setupFollowingListener();
             } else {
-                // Si no está logueado, solo puede ver el feed global
-                switchFeed('global');
+                currentFeedType = 'global';
+                setupPostListener(); 
             }
         });
 
         // ******************************************************
-        // LÓGICA DE SEGUIR/DEJAR DE SEGUIR (Necesario para 'Mis Círculos')
+        // LÓGICA DE SEGUIR/DEJAR DE SEGUIR
         // ******************************************************
 
-        /**
-         * Observa la lista de usuarios que el usuario actual sigue.
-         */
         function setupFollowingListener() {
+            if (!isUserLoggedIn || !userId) return; 
+
             if (unsubscribeFollowing) unsubscribeFollowing(); 
 
-            const followingRef = collection(db, "users", userId, "following");
+            // Ruta de la colección de seguidos
+            const followingRef = collection(db, "artifacts", appId, "users", userId, "following");
             const q = query(followingRef);
 
             unsubscribeFollowing = onSnapshot(q, (snapshot) => {
@@ -217,26 +220,22 @@
                     followingIds.push(doc.id);
                 });
                 console.log("Usuarios seguidos actualizados:", followingIds.length);
-                // Si estamos en el feed de círculos, actualizarlo con la nueva lista
-                if (currentFeedType === 'circles') {
+                
+                if (currentFeedType === 'circles' || currentFeedType === 'global') {
                     setupPostListener();
                 }
             }, (error) => {
                 console.error("Error al obtener la lista de seguidos:", error);
             });
-
-            // Una vez que el listener de following está listo, cargamos el feed inicial
-            switchFeed(currentFeedType); 
         }
 
         // ******************************************************
-        // LÓGICA DE LISTENERS DE PUBLICACIONES (El corazón del Feed)
+        // LÓGICA DE LISTENERS DE PUBLICACIONES (EL CAMBIO CLAVE ESTÁ AQUÍ)
         // ******************************************************
 
-        /**
-         * Configura el listener de publicaciones según el tipo de feed.
-         */
         function setupPostListener() {
+            if (!isFirebaseReady) return; 
+
             if (unsubscribePosts) {
                 unsubscribePosts(); 
             }
@@ -248,16 +247,19 @@
 
             let postsQuery;
             
+            const postCollectionPath = collection(db, "artifacts", appId, "public", "data", "posts");
+            
             if (currentFeedType === 'global') {
-                // #GLOBAL: Todas las publicaciones, ordenadas por fecha
-                postsQuery = query(
-                    collection(db, "posts"),
-                    orderBy("timestamp", "desc")
-                );
+                // Consulta SIMPLE a la colección pública
+                postsQuery = query(postCollectionPath);
             } else if (currentFeedType === 'circles') {
-                // MIS CÍRCULOS: Publicaciones de usuarios seguidos
                 
-                // 1. Manejar el caso de NO SEGUIR A NADIE (Corregido)
+                if (!isUserLoggedIn) {
+                    showRegistrationModal();
+                    loadingMessage.style.display = 'none';
+                    return;
+                }
+
                 if (followingIds.length === 0) {
                     loadingMessage.style.display = 'none';
                     postsContainer.innerHTML = `
@@ -270,14 +272,13 @@
                     return; 
                 }
                 
-                // 2. Ejecutar la consulta normal (limitada por el límite 'in' de Firestore)
-                // Usamos un array de 1 a 10 IDs para la cláusula 'in' (limitación de Firestore)
+                // Firestore solo permite consultas 'in' hasta 10 elementos
                 const idsToQuery = followingIds.slice(0, 10); 
                 
+                // Consulta SIMPLE con 'where' (sin orderBy en Firebase)
                 postsQuery = query(
-                    collection(db, "posts"),
-                    where("userId", "in", idsToQuery),
-                    orderBy("timestamp", "desc")
+                    postCollectionPath,
+                    where("userId", "in", idsToQuery)
                 );
             }
             
@@ -289,57 +290,73 @@
 
             // Listener de Publicaciones
             unsubscribePosts = onSnapshot(postsQuery, async (snapshot) => {
+                
+                // Extraer los posts
+                let posts = [];
+                snapshot.forEach(docSnapshot => {
+                    const postData = docSnapshot.data();
+                    // Asegurar la presencia de campos críticos para prevenir fallos de render
+                    posts.push({ 
+                        postId: docSnapshot.id, 
+                        content: postData.content || 'Contenido vacío',
+                        timestamp: postData.timestamp,
+                        userId: postData.userId || 'unknown'
+                    });
+                });
+                
+                // 1. Ordenar por marca de tiempo (timestamp) en JavaScript (seguro)
+                posts.sort((a, b) => {
+                    // Manejo robusto de Firestore Timestamp o fecha nula
+                    const timeA = a.timestamp && typeof a.timestamp.toMillis === 'function' ? a.timestamp.toMillis() : 0;
+                    const timeB = b.timestamp && typeof b.timestamp.toMillis === 'function' ? b.timestamp.toMillis() : 0;
+                    return timeB - timeA; // Más nuevo primero
+                });
+
                 loadingMessage.style.display = 'none';
                 postsContainer.innerHTML = ''; 
 
-                if (snapshot.empty) {
-                    let messageHtml;
-                    if (currentFeedType === 'circles' && followingIds.length > 0) {
-                         messageHtml = `
-                            <div class="status-message">
-                                <h3>Esperando Publicaciones</h3>
-                                <p>Las personas que sigues aún no han compartido nada nuevo. Vuelve pronto.</p>
-                            </div>
-                        `;
-                    } else if (currentFeedType === 'global') {
-                        messageHtml = `
-                            <div class="status-message">
-                                <h3>¡Sé el Primero!</h3>
-                                <p>Aún no hay publicaciones en Nexus. <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crea tu primera publicación aquí</a>.</p>
-                            </div>
-                        `;
-                    }
-                    if (messageHtml) postsContainer.innerHTML = messageHtml;
+                if (posts.length === 0) {
+                    const isGlobalEmpty = currentFeedType === 'global';
+                    let messageHtml = `
+                        <div class="status-message">
+                            <h3>${isGlobalEmpty ? '¡Sé el Primero!' : 'Esperando Publicaciones'}</h3>
+                            <p>${isGlobalEmpty ? 
+                                `Aún no hay publicaciones en Nexus. <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crea tu primera publicación aquí</a>.` : 
+                                `Las personas que sigues aún no han compartido nada nuevo. Vuelve pronto.`
+                            }</p>
+                        </div>
+                    `;
+                    postsContainer.innerHTML = messageHtml;
                     return;
                 }
                 
-                // Obtener datos de los usuarios (usernames) para cada post de forma concurrente
-                const userPromises = snapshot.docs.map(docSnapshot => {
-                    const post = docSnapshot.data();
-                    // Obtener el perfil del usuario que creó el post
-                    return getDoc(doc(db, "users", post.userId))
+                // 2. Obtener información de usuario para cada post
+                const userPromises = posts.map(post => {
+                    const userDocRef = doc(db, "artifacts", appId, "public", "data", "users", post.userId);
+                    return getDoc(userDocRef)
                         .then(userDoc => ({
-                            postId: docSnapshot.id,
                             ...post,
-                            // Si no existe, se usa un nombre por defecto
+                            // Usar el username del documento de usuario o un valor por defecto
                             username: userDoc.exists() ? userDoc.data().username : 'Usuario Desconocido' 
                         }))
                         .catch(err => {
-                            console.error("Error fetching user data:", err);
-                            return { postId: docSnapshot.id, ...post, username: 'Error de Carga' };
+                            console.error("Error fetching user data:", post.userId, err);
+                            return { ...post, username: 'Error de Carga' };
                         });
                 });
 
                 const postsWithUserInfo = await Promise.all(userPromises);
 
+                // 3. Renderizar
                 postsWithUserInfo.forEach(post => {
                     const postElement = renderPost(post);
                     postsContainer.appendChild(postElement);
                 });
 
             }, (error) => {
-                console.error("Error al obtener publicaciones:", error);
-                loadingMessage.textContent = 'Error grave al cargar publicaciones. Revisa la consola.';
+                // Si llegamos aquí, es un error de conexión, permisos o de query
+                console.error("ERROR CRÍTICO AL OBTENER PUBLICACIONES:", error);
+                loadingMessage.innerHTML = `<span class="error-message">Error grave al cargar publicaciones. Revisa la consola para detalles.</span>`;
                 loadingMessage.style.display = 'block';
             });
         }
@@ -370,7 +387,7 @@
                 circlesBtn.classList.add('active');
             }
 
-            if (isAuthReady) {
+            if (isFirebaseReady) {
                 setupPostListener();
             }
         }
@@ -383,10 +400,13 @@
             const item = document.createElement('div');
             item.className = 'post';
 
-            const formattedTime = post.timestamp ? 
-                new Date(post.timestamp.toDate()).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + ' - ' +
-                new Date(post.timestamp.toDate()).toLocaleDateString('es-ES', { day: '2-digit', month: 'short' })
-                : 'Recién publicado';
+            let formattedTime = 'Fecha desconocida';
+            // Usa una comprobación más estricta para el timestamp de Firestore
+            if (post.timestamp && typeof post.timestamp.toDate === 'function') {
+                const date = post.timestamp.toDate();
+                formattedTime = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) + ' - ' +
+                                date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+            }
             
             const firstLetter = post.username.charAt(0).toUpperCase();
 
@@ -412,12 +432,9 @@
         }
 
         // ******************************************************
-        // LÓGICA DE ACCIONES DE POSTS (Me Gusta, Comentar) (Implementación visual)
+        // LÓGICA DE ACCIONES DE POSTS (Me Gusta, Comentar) 
         // ******************************************************
         
-        /**
-         * Maneja las acciones de Me Gusta, Comentar, Compartir.
-         */
         window.handlePostAction = function(postId, action, event) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -433,24 +450,18 @@
                 const isLiked = icon.classList.contains('fas'); 
 
                 if (isLiked) {
-                    // Quitar Like (Visual)
                     icon.classList.remove('fas');
                     icon.classList.add('far'); 
                     button.classList.remove('like-active');
-                    // (Aquí iría la lógica para ELIMINAR el like de Firestore)
-                    console.log(`Like removido de ${postId}`);
                 } else {
-                    // Dar Like (Visual)
                     icon.classList.remove('far');
                     icon.classList.add('fas'); 
                     button.classList.add('like-active');
-                    // (Aquí iría la lógica para AGREGAR el like a Firestore)
-                    console.log(`Like añadido a ${postId}`);
                 }
             } else if (action === 'comment') {
-                console.log("Comentar: Funcionalidad pendiente, revisa la consola.");
+                console.log("Comentar: Funcionalidad pendiente.");
             } else if (action === 'share') {
-                console.log("Compartir: Funcionalidad pendiente, revisa la consola.");
+                console.log("Compartir: Funcionalidad pendiente.");
             }
         }
 
@@ -458,8 +469,12 @@
         // LÓGICA DE NAVEGACIÓN Y MODALES
         // ******************************************************
         
-        // Lógica de protección de navegación 
         window.checkAuthAndNavigate = function(url, targetId = null) {
+            if (!isFirebaseReady) {
+                console.warn("Firebase aún no está listo. Ignorando clic.");
+                return;
+            }
+
             if (isUserLoggedIn) {
                 const finalUrl = targetId ? `${url}?uid=${targetId}` : url;
                 window.location.href = finalUrl;
@@ -479,7 +494,7 @@
             registrationModal.style.display = 'flex';
         }
 
-        // Iniciar Autenticación al cargar
+        // 1. Iniciar el proceso de Autenticación
         setupAuth();
 
     </script>
