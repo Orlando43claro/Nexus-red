@@ -13,13 +13,12 @@
         .header nav { display: flex; gap: 10px; }
         .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
         .header a:hover { background-color: #005f93; }
-        /* Esta barra de filtro ahora se elimina, pero mantenemos los estilos de navegación. */
+        /* Barra de Navegación Simple / Botón Explore */
         .filter-bar { 
             padding: 10px; 
             background-color: white; 
             border-bottom: 1px solid #ddd; 
             text-align: center; 
-            /* Estilo para el nuevo botón Explore */
             display: flex;
             justify-content: center;
             gap: 15px;
@@ -162,7 +161,7 @@
             addDoc, serverTimestamp, orderBy 
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // NOTA IMPORTANTE: Manteniendo las credenciales y rutas de Firestore originales (sin __app_id)
+        // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -178,7 +177,7 @@
         
         let isUserLoggedIn = false;
         let currentUser = null; 
-        let currentPostIdForModal = null; // Para saber qué post estamos comentando/viendo
+        let currentPostIdForModal = null; 
 
         const feedContainer = document.getElementById('feed-container');
         const loadingMessage = document.getElementById('loading-posts');
@@ -193,11 +192,9 @@
         // Lógica de protección de navegación global
         window.checkAuthAndNavigate = function(url, userId = null) {
             if (isUserLoggedIn) {
-                // Si está logueado, navega. Si hay userId, lo adjunta.
                 const finalUrl = userId ? `${url}?uid=${userId}` : url;
                 window.location.href = finalUrl;
             } else {
-                // Si no está logueado, muestra el modal de registro/login
                 showRegistrationModal();
             }
         }
@@ -208,9 +205,8 @@
                 showRegistrationModal();
                 return;
             }
-            if (authorId === currentUser.uid) return; // No seguirte a ti mismo
+            if (authorId === currentUser.uid) return; 
 
-            // Usando las rutas originales de tu código: "users/{uid}/following/{targetId}"
             const followerRef = doc(db, "users", currentUser.uid, "following", authorId);
             const followingRef = doc(db, "users", authorId, "followers", currentUser.uid);
 
@@ -265,17 +261,14 @@
 
             const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
             
-            // Determinar si el usuario ya le dio like para cambiar el icono
             const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
             const likeIcon = isLiked ? '💖' : '❤️';
             const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
 
-            // Determinar el estado de seguimiento 
             const isAuthor = currentUser && post.userId === currentUser.uid;
             let followButtonHTML = '';
             
             if (isUserLoggedIn && !isAuthor) {
-                // Configuración de Listener de Seguir/Dejar de Seguir
                  const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
                  onSnapshot(followerRef, (docSnapshot) => {
                      const isFollowing = docSnapshot.exists();
@@ -289,7 +282,6 @@
                      }
                  });
 
-                // Botón inicial
                 followButtonHTML = `
                     <button 
                         id="follow-btn-${post.id}"
@@ -303,7 +295,6 @@
             postElement.innerHTML = `
                 <div class="post-header">
                     <div class="author-info">
-                        <!-- Enlace del autor protegido -->
                         <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
                         ${followButtonHTML}
                     </div>
@@ -343,18 +334,15 @@
 
             try {
                 if (action === 'like') {
-                    // 1. Verificar si el usuario ya le dio like
                     const likeDoc = await getDoc(likeRef);
 
                     if (likeDoc.exists()) {
-                        // YA DIO LIKE -> QUITAR LIKE
                         await deleteDoc(likeRef);
                         await updateDoc(postRef, {
                             likes: increment(-1)
                         });
                         console.log(`Like quitado al post: ${postId}`);
                     } else {
-                        // NO DIO LIKE -> DAR LIKE
                         await setDoc(likeRef, {
                             userId: currentUser.uid,
                             username: currentUser.displayName || 'Usuario Nexus',
@@ -368,7 +356,6 @@
                 } 
             } catch (error) {
                 console.error(`Error al procesar ${action} en el post ${postId}:`, error);
-                // NOTA: Reemplazado alert() por un console log para errores.
             }
         }
 
@@ -378,6 +365,9 @@
             if (!event || event.target === modal) {
                 modal.style.display = 'none';
                 currentPostIdForModal = null;
+                // Limpiar el mensaje de error si existiera
+                const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
+                if(errorMsg) errorMsg.remove();
             }
         }
         
@@ -392,6 +382,7 @@
             }
             currentPostIdForModal = postId;
             modalTitle.textContent = 'Comentarios de la Publicación';
+            modalCommentText.value = ''; // Limpiar el área de texto
             commentInputArea.style.display = 'block';
             commentsLikesModal.style.display = 'flex';
             setupCommentsListener(postId);
@@ -406,21 +397,32 @@
         }
 
         function setupCommentsListener(postId) {
-            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando comentarios...</p>';
-            // Usando rutas originales: "posts/{postId}/comments"
-            const commentsQuery = query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc"));
+            modalContentArea.innerHTML = '<p style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando comentarios...</p>';
+            // Consulta corregida: Usar un query simple para evitar problemas de índices.
+            const commentsQuery = collection(db, "posts", postId, "comments");
+            // Nota: Se elimina temporalmente el orderBy para garantizar que funcione sin requerir un índice.
 
             onSnapshot(commentsQuery, (querySnapshot) => {
+                // Limpiar mensaje de error/loading antes de renderizar
                 modalContentArea.innerHTML = '';
+                
                 if (querySnapshot.empty) {
                     modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Sé el primero en comentar.</p>';
                     return;
                 }
+
+                // Opcionalmente, ordena los comentarios en el cliente si no usas orderBy en Firestore
+                const sortedComments = [];
                 querySnapshot.forEach((doc) => {
-                    const comment = doc.data();
+                    sortedComments.push(doc.data());
+                });
+                // Ordenar por timestamp (si existe) para mostrar el más nuevo al final
+                sortedComments.sort((a, b) => (a.timestamp && b.timestamp) ? a.timestamp.seconds - b.timestamp.seconds : 0);
+
+
+                sortedComments.forEach((comment) => {
                     modalContentArea.innerHTML += `
                         <div class="comment-item">
-                            <!-- Enlace del autor en comentario protegido también -->
                             <a href="#" class="comment-author" onclick="checkAuthAndNavigate('profile.html', '${comment.userId}'); closeModal(null, 'comments-likes-modal');">@${comment.username || 'Desconocido'}</a>
                             <span class="comment-text">${comment.text}</span>
                         </div>
@@ -433,8 +435,7 @@
         }
         
         function setupLikesListener(postId) {
-            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando lista de likes...</p>';
-            // Usando rutas originales: "posts/{postId}/likes"
+            modalContentArea.innerHTML = '<p style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> Cargando lista de likes...</p>';
             const likesQuery = collection(db, "posts", postId, "likes");
 
             onSnapshot(likesQuery, (querySnapshot) => {
@@ -447,7 +448,6 @@
                     const like = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="like-user-item">
-                            <!-- Enlace del autor en likes protegido también -->
                             <a href="#" onclick="checkAuthAndNavigate('profile.html', '${like.userId}'); closeModal(null, 'comments-likes-modal');">@${like.username || 'Desconocido'}</a>
                         </div>
                     `;
@@ -461,40 +461,57 @@
         window.submitCommentFromModal = async function() {
             const text = modalCommentText.value.trim();
             if (!text) {
-                console.error('El comentario no puede estar vacío.');
-                // Pequeña notificación visual en el modal
-                modalContentArea.insertAdjacentHTML('afterbegin', '<p style="color:red;">¡El comentario está vacío!</p>');
-                setTimeout(() => {
-                    // Remover el error después de 2 segundos
-                    const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
-                    if(errorMsg) errorMsg.remove();
+                // Mostrar error dentro del modal en lugar de la consola
+                const existingError = modalContentArea.querySelector('.temp-error');
+                if (!existingError) {
+                    modalContentArea.insertAdjacentHTML('afterbegin', '<p class="temp-error" style="color:red; font-weight:bold;">¡El comentario está vacío!</p>');
+                    setTimeout(() => {
+                        const errorMsg = modalContentArea.querySelector('.temp-error');
+                        if(errorMsg) errorMsg.remove();
                     }, 2000);
+                }
                 return;
             }
 
             const postId = currentPostIdForModal;
             if (!postId) return;
 
+            // Deshabilitar botón para prevenir doble-submit
+            const commentButton = commentInputArea.querySelector('button');
+            const originalButtonText = commentButton.textContent;
+            commentButton.disabled = true;
+            commentButton.textContent = 'Comentando...';
+
             try {
-                // Usando rutas originales: "posts/{postId}/comments"
+                // 1. Añadir el nuevo comentario a la subcolección
                 await addDoc(collection(db, "posts", postId, "comments"), {
                     userId: currentUser.uid,
                     username: currentUser.displayName || 'Usuario Nexus',
                     text: text,
-                    timestamp: serverTimestamp()
+                    // Asegurar que el timestamp se guarda correctamente para ordenar
+                    timestamp: serverTimestamp() 
                 });
                 
-                // Usando rutas originales: "posts/{postId}"
+                // 2. Incrementar el contador en el documento principal
                 await updateDoc(doc(db, "posts", postId), {
                     commentsCount: increment(1)
                 });
 
                 modalCommentText.value = ''; 
-                // Volver a cargar los comentarios para ver el nuevo
-                setupCommentsListener(postId);
+                // La función setupCommentsListener (onSnapshot) se encargará de actualizar la lista.
                 
             } catch (error) {
                 console.error("Error submitting comment:", error);
+                // Mostrar error dentro del modal
+                 modalContentArea.insertAdjacentHTML('afterbegin', `<p class="temp-error" style="color:red; font-weight:bold;">Error: ${error.message}</p>`);
+                 setTimeout(() => {
+                    const errorMsg = modalContentArea.querySelector('.temp-error');
+                    if(errorMsg) errorMsg.remove();
+                 }, 3000);
+            } finally {
+                // Re-habilitar el botón
+                commentButton.disabled = false;
+                commentButton.textContent = originalButtonText;
             }
         }
         
@@ -507,23 +524,21 @@
                 return;
             }
             
-            // Lógica de compartir (simulada)
             console.log(`Compartiendo enlace externo del post ID: ${postId}.`);
 
-            // Usar el modal para mostrar la confirmación de copia (simulada)
-            currentPostIdForModal = null; // Limpiar el ID si estaba viendo comentarios
+            currentPostIdForModal = null; 
             modalTitle.textContent = '¡Enlace Copiado!';
             modalContentArea.innerHTML = `
                 <p>El enlace a la publicación ha sido copiado al portapapeles (simulado).</p>
                 <p style="font-size:0.8em; color:#888;">(ID: ${postId})</p>
             `;
-            commentInputArea.style.display = 'none'; // Ocultar el área de comentarios
+            commentInputArea.style.display = 'none'; 
             commentsLikesModal.style.display = 'flex';
         }
         
         // 9. Configurar el Listener del Feed de Firestore 
         function setupFeedListener() {
-            // Usando la ruta de la colección de posts original: "posts"
+            // Se usa 'createdAt' para posts para mantener el orden, asumiendo que el campo existe.
             const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
 
             onSnapshot(postsQuery, (querySnapshot) => {
@@ -538,7 +553,6 @@
                     
                     // Listener para actualizar el botón de like en tiempo real
                     if (currentUser) {
-                        // Usando rutas originales: "posts/{postId}/likes/{uid}"
                         const likeRef = doc(db, "posts", postData.id, "likes", currentUser.uid);
                         onSnapshot(likeRef, (likeDoc) => {
                             const likeIcon = postElement.querySelector(`#like-icon-${postData.id}`);
@@ -547,10 +561,13 @@
                             if (likeIcon && likeBtn) {
                                 if (likeDoc.exists()) {
                                     likeIcon.textContent = '💖';
-                                    likeBtn.lastChild.textContent = ' Quitar Me Gusta';
+                                    // Asegurar que solo se cambie el texto del botón, no los iconos
+                                    const textNode = Array.from(likeBtn.childNodes).find(node => node.nodeType === 3); 
+                                    if (textNode) textNode.textContent = ' Quitar Me Gusta';
                                 } else {
                                     likeIcon.textContent = '❤️';
-                                    likeBtn.lastChild.textContent = ' Me Gusta';
+                                    const textNode = Array.from(likeBtn.childNodes).find(node => node.nodeType === 3); 
+                                    if (textNode) textNode.textContent = ' Me Gusta';
                                 }
                             }
                         });
@@ -558,7 +575,7 @@
                 });
 
                 if (querySnapshot.empty) {
-                    feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. Sé el primero en compartir en create-post.html!</p>';
+                    feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">¡Sé el Primero! Aún no hay publicaciones en Nexus. Crea tu primera publicación <a href="create-post.html">aquí</a>.</p>';
                 }
                 
             }, (error) => {
@@ -573,6 +590,10 @@
                 if (user) {
                     isUserLoggedIn = true;
                     currentUser = user;
+                    // Asegurar que el displayName esté disponible para las interacciones (aunque puede ser nulo)
+                    if (!currentUser.displayName) {
+                        console.log("Advertencia: DisplayName no establecido para el usuario.");
+                    }
                     console.log("Usuario logueado:", user.uid);
                 } else {
                     isUserLoggedIn = false;
