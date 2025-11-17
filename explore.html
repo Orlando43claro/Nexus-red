@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus | Explorar Usuarios</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* Estilos Base */
+        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
+        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 1.5em; }
+        .header nav { display: flex; gap: 10px; }
+        .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
+        .header a:hover { background-color: #005f93; }
+
+        /* Contenedor Principal */
+        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+
+        /* Barra de Búsqueda */
+        .search-bar { 
+            display: flex; margin-bottom: 20px; background-color: white; 
+            padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .search-bar input { 
+            flex-grow: 1; padding: 10px; border: none; font-size: 1em; 
+            outline: none; background: none;
+        }
+        .search-bar button { 
+            background-color: #0077b6; color: white; border: none; 
+            padding: 10px 15px; border-radius: 5px; cursor: pointer; 
+            margin-left: 10px; transition: background-color 0.2s;
+        }
+        .search-bar button:hover { background-color: #005f93; }
+
+        /* Lista de Usuarios */
+        .user-list { background-color: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .user-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px; border-bottom: 1px solid #eee;
+        }
+        .user-item:last-child { border-bottom: none; }
+        
+        .user-info { display: flex; align-items: center; gap: 15px; }
+        .user-avatar { 
+            width: 50px; height: 50px; background-color: #ff9900; 
+            border-radius: 50%; display: flex; justify-content: center; 
+            align-items: center; color: white; font-weight: bold; font-size: 1.2em;
+        }
+        .user-details a { 
+            font-weight: bold; color: #0077b6; text-decoration: none; 
+            transition: color 0.2s;
+        }
+        .user-details a:hover { text-decoration: underline; color: #004d7a; }
+        .user-details p { margin: 0; font-size: 0.85em; color: #555; }
+
+        /* Botón Seguir */
+        .follow-button {
+            background-color: #ff9900; color: white; border: none; padding: 8px 15px;
+            border-radius: 20px; font-size: 0.9em; cursor: pointer; transition: background-color 0.2s;
+        }
+        .follow-button:hover { background-color: #cc7a00; }
+        .following { background-color: #28a745; }
+        .following:hover { background-color: #1e7e34; }
+        .self-profile { background-color: #888; cursor: default; }
+        .self-profile:hover { background-color: #888; }
+        
+        /* Mensajes de Modal */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background-color: white; padding: 30px; border-radius: 10px;
+            text-align: center; max-width: 300px; width: 90%; 
+        }
+        .btn-register {
+            background-color: #0077b6; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <h1>NEXUS</h1>
+        <nav>
+            <a href="feed.html">Flujo</a>
+            <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear</a>
+            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Perfil</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h2>🔍 Explorar Perfiles de Nexus</h2>
+        
+        <div class="search-bar">
+            <input type="text" id="search-input" placeholder="Buscar por nombre de usuario..." onkeyup="searchUsers(event)">
+            <button onclick="triggerSearch()">Buscar</button>
+        </div>
+
+        <div id="user-list" class="user-list">
+            <p id="loading-message" style="text-align: center; padding: 20px; color: #555;">
+                Cargando usuarios recientes...
+            </p>
+        </div>
+    </div>
+
+    <!-- Modal 1: Registro/Login (Reutilizado de feed.html) -->
+    <div id="registration-modal" class="modal" onclick="closeModal(event, 'registration-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h2>¡Únete a la Comunidad!</h2>
+            <p>Para interactuar o seguir otros perfiles, necesitas unirte a Nexus.</p>
+            <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
+            <p style="margin-top: 15px;">¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a></p>
+        </div>
+    </div>
+
+    <!-- ****************************************************** -->
+    <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE EXPLORACIÓN -->
+    <!-- ****************************************************** -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { 
+            getFirestore, collection, doc, query, onSnapshot, 
+            setDoc, deleteDoc, getDoc, getDocs, limit, where 
+        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+        // Configuración de Firebase (Tus Credenciales)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        let isUserLoggedIn = false;
+        let currentUser = null; 
+        let unsubscribeUsers = null; // Listener para la lista de usuarios
+        
+        const userListContainer = document.getElementById('user-list');
+        const loadingMessage = document.getElementById('loading-message');
+        const registrationModal = document.getElementById('registration-modal');
+
+        // Lógica de protección de navegación (reutilizada de feed.html)
+        window.checkAuthAndNavigate = function(url, userId = null) {
+            if (isUserLoggedIn) {
+                const finalUrl = userId ? `${url}?uid=${userId}` : url;
+                window.location.href = finalUrl;
+            } else {
+                showRegistrationModal();
+            }
+        }
+        
+        // ******************************************************
+        // LÓGICA DE SEGUIR/DEJAR DE SEGUIR (Reutilizada y centralizada)
+        // ******************************************************
+        /**
+         * Maneja la lógica de seguir/dejar de seguir a un usuario.
+         * @param {string} targetId - El ID del usuario a seguir/dejar de seguir.
+         */
+        window.handleFollow = async function(targetId) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+            if (targetId === currentUser.uid) return; 
+
+            const followerRef = doc(db, "users", currentUser.uid, "following", targetId);
+            const followingRef = doc(db, "users", targetId, "followers", currentUser.uid);
+
+            try {
+                const followDoc = await getDoc(followerRef);
+                const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
+                const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+
+
+                if (followDoc.exists()) {
+                    // YA SIGUE -> DEJAR DE SEGUIR
+                    await deleteDoc(followerRef);
+                    await deleteDoc(followingRef);
+                    console.log(`Dejó de seguir a ${targetId}`);
+                    updateFollowButton(targetId, false);
+                } else {
+                    // NO SIGUE -> SEGUIR
+                    await setDoc(followerRef, { userId: targetId, timestamp: serverTimestamp() });
+                    await setDoc(followingRef, {
+                         userId: currentUser.uid, 
+                         username: currentUsername,
+                         timestamp: serverTimestamp()
+                    });
+                    console.log(`Siguiendo a ${targetId}`);
+                    updateFollowButton(targetId, true);
+                }
+            } catch (error) {
+                console.error("Error al seguir/dejar de seguir:", error);
+            }
+        }
+
+        /**
+         * Actualiza el texto y estilo del botón de seguimiento en la UI.
+         * @param {string} targetId - El ID del usuario.
+         * @param {boolean} isFollowing - El estado actual de seguimiento.
+         */
+        function updateFollowButton(targetId, isFollowing) {
+             const button = document.querySelector(`#follow-btn-${targetId}`);
+             if (button) {
+                 if (isFollowing) {
+                     button.textContent = 'Siguiendo';
+                     button.classList.add('following');
+                 } else {
+                     button.textContent = 'Seguir';
+                     button.classList.remove('following');
+                 }
+             }
+        }
+        
+        // ******************************************************
+        // LÓGICA DE RENDERIZADO DE USUARIOS
+        // ******************************************************
+
+        /**
+         * Crea el elemento HTML para un usuario.
+         * @param {Object} userData - Datos del usuario.
+         * @param {string} userId - ID del usuario.
+         */
+        function renderUserItem(userData, userId) {
+            if (userId === currentUser.uid) return null; // No mostrar el perfil propio
+
+            const item = document.createElement('div');
+            item.className = 'user-item';
+            
+            const firstLetter = userData.username ? userData.username.charAt(0).toUpperCase() : '?';
+
+            // Determinar si el usuario está siendo seguido
+            const isFollowingRef = doc(db, "users", currentUser.uid, "following", userId);
+            
+            let initialButtonText = 'Cargando...';
+            let initialButtonClass = 'follow-button';
+            let isFollowingInitial = false;
+            
+            // Listener para el estado de seguimiento del usuario
+            onSnapshot(isFollowingRef, (docSnapshot) => {
+                isFollowingInitial = docSnapshot.exists();
+                updateFollowButton(userId, isFollowingInitial);
+            });
+            
+            item.innerHTML = `
+                <div class="user-info">
+                    <div class="user-avatar">${firstLetter}</div>
+                    <div class="user-details">
+                        <!-- Enlace al perfil protegido -->
+                        <a href="#" onclick="checkAuthAndNavigate('profile.html', '${userId}')">@${userData.username || 'Usuario Desconocido'}</a>
+                        <p>${userData.bio || '¡Hola! Soy nuevo en Nexus.'}</p>
+                    </div>
+                </div>
+                <div>
+                    <button 
+                        id="follow-btn-${userId}"
+                        class="${initialButtonClass}"
+                        onclick="handleFollow('${userId}')"
+                        ${isUserLoggedIn ? '' : 'disabled'}
+                    >${initialButtonText}</button>
+                </div>
+            `;
+            
+            return item;
+        }
+
+        /**
+         * Configura el listener principal para cargar/buscar usuarios.
+         * @param {string} searchTerm - Término de búsqueda (opcional).
+         */
+        async function setupUserListener(searchTerm = '') {
+            if (!isUserLoggedIn) {
+                loadingMessage.textContent = 'Inicia sesión para explorar la comunidad.';
+                return;
+            }
+
+            // Desuscribir el listener anterior si existe
+            if (unsubscribeUsers) {
+                unsubscribeUsers();
+            }
+            
+            loadingMessage.style.display = 'block';
+            userListContainer.innerHTML = ''; // Limpiar la lista (excepto el mensaje de carga)
+
+            let usersQuery;
+            let titleText;
+
+            if (searchTerm) {
+                 // Nota: Firestore solo admite consultas de prefijo (startsWith) si el campo es indexado.
+                 // Para una búsqueda simple por username:
+                 usersQuery = query(
+                     collection(db, "users"),
+                     where("username", ">=", searchTerm),
+                     where("username", "<=", searchTerm + '\uf8ff'),
+                     limit(20) // Limitar resultados de búsqueda
+                 );
+                 titleText = `Resultados para: "${searchTerm}"`;
+            } else {
+                 // Cargar los 20 usuarios más recientes (ejemplo)
+                 usersQuery = query(
+                     collection(db, "users"),
+                     limit(20) 
+                 );
+                 titleText = 'Usuarios Destacados/Recientes';
+            }
+            
+            // Añadir el título
+            userListContainer.insertAdjacentHTML('afterbegin', `<h3 style="margin: 0; padding-bottom: 10px; color: #333;">${titleText}</h3>`);
+
+
+            // El listener se encargará de actualizar la lista en tiempo real
+            unsubscribeUsers = onSnapshot(usersQuery, (querySnapshot) => {
+                loadingMessage.style.display = 'none';
+                
+                // Remover solo los elementos de usuario, dejando el título
+                userListContainer.querySelectorAll('.user-item').forEach(e => e.remove());
+                
+                if (querySnapshot.empty) {
+                    userListContainer.insertAdjacentHTML('beforeend', 
+                        '<p style="text-align: center; padding: 20px; color: #888;">No se encontraron usuarios que coincidan.</p>'
+                    );
+                    return;
+                }
+
+                querySnapshot.forEach((docSnapshot) => {
+                    const userId = docSnapshot.id;
+                    const userData = docSnapshot.data();
+                    
+                    if (userId !== currentUser.uid) { // Excluir el perfil propio
+                        const item = renderUserItem(userData, userId);
+                        userListContainer.appendChild(item);
+                    }
+                });
+
+            }, (error) => {
+                console.error("Error al obtener usuarios:", error);
+                loadingMessage.textContent = 'Error al cargar usuarios. Inténtalo de nuevo.';
+            });
+        }
+        
+        // ******************************************************
+        // LÓGICA DE BÚSQUEDA
+        // ******************************************************
+
+        window.triggerSearch = function() {
+            const input = document.getElementById('search-input');
+            const searchTerm = input.value.trim().toLowerCase();
+            setupUserListener(searchTerm);
+        }
+
+        window.searchUsers = function(event) {
+            // Activa la búsqueda al presionar 'Enter'
+            if (event.key === 'Enter') {
+                triggerSearch();
+            }
+        }
+        
+        // ******************************************************
+        // FUNCIONES MODAL (Reutilizadas)
+        // ******************************************************
+        
+        window.closeModal = function(event, modalId) {
+            const modal = document.getElementById(modalId);
+            if (!event || event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+        
+        function showRegistrationModal() {
+            registrationModal.style.display = 'flex';
+        }
+
+
+        // 10. Observar el estado de autenticación al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    isUserLoggedIn = true;
+                    currentUser = user;
+                } else {
+                    isUserLoggedIn = false;
+                    currentUser = null;
+                }
+                // Iniciar la carga de usuarios
+                setupUserListener(); 
+            });
+        });
+    </script>
+</body>
+</html>
+
