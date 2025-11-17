@@ -85,12 +85,6 @@
             getFirestore, doc, serverTimestamp, runTransaction 
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Obtener la configuración de Firebase de forma segura
-        const firebaseConfig = typeof __firebase_config !== 'undefined' 
-                             ? JSON.parse(__firebase_config) 
-                             : {};
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
         let app;
         let auth;
         let db;
@@ -100,6 +94,7 @@
         const messageDisplay = document.getElementById('message-display');
         const setupForm = document.getElementById('profile-setup-form');
         const finishBtn = document.getElementById('finish-btn');
+        let isFirebaseReady = false;
 
         // Función para mostrar mensajes de error/éxito
         function displayMessage(message, isError = true) {
@@ -108,25 +103,42 @@
             finishBtn.textContent = 'Finalizar y Entrar a Nexus';
         }
         
-        // --- INICIALIZACIÓN DE FIREBASE ---
-        document.addEventListener('DOMContentLoaded', async () => {
-            // 1. Verificar y Inicializar Firebase
+        // --- INICIALIZACIÓN DE FIREBASE Y AUTH ---
+        async function initializeFirebaseAndAuth() {
+            let firebaseConfig = {};
+            let initialAuthToken = null;
+
+            // 1. Obtener la configuración de Firebase de forma robusta
+            try {
+                if (window.__firebase_config) {
+                    firebaseConfig = JSON.parse(window.__firebase_config);
+                }
+                if (window.__initial_auth_token) {
+                    initialAuthToken = window.__initial_auth_token;
+                }
+            } catch (e) {
+                 // Si el JSON es inválido o hay otro error de lectura
+                 console.error("Error al parsear variables globales:", e);
+                 displayMessage("Error interno: Fallo al leer la configuración de la aplicación.", true);
+                 return;
+            }
+
+            // 2. Verificar y Inicializar Firebase
             if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
+                isFirebaseReady = true;
             } else {
-                 // Error detectado en la captura, se muestra el mensaje de error de configuración.
                  displayMessage("Error interno: Configuración de Firebase no encontrada. Verifica las variables globales.", true);
                  return;
             }
 
-            // 2. Autenticación (o Anónima si no hay token)
+            // 3. Autenticación (o Anónima si no hay token)
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    // Si no hay token inicial, debe ser un usuario no logueado
                     await signInAnonymously(auth); 
                 }
             } catch (e) {
@@ -135,29 +147,31 @@
                 return;
             }
 
-            // 3. Listener de estado de autenticación
+            // 4. Listener de estado de autenticación
             onAuthStateChanged(auth, (user) => {
                 if (user && user.displayName) {
                     currentUser = user;
                     welcomeUsernameEl.textContent = `@${user.displayName}`;
                 } else if (user) {
-                     // Usuario logueado, pero falta el displayName (posiblemente error en register.html)
+                     // Usuario logueado, pero falta el displayName (debe estar en login/register)
                     console.warn("Nombre de usuario (displayName) faltante. Redirigiendo a login.");
-                    displayMessage("Error: Nombre de usuario no establecido. Intente iniciar sesión de nuevo.", true);
-                    // No redirigimos inmediatamente para que el usuario pueda ver el error.
+                    // Forzar el fin del proceso de setup si falta data crítica
+                    window.location.href = 'login.html';
                 } else {
                     // Usuario no logueado, forzar al login.
                     window.location.href = 'login.html';
                 }
             });
-        });
+        }
+        
+        document.addEventListener('DOMContentLoaded', initializeFirebaseAndAuth);
 
         // --- FUNCIÓN PRINCIPAL DE GUARDADO ---
         setupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            if (!currentUser || !db) {
-                displayMessage("Error: La aplicación no ha cargado completamente. Intente de nuevo.", true);
+            if (!isFirebaseReady || !currentUser) {
+                displayMessage("Error: La conexión a Nexus no está lista. Espere un momento e inténtelo de nuevo.", true);
                 return;
             }
 
@@ -169,12 +183,23 @@
             const circleName = document.getElementById('circle-name').value.trim();
             const userId = currentUser.uid;
             
+            // Validaciones básicas
+            if (bio.length < 5) {
+                displayMessage("La biografía debe tener al menos 5 caracteres.", true);
+                return;
+            }
+            if (circleName.length < 3) {
+                displayMessage("El nombre del círculo debe tener al menos 3 caracteres.", true);
+                return;
+            }
+
             // 1. Referencias de los documentos
             const userRef = doc(db, "users", userId);
             const circleId = circleName.toLowerCase().replace(/\s+/g, '-'); 
             const circleRef = doc(db, "users", userId, "circles", circleId); 
 
             try {
+                // Ejecutar Transacción para asegurar la atomicidad de la creación de usuario y círculo
                 await runTransaction(db, async (transaction) => {
                     
                     // A. Crear el documento principal del usuario
@@ -185,11 +210,12 @@
                         createdAt: serverTimestamp(),
                         followersCount: 0,
                         followingCount: 0,
+                        // Asignamos el círculo inicial
                         defaultCircleId: circleId,
                         defaultCircleName: circleName 
                     });
 
-                    // B. Crear el documento del primer Círculo de Influencia (subcolección)
+                    // B. Crear el documento del primer Círculo de Influencia (subcolección privada)
                     transaction.set(circleRef, {
                         name: circleName,
                         id: circleId,
@@ -200,14 +226,14 @@
                     });
                 });
 
-                // Éxito: Redirigir al feed
+                // Éxito: Redirigir automáticamente al feed
                 window.location.href = 'index.html'; 
 
             } catch (error) {
-                console.error("Error completo al guardar el perfil:", error);
+                console.error("Error completo al guardar el perfil (Transacción fallida):", error);
                 
                 if (error.code && error.code.includes('permission-denied')) {
-                     displayMessage(`Error de Permisos: La regla de seguridad está bloqueando la creación del perfil o círculo. Asegúrate de que 'allow create' esté configurado correctamente para 'users/{userId}' y 'users/{userId}/circles/{circleId}'.`, true);
+                     displayMessage(`Error de Permisos: Revisa tus reglas de seguridad. El usuario autenticado (UID: ${userId}) no tiene permiso para escribir en 'users/{userId}' y 'users/{userId}/circles/{circleId}'.`, true);
                 } else {
                     displayMessage(`Error al guardar el perfil. Intenta de nuevo. (Detalle: ${error.message})`, true);
                 }
