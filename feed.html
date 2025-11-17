@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | El Flujo (Feed)</title>
+    <!-- Incluir Font Awesome para el corazón -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Estilos Base */
         body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
@@ -12,7 +14,21 @@
         .header nav { display: flex; gap: 10px; }
         .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
         .header a:hover { background-color: #005f93; }
+        
+        /* Barra de Filtros */
         .filter-bar { padding: 10px; background-color: white; border-bottom: 1px solid #ddd; text-align: center; }
+        .filter-bar button {
+            background: none; border: 1px solid #ccc; padding: 8px 15px; border-radius: 20px;
+            cursor: pointer; margin: 0 5px; font-weight: bold; transition: background-color 0.2s, color 0.2s;
+        }
+        .filter-bar button.active {
+            background-color: #0077b6;
+            color: white;
+            border-color: #0077b6;
+        }
+        .filter-bar button:hover:not(.active) {
+            background-color: #e6e6e6;
+        }
         
         /* Estilos del Post Dinámico */
         .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -48,7 +64,7 @@
         .modal-content {
             background-color: white; padding: 30px; border-radius: 10px;
             text-align: center; max-width: 400px; width: 90%; 
-            max-height: 80vh; overflow-y: auto; /* Para modales de comentarios */
+            max-height: 80vh; overflow-y: auto; 
         }
         .btn-register {
             background-color: #0077b6; color: white; padding: 10px 20px;
@@ -84,10 +100,11 @@
         </nav>
     </header>
 
+    <!-- BARRA DE FILTRO ACTUALIZADA -->
     <div class="filter-bar">
-        <button>#Global</button>
-        <button id="private-filter">Mis Círculos</button>
-        <button>#Tendencias</button>
+        <button id="global-filter" class="active" onclick="setFeedType('global')">#Global</button>
+        <button id="following-filter" onclick="setFeedType('following')">Mis Círculos</button>
+        <button id="trending-filter">#Tendencias (Próximamente)</button>
     </div>
 
     <main id="feed-container">
@@ -153,7 +170,9 @@
         
         let isUserLoggedIn = false;
         let currentUser = null; 
-        let currentPostIdForModal = null; // Para saber qué post estamos comentando/viendo
+        let currentPostIdForModal = null; 
+        let currentFeedType = 'global'; // <-- NUEVA VARIABLE DE ESTADO
+        let unsubscribeFeed = null; // <-- Para desuscribir el listener del feed
 
         const feedContainer = document.getElementById('feed-container');
         const loadingMessage = document.getElementById('loading-posts');
@@ -168,12 +187,67 @@
         // Lógica de protección de navegación global
         window.checkAuthAndNavigate = function(url, userId = null) {
             if (isUserLoggedIn) {
-                // Si está logueado, navega. Si hay userId, lo adjunta.
                 const finalUrl = userId ? `${url}?uid=${userId}` : url;
                 window.location.href = finalUrl;
             } else {
-                // Si no está logueado, muestra el modal de registro/login
                 showRegistrationModal();
+            }
+        }
+        
+        // ******************************************************
+        // LÓGICA DE FILTRADO DE FEED (NUEVA)
+        // ******************************************************
+
+        /**
+         * Cambia el tipo de feed y reinicia el listener.
+         * @param {string} type 'global' o 'following'
+         */
+        window.setFeedType = function(type) {
+            if (type === 'following' && !isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+            if (currentFeedType === type) return;
+
+            currentFeedType = type;
+            
+            // Actualizar la clase de los botones
+            document.querySelectorAll('.filter-bar button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`${type}-filter`).classList.add('active');
+
+            // Mostrar mensaje de carga
+            feedContainer.innerHTML = '';
+            loadingMessage.style.display = 'block';
+
+            // Reiniciar el listener del feed con el nuevo tipo
+            if (currentUser) {
+                setupFeedListener();
+            }
+        }
+
+        /**
+         * Obtiene la lista de IDs de usuarios que el usuario actual sigue.
+         * @returns {Promise<string[]>} Array de UIDs.
+         */
+        async function getFollowingUids() {
+            if (!currentUser) return [];
+
+            const followingRef = collection(db, "users", currentUser.uid, "following");
+            try {
+                const snapshot = await getDocs(followingRef);
+                const followingIds = snapshot.docs.map(doc => doc.id);
+                
+                // Firestore tiene un límite de 10 elementos para el operador 'in'. 
+                // Si la lista es mayor, solo tomaremos los primeros 10 para garantizar la compatibilidad
+                // y podríamos considerar mostrar un mensaje de limitación o solo mostrar el feed global.
+                // Por ahora, devolvemos la lista completa y el query se ajustará a 10 si es necesario.
+                return followingIds;
+
+            } catch (error) {
+                console.error("Error al obtener lista de following:", error);
+                return [];
             }
         }
         
@@ -183,7 +257,7 @@
                 showRegistrationModal();
                 return;
             }
-            if (authorId === currentUser.uid) return; // No seguirte a ti mismo
+            if (authorId === currentUser.uid) return; 
 
             const followerRef = doc(db, "users", currentUser.uid, "following", authorId);
             const followingRef = doc(db, "users", authorId, "followers", currentUser.uid);
@@ -192,24 +266,19 @@
                 const followDoc = await getDoc(followerRef);
 
                 if (followDoc.exists()) {
-                    // YA SIGUE -> DEJAR DE SEGUIR
                     await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
-                    console.log(`Dejó de seguir a ${authorId}`);
                     updateFollowButton(authorId, false);
                 } else {
-                    // NO SIGUE -> SEGUIR
-                    const followData = {
-                        userId: authorId, 
-                        username: currentUser.displayName || 'Usuario Nexus',
-                        timestamp: serverTimestamp()
-                    };
-                    await setDoc(followerRef, followData);
+                    const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
+                    const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+
+                    await setDoc(followerRef, { userId: authorId, timestamp: serverTimestamp() });
                     await setDoc(followingRef, {
                          userId: currentUser.uid, 
+                         username: currentUsername, // Incluir username para mostrar en modal de followers
                          timestamp: serverTimestamp()
                     });
-                    console.log(`Siguiendo a ${authorId}`);
                     updateFollowButton(authorId, true);
                 }
             } catch (error) {
@@ -231,7 +300,32 @@
         }
 
 
-        // Función para renderizar una publicación
+        // Cache para nombres de usuario (Mejorado para usar con el renderizado)
+        const usernameCache = {};
+        
+        /**
+         * Obtiene el nombre de usuario de un ID, usando caché para eficiencia.
+         */
+        async function fetchUsername(userId) {
+            if (usernameCache[userId]) {
+                return usernameCache[userId];
+            }
+            try {
+                const userDoc = await getDoc(doc(db, "users", userId));
+                if (userDoc.exists()) {
+                    const username = userDoc.data().username;
+                    usernameCache[userId] = username;
+                    return username;
+                }
+                return 'Usuario Desconocido';
+            } catch (e) {
+                console.error("Error fetching username:", e);
+                return 'Usuario Desconocido';
+            }
+        }
+
+
+        // Función para renderizar una publicación (Mantenida)
         function renderPost(post) {
             const postElement = document.createElement('article');
             postElement.className = 'post';
@@ -239,46 +333,35 @@
 
             const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
             
-            // Determinar si el usuario ya le dio like para cambiar el icono
             const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
             const likeIcon = isLiked ? '💖' : '❤️';
             const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
 
-            // Determinar el estado de seguimiento 
             const isAuthor = currentUser && post.userId === currentUser.uid;
             let followButtonHTML = '';
             
             if (isUserLoggedIn && !isAuthor) {
-                // Configuración de Listener de Seguir/Dejar de Seguir
-                 const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
-                 onSnapshot(followerRef, (docSnapshot) => {
-                     const isFollowing = docSnapshot.exists();
-                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
-                     const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
-                     
-                     const existingButton = postElement.querySelector(`#follow-btn-${post.id}`);
-                     if (existingButton) {
-                        existingButton.textContent = buttonText;
-                        existingButton.className = buttonClass;
-                     }
-                 });
-
-                // Botón inicial
+                // Botón inicial (El listener de seguimiento lo actualizará)
                 followButtonHTML = `
                     <button 
                         id="follow-btn-${post.id}"
                         data-author-id="${post.userId}"
                         class="follow-button"
                         onclick="handleFollow('${post.userId}')"
-                    >Seguir</button>
+                    >Cargando...</button>
                 `;
             }
             
+            // Actualizar el nombre de usuario de forma asíncrona
+            fetchUsername(post.userId).then(username => {
+                const authorLink = postElement.querySelector('.post-author');
+                if (authorLink) authorLink.textContent = `@${username}`;
+            });
+
             postElement.innerHTML = `
                 <div class="post-header">
                     <div class="author-info">
-                        <!-- Enlace del autor protegido -->
-                        <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
+                        <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@Cargando...</a>
                         ${followButtonHTML}
                     </div>
                     <span class="post-target">${post.circleTarget}</span>
@@ -288,11 +371,9 @@
                     <button onclick="handleInteraction('like', '${post.id}')" id="like-btn-${post.id}">
                         <span id="like-icon-${post.id}">${likeIcon}</span> ${likeButtonText}
                     </button>
-                    <!-- ABRE EL MODAL DE COMENTARIOS -->
                     <button onclick="showCommentsModal('${post.id}')">
                         💬 Comentar
                     </button>
-                    <!-- BOTÓN COMPARTIR PROTEGIDO -->
                     <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
                 </div>
                 <p class="post-meta">
@@ -300,10 +381,27 @@
                     <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios - ${formattedDate}
                 </p>
             `;
+            
+            // Si no es el propio usuario, iniciar el listener de seguimiento
+            if (isUserLoggedIn && !isAuthor) {
+                 const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
+                 onSnapshot(followerRef, (docSnapshot) => {
+                     const isFollowing = docSnapshot.exists();
+                     const button = postElement.querySelector(`#follow-btn-${post.id}`);
+                     if (button) {
+                        const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
+                        const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
+                        
+                        button.textContent = buttonText;
+                        button.className = buttonClass;
+                     }
+                 });
+            }
+            
             return postElement;
         }
 
-        // 7. Lógica del Botón "Me Gusta"
+        // 7. Lógica del Botón "Me Gusta" (Mantenida)
         window.handleInteraction = async function(action, postId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -315,36 +413,26 @@
 
             try {
                 if (action === 'like') {
-                    // 1. Verificar si el usuario ya le dio like
                     const likeDoc = await getDoc(likeRef);
 
                     if (likeDoc.exists()) {
-                        // YA DIO LIKE -> QUITAR LIKE
                         await deleteDoc(likeRef);
-                        await updateDoc(postRef, {
-                            likes: increment(-1)
-                        });
-                        console.log(`Like quitado al post: ${postId}`);
+                        await updateDoc(postRef, { likes: increment(-1) });
                     } else {
-                        // NO DIO LIKE -> DAR LIKE
                         await setDoc(likeRef, {
                             userId: currentUser.uid,
                             username: currentUser.displayName || 'Usuario Nexus',
                             timestamp: serverTimestamp()
                         });
-                        await updateDoc(postRef, {
-                            likes: increment(1)
-                        });
-                        console.log(`Like añadido al post: ${postId}`);
+                        await updateDoc(postRef, { likes: increment(1) });
                     }
                 } 
             } catch (error) {
                 console.error(`Error al procesar ${action} en el post ${postId}:`, error);
-                // NOTA: Reemplazado alert() por un console log para errores.
             }
         }
 
-        // 8. FUNCIONES DEL MODAL 
+        // 8. FUNCIONES DEL MODAL (Mantenidas)
         window.closeModal = function(event, modalId) {
             const modal = document.getElementById(modalId);
             if (!event || event.target === modal) {
@@ -391,7 +479,6 @@
                     const comment = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="comment-item">
-                            <!-- Enlace del autor en comentario protegido también -->
                             <a href="#" class="comment-author" onclick="checkAuthAndNavigate('profile.html', '${comment.userId}'); closeModal(null, 'comments-likes-modal');">@${comment.username || 'Desconocido'}</a>
                             <span class="comment-text">${comment.text}</span>
                         </div>
@@ -417,7 +504,6 @@
                     const like = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="like-user-item">
-                            <!-- Enlace del autor en likes protegido también -->
                             <a href="#" onclick="checkAuthAndNavigate('profile.html', '${like.userId}'); closeModal(null, 'comments-likes-modal');">@${like.username || 'Desconocido'}</a>
                         </div>
                     `;
@@ -431,14 +517,14 @@
         window.submitCommentFromModal = async function() {
             const text = modalCommentText.value.trim();
             if (!text) {
-                console.error('El comentario no puede estar vacío.');
-                // Pequeña notificación visual en el modal
-                modalContentArea.insertAdjacentHTML('afterbegin', '<p style="color:red;">¡El comentario está vacío!</p>');
-                setTimeout(() => {
-                    // Remover el error después de 2 segundos
-                    const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
-                    if(errorMsg) errorMsg.remove();
+                const existingError = modalContentArea.querySelector('p[style*="color:red;"]');
+                if (!existingError) {
+                    modalContentArea.insertAdjacentHTML('afterbegin', '<p style="color:red;">¡El comentario está vacío!</p>');
+                    setTimeout(() => {
+                        const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
+                        if(errorMsg) errorMsg.remove();
                     }, 2000);
+                }
                 return;
             }
 
@@ -458,7 +544,6 @@
                 });
 
                 modalCommentText.value = ''; 
-                // Volver a cargar los comentarios para ver el nuevo
                 setupCommentsListener(postId);
                 
             } catch (error) {
@@ -466,44 +551,65 @@
             }
         }
         
-        // ******************************************************
-        // LÓGICA DE COMPARTIR (ACTUALIZADA)
-        // ******************************************************
-        window.sharePost = function(postId) {
-            if (!isUserLoggedIn) {
-                showRegistrationModal();
-                return;
+        // 9. Configurar el Listener del Feed de Firestore (ACTUALIZADO)
+        function setupFeedListener() {
+            // Si ya existe un listener, lo desuscribimos para evitar duplicados.
+            if (unsubscribeFeed) {
+                unsubscribeFeed();
             }
             
-            // Lógica de compartir (simulada)
-            console.log(`Compartiendo enlace externo del post ID: ${postId}.`);
-
-            // Usar el modal para mostrar la confirmación de copia (simulada)
-            currentPostIdForModal = null; // Limpiar el ID si estaba viendo comentarios
-            modalTitle.textContent = '¡Enlace Copiado!';
-            modalContentArea.innerHTML = `
-                <p>El enlace a la publicación ha sido copiado al portapapeles (simulado).</p>
-                <p style="font-size:0.8em; color:#888;">(ID: ${postId})</p>
-            `;
-            commentInputArea.style.display = 'none'; // Ocultar el área de comentarios
-            commentsLikesModal.style.display = 'flex';
+            let feedQuery;
+            
+            if (currentFeedType === 'following') {
+                loadingMessage.textContent = 'Cargando publicaciones de tus círculos...';
+                
+                getFollowingUids().then(followingIds => {
+                    if (followingIds.length === 0) {
+                        loadingMessage.textContent = 'Aún no sigues a nadie. ¡Usa el feed Global o la página de Explorar!';
+                        feedContainer.innerHTML = '';
+                        return;
+                    }
+                    
+                    // LIMITACIÓN DE FIRESTORE: El operador 'in' está limitado a 10 valores.
+                    // Si el usuario sigue a más de 10, solo mostraremos los 10 primeros.
+                    // Para una implementación robusta, se requeriría una colección de "feed personalizado"
+                    // o múltiples consultas, lo cual es más complejo.
+                    const idsToQuery = followingIds.slice(0, 10);
+                    
+                    feedQuery = query(
+                        collection(db, "posts"), 
+                        where("userId", "in", idsToQuery),
+                        orderBy("createdAt", "desc")
+                    );
+                    
+                    // Adjuntar el listener después de obtener los IDs
+                    attachFeedListener(feedQuery, followingIds.length > 10);
+                });
+                return; // Salir, el attachFeedListener se llama dentro del .then()
+                
+            } else { // 'global'
+                loadingMessage.textContent = 'Cargando feed global...';
+                feedQuery = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+                attachFeedListener(feedQuery, false);
+            }
         }
         
-        // 9. Configurar el Listener del Feed de Firestore 
-        function setupFeedListener() {
-            const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
-
-            onSnapshot(postsQuery, (querySnapshot) => {
+        /**
+         * Función auxiliar para adjuntar el listener de onSnapshot.
+         * @param {Query} q - La consulta de Firestore.
+         * @param {boolean} isLimited - Si la consulta está limitada a 10 resultados (solo para following).
+         */
+        function attachFeedListener(q, isLimited) {
+            unsubscribeFeed = onSnapshot(q, (querySnapshot) => {
                 loadingMessage.style.display = 'none';
                 feedContainer.innerHTML = ''; 
 
                 querySnapshot.forEach((docSnapshot) => {
                     const postData = { id: docSnapshot.id, ...docSnapshot.data() };
-                    
                     const postElement = renderPost(postData);
                     feedContainer.appendChild(postElement);
                     
-                    // Listener para actualizar el botón de like en tiempo real
+                    // Listener para actualizar el botón de like en tiempo real (Mantenido)
                     if (currentUser) {
                         const likeRef = doc(db, "posts", postData.id, "likes", currentUser.uid);
                         onSnapshot(likeRef, (likeDoc) => {
@@ -524,7 +630,13 @@
                 });
 
                 if (querySnapshot.empty) {
-                    feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. Sé el primero en compartir en create-post.html!</p>';
+                    if (currentFeedType === 'following') {
+                        feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Tu círculo está silencioso. ¡Anímales a publicar!</p>';
+                    } else {
+                        feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. ¡Sé el primero!</p>';
+                    }
+                } else if (isLimited) {
+                    feedContainer.insertAdjacentHTML('beforeend', '<p style="text-align:center; color:orange; font-size:0.9em; margin-top: 20px;">(Nota: Solo se muestran publicaciones de los primeros 10 usuarios seguidos debido a las limitaciones de la base de datos.)</p>');
                 }
                 
             }, (error) => {
@@ -533,18 +645,18 @@
             });
         }
 
+
         // 10. Observar el estado de autenticación al cargar
         document.addEventListener('DOMContentLoaded', () => {
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     isUserLoggedIn = true;
                     currentUser = user;
-                    console.log("Usuario logueado:", user.uid);
                 } else {
                     isUserLoggedIn = false;
                     currentUser = null;
-                    console.log("Usuario no logueado.");
                 }
+                // Iniciar el listener (por defecto 'global')
                 setupFeedListener(); 
             });
         });
