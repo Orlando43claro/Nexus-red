@@ -165,16 +165,19 @@
         const modalCommentText = document.getElementById('modal-comment-text');
 
 
-        // Lógica de protección de navegación del encabezado
-        window.checkAuthAndNavigate = function(url) {
+        // Lógica de protección de navegación global
+        window.checkAuthAndNavigate = function(url, userId = null) {
             if (isUserLoggedIn) {
-                window.location.href = url;
+                // Si está logueado, navega. Si hay userId, lo adjunta.
+                const finalUrl = userId ? `${url}?uid=${userId}` : url;
+                window.location.href = finalUrl;
             } else {
+                // Si no está logueado, muestra el modal de registro/login
                 showRegistrationModal();
             }
         }
         
-        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR
+        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR (Se mantiene igual)
         window.handleFollow = async function(authorId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -193,18 +196,17 @@
                     await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
                     console.log(`Dejó de seguir a ${authorId}`);
-                    // Actualizar el texto del botón en el feed si es visible
                     updateFollowButton(authorId, false);
                 } else {
                     // NO SIGUE -> SEGUIR
                     const followData = {
-                        userId: authorId, // El ID del usuario que está siendo seguido
-                        username: '', // Lo podríamos llenar con el nombre del autor, pero lo dejamos simple por ahora
+                        userId: authorId, 
+                        username: currentUser.displayName || 'Usuario Nexus',
                         timestamp: serverTimestamp()
                     };
                     await setDoc(followerRef, followData);
                     await setDoc(followingRef, {
-                         userId: currentUser.uid, // El ID del usuario que sigue
+                         userId: currentUser.uid, 
                          timestamp: serverTimestamp()
                     });
                     console.log(`Siguiendo a ${authorId}`);
@@ -215,7 +217,6 @@
             }
         }
 
-        // Función para actualizar el botón sin recargar toda la publicación
         function updateFollowButton(targetId, isFollowing) {
              const buttons = document.querySelectorAll(`[data-author-id="${targetId}"]`);
              buttons.forEach(button => {
@@ -230,7 +231,7 @@
         }
 
 
-        // Función para renderizar una publicación
+        // Función para renderizar una publicación (CAMBIO CLAVE AQUÍ)
         function renderPost(post) {
             const postElement = document.createElement('article');
             postElement.className = 'post';
@@ -243,12 +244,12 @@
             const likeIcon = isLiked ? '💖' : '❤️';
             const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
 
-            // Determinar el estado de seguimiento (Por defecto: no seguir)
+            // Determinar el estado de seguimiento 
             const isAuthor = currentUser && post.userId === currentUser.uid;
             let followButtonHTML = '';
             
             if (isUserLoggedIn && !isAuthor) {
-                // Verificar en tiempo real el estado de seguimiento para cada post
+                // Configuración de Listener de Seguir/Dejar de Seguir
                  const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
                  onSnapshot(followerRef, (docSnapshot) => {
                      const isFollowing = docSnapshot.exists();
@@ -276,8 +277,8 @@
             postElement.innerHTML = `
                 <div class="post-header">
                     <div class="author-info">
-                        <!-- ENLACE AL PERFIL DEL AUTOR -->
-                        <a href="profile.html?uid=${post.userId}" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
+                        <!-- CAMBIO CLAVE: Usamos checkAuthAndNavigate para el enlace del autor -->
+                        <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
                         ${followButtonHTML}
                     </div>
                     <span class="post-target">${post.circleTarget}</span>
@@ -301,9 +302,8 @@
             return postElement;
         }
 
-        // 7. Lógica del Botón "Me Gusta" (Likes Únicos - Se mantiene)
+        // 7. Lógica del Botón "Me Gusta" (Se mantiene igual)
         window.handleInteraction = async function(action, postId) {
-             // ... [Lógica de Likes Únicos] ...
             if (!isUserLoggedIn) {
                 showRegistrationModal();
                 return;
@@ -343,7 +343,7 @@
             }
         }
 
-        // 8. FUNCIONES DEL MODAL (Se mantienen)
+        // 8. FUNCIONES DEL MODAL (Se mantienen igual)
         window.closeModal = function(event, modalId) {
             const modal = document.getElementById(modalId);
             if (!event || event.target === modal) {
@@ -390,7 +390,8 @@
                     const comment = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="comment-item">
-                            <a href="profile.html?uid=${comment.userId}" class="comment-author" onclick="closeModal(null, 'comments-likes-modal')">@${comment.username || 'Desconocido'}</a>
+                            <!-- Enlace del autor en comentario protegido también -->
+                            <a href="#" class="comment-author" onclick="checkAuthAndNavigate('profile.html', '${comment.userId}'); closeModal(null, 'comments-likes-modal');">@${comment.username || 'Desconocido'}</a>
                             <span class="comment-text">${comment.text}</span>
                         </div>
                     `;
@@ -415,7 +416,8 @@
                     const like = doc.data();
                     modalContentArea.innerHTML += `
                         <div class="like-user-item">
-                            <a href="profile.html?uid=${like.userId}" onclick="closeModal(null, 'comments-likes-modal')">@${like.username || 'Desconocido'}</a>
+                            <!-- Enlace del autor en likes protegido también -->
+                            <a href="#" onclick="checkAuthAndNavigate('profile.html', '${like.userId}'); closeModal(null, 'comments-likes-modal');">@${like.username || 'Desconocido'}</a>
                         </div>
                     `;
                 });
@@ -455,7 +457,7 @@
             }
         }
         
-        // 9. Configurar el Listener del Feed de Firestore (Actualizado para el icono de Like)
+        // 9. Configurar el Listener del Feed de Firestore (Se mantiene igual)
         function setupFeedListener() {
             const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
 
