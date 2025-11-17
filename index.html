@@ -79,12 +79,16 @@
     <header class="header">
         <h1>NEXUS</h1>
         <nav>
-            <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear</a>
-            <!-- NUEVO BOTÓN: Explorar -->
-            <a href="#" onclick="checkAuthAndNavigate('explore.html')">Explorar</a>
-            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Perfil</a>
+            <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear Publicación</a>
+            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Mi Perfil</a>
         </nav>
     </header>
+
+    <div class="filter-bar">
+        <button>#Global</button>
+        <button id="private-filter">Mis Círculos</button>
+        <button>#Tendencias</button>
+    </div>
 
     <main id="feed-container">
         <div id="loading-posts" style="text-align: center; padding: 50px; color: #555;">
