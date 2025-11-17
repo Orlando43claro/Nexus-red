@@ -514,6 +514,7 @@
                         transaction.delete(targetUserFollowersRef); // Borrar de su lista de "seguidores"
                         
                         // Decrementar contadores en los documentos principales
+                        // Usamos un incremento negativo. Si el campo no existe, lo inicializa a 0 y luego resta.
                         transaction.update(currentUserRef, { followingCount: increment(-1) });
                         transaction.update(targetUserRef, { followersCount: increment(-1) });
                         console.log("Dejado de seguir con éxito.");
@@ -532,6 +533,7 @@
                         });
                         
                         // 3. Incrementar contadores en los documentos principales
+                        // Si el campo no existe, lo crea con el valor 1.
                         transaction.update(currentUserRef, { followingCount: increment(1) });
                         transaction.update(targetUserRef, { followersCount: increment(1) });
                         console.log("Siguiendo con éxito.");
@@ -589,38 +591,23 @@
                 
                 profileUserData = userDoc.data();
                 
-                // === INICIALIZACIÓN PREVENTIVA DE CONTADORES (CORRECCIÓN) ===
-                let needsUpdate = false;
-                const updateFields = {};
-
-                if (typeof profileUserData.followersCount === 'undefined' || profileUserData.followersCount === null) {
-                    updateFields.followersCount = 0;
-                    needsUpdate = true;
-                }
-                if (typeof profileUserData.followingCount === 'undefined' || profileUserData.followingCount === null) {
-                    updateFields.followingCount = 0;
-                    needsUpdate = true;
-                }
-
-                // Si detectamos campos faltantes, los inicializamos en la base de datos
-                if (needsUpdate) {
-                    try {
-                        await updateDoc(userRef, updateFields);
-                        // Los datos se volverán a cargar automáticamente por el onSnapshot,
-                        // pero por si acaso, actualizamos los datos locales.
-                        profileUserData = {...profileUserData, ...updateFields};
-                    } catch (e) {
-                        console.error("Error al inicializar contadores del perfil:", e);
-                    }
-                }
-                // =============================================================
-
+                // === LECTURA SEGURA DE CONTADORES (CORRECCIÓN CLAVE) ===
+                // Usamos el operador || 0 para asegurarnos de que el valor siempre sea un número (0)
+                // si el campo falta o es nulo en Firestore.
+                const followersCount = profileUserData.followersCount || 0;
+                const followingCount = profileUserData.followingCount || 0;
+                
+                // Si el contador es un número negativo (lo cual no debería pasar, pero como doble chequeo)
+                const safeFollowersCount = Math.max(0, followersCount);
+                const safeFollowingCount = Math.max(0, followingCount);
+                // =======================================================
+                
                 document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
                 // MOSTRAR CONTADORES ACTUALIZADOS
-                followersCountSpan.textContent = profileUserData.followersCount || 0;
-                followingCountSpan.textContent = profileUserData.followingCount || 0;
+                followersCountSpan.textContent = safeFollowersCount;
+                followingCountSpan.textContent = safeFollowingCount;
                 
                 checkAndDisplayStatus(profileUserData);
                 renderActionButtons();
