@@ -223,6 +223,9 @@
             padding: 8px 0; 
             border-bottom: 1px solid #eee;
         }
+        .user-list-item:last-child {
+            border-bottom: none; /* Eliminar borde inferior del último item */
+        }
         .user-list-item a {
             color: #0077b6; 
             font-weight: bold; 
@@ -380,15 +383,11 @@
             runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
-        // Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
+        // --- VARIABLES GLOBALES DEL ENTORNO CANVAS (MANDATORIO USAR) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* Your default config */ };
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // ----------------------------------------------------------------
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
@@ -428,7 +427,6 @@
 
         /**
          * Maneja el evento de dar o quitar "Me Gusta" a una publicación.
-         * Usa una transacción para actualizar el contador de likes de forma segura.
          * @param {string} postId El ID del documento de la publicación.
          * @param {string} isCurrentlyLiked Un string 'true' o 'false' para el estado actual.
          */
@@ -530,13 +528,15 @@
                 onlineStatusIndicator.classList.add('online');
                 onlineStatusIndicator.title = "Activo ahora";
             } else if (lastSeen) {
-                onlineStatusIndicator.title = `Últ. vez activo: ${new Date(lastSeen.toDate()).toLocaleTimeString()}`;
+                // Muestra la fecha/hora solo si no está online, para evitar confusión
+                const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(); // Fallback
+                onlineStatusIndicator.title = `Últ. vez activo: ${lastSeenDate.toLocaleTimeString()}`;
             }
         }
 
 
         // ******************************************************
-        // LÓGICA DE SEGUIMIENTO Y LISTAS (ACTUALIZADO)
+        // LÓGICA DE SEGUIMIENTO Y LISTAS (CORREGIDO)
         // ******************************************************
         
         /**
@@ -544,35 +544,44 @@
          * @param {string} userId El ID del perfil que se está viendo.
          */
         function setupFollowListeners(userId) {
-            // Listener para Seguidores
+            // Path: users/{userId}/followers
             const followersRef = collection(db, "users", userId, "followers");
+            // Listener para Seguidores
             onSnapshot(followersRef, (snapshot) => {
                 followersCountSpan.textContent = snapshot.size;
             }, (error) => {
-                console.error("Error al obtener seguidores:", error);
+                console.error("Error al obtener seguidores (onSnapshot):", error);
+                // No actualizamos la UI con error, solo mostramos el último conteo o 0
             });
 
-            // Listener para Siguiendo
+            // Path: users/{userId}/following
             const followingRef = collection(db, "users", userId, "following");
+            // Listener para Siguiendo
             onSnapshot(followingRef, (snapshot) => {
                 followingCountSpan.textContent = snapshot.size;
             }, (error) => {
-                console.error("Error al obtener siguiendo:", error);
+                console.error("Error al obtener siguiendo (onSnapshot):", error);
+                // No actualizamos la UI con error, solo mostramos el último conteo o 0
             });
         }
         
         /**
          * Busca el nombre de usuario dado un ID.
          * @param {string} userId 
-         * @returns {Promise<string>}
+         * @returns {Promise<{userId: string, username: string}>} Retorna el ID y el nombre de usuario.
          */
         async function fetchUsername(userId) {
             try {
                 const userDoc = await getDoc(doc(db, "users", userId));
-                return userDoc.exists() ? userDoc.data().username : `Usuario (${userId.substring(0, 4)}...)`;
+                if (userDoc.exists()) {
+                    return { userId: userId, username: userDoc.data().username || `Usuario (ID: ${userId.substring(0, 4)}...)` };
+                }
+                // Si el documento del usuario no existe
+                return { userId: userId, username: `Usuario Eliminado (ID: ${userId.substring(0, 4)}...)` };
             } catch (e) {
-                console.error("Error fetching username:", e);
-                return `Usuario Desconocido`;
+                // Error de permisos o red, crucial para debug
+                console.error(`Error de permiso/fetch para el ID ${userId}:`, e);
+                return { userId: userId, username: `Error de Carga (ID: ${userId.substring(0, 4)}...)` };
             }
         }
 
@@ -582,12 +591,12 @@
          */
         window.showFollowListModal = async function(type) {
             listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
-            userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
+            userListContent.innerHTML = '<p style="text-align: center; color:#0077b6;">Cargando lista...</p>';
             listModal.style.display = 'flex';
 
             const collectionName = type === 'followers' ? 'followers' : 'following';
             const usersRef = collection(db, "users", profileUserId, collectionName);
-
+            
             try {
                 const snapshot = await getDocs(usersRef);
                 userListContent.innerHTML = '';
@@ -601,22 +610,20 @@
 
                 snapshot.forEach((docSnap) => {
                     const data = docSnap.data();
-                    let targetUserId;
-                    
-                    // En la colección 'followers', el ID del seguidor está dentro del documento (data.userId).
-                    // En la colección 'following', el ID del seguido es el ID del documento (docSnap.id).
-                    if (collectionName === 'followers') {
-                        targetUserId = data.userId || docSnap.id;
-                    } else {
-                        targetUserId = docSnap.id;
+                    let targetUserId = docSnap.id; // En ambas colecciones, el ID del documento es el ID del usuario relevante
+
+                    // Para la colección 'followers' (donde los documentos tienen data.userId), nos aseguramos de usar el ID correcto.
+                    // Para 'following', el ID es siempre el ID del documento.
+                    if (collectionName === 'followers' && data.userId) {
+                        targetUserId = data.userId;
                     }
                     
-                    // Intentar usar el nombre de usuario cacheado si está disponible en el documento de seguimiento
-                    if (data.username) {
+                    // Priorizar el nombre de usuario si está cacheado en el documento de seguimiento (más rápido)
+                    if (data.username && targetUserId !== profileUserId) { 
                         userPromises.push(Promise.resolve({ userId: targetUserId, username: data.username }));
-                    } else {
-                        // Si no está cacheado, buscar el nombre de usuario
-                        userPromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
+                    } else if (targetUserId !== profileUserId) {
+                        // Si no está cacheado o es 'following', buscar el nombre de usuario
+                        userPromises.push(fetchUsername(targetUserId));
                     }
                 });
                 
@@ -632,8 +639,9 @@
                 });
                 
             } catch (error) {
-                console.error(`Error al cargar lista de ${type}:`, error);
-                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
+                // Este es el error que probablemente estás viendo
+                console.error(`Error grave al cargar lista de ${type}. Revisa las reglas de seguridad de Firestore para 'users/{userId}/followers' y 'users/{userId}/following':`, error);
+                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista. (Verifica permisos).</p>`;
             }
         }
 
@@ -643,31 +651,33 @@
         window.handleFollow = async function() {
             if (!currentUser) return;
 
-            // Determinar el estado actual por el texto del botón
             const followBtn = actionButtonsDiv.querySelector('#follow-btn');
             const isFollowing = followBtn.textContent === 'Siguiendo';
             
             // Referencias de documentos
-            const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
-            const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
+            const followingRef = doc(db, "users", currentUser.uid, "following", profileUserId); // Yo estoy siguiendo a este perfil
+            const followerRef = doc(db, "users", profileUserId, "followers", currentUser.uid); // Este perfil me tiene como seguidor
 
             try {
-                // Obtener el nombre del usuario actual para guardarlo en la lista del otro usuario
+                // Obtener el nombre de usuario actual y del perfil para cachearlo
                 const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
                 const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+                const profileUsername = profileUserData.username || 'Usuario Nexus';
 
                 if (isFollowing) {
                     // Dejar de seguir (Delete)
-                    await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
+                    await deleteDoc(followerRef);
                     console.log("Dejado de seguir con éxito.");
                 } else {
                     // Seguir (Set) - Cachar el nombre de usuario en el documento de seguimiento
-                    await setDoc(followerRef, { userId: profileUserId, username: profileUserData.username, timestamp: serverTimestamp() });
-                    await setDoc(followingRef, { userId: currentUser.uid, username: currentUsername, timestamp: serverTimestamp() });
+                    // 1. Crear documento en mi lista de "siguiendo"
+                    await setDoc(followingRef, { userId: profileUserId, username: profileUsername, timestamp: serverTimestamp() });
+                    // 2. Crear documento en la lista de "seguidores" del otro perfil
+                    await setDoc(followerRef, { userId: currentUser.uid, username: currentUsername, timestamp: serverTimestamp() });
                     console.log("Seguido con éxito.");
                 }
-                // Los listeners de onSnapshot se encargarán de actualizar el botón y los contadores.
+                // Los listeners onSnapshot actualizarán el botón y contadores automáticamente.
             } catch (error) {
                 console.error("Error al seguir/dejar de seguir:", error);
             }
@@ -725,8 +735,9 @@
 
                 checkAndDisplayStatus(profileUserData);
                 // Llama a renderActionButtons y setupFollowListeners con los datos del perfil actualizados
-                renderActionButtons();
+                // setupFollowListeners debe llamarse aquí para garantizar que tenga el profileUserId correcto.
                 setupFollowListeners(profileUserId); 
+                renderActionButtons(); 
             }, (error) => {
                 console.error("Error al cargar datos del perfil:", error);
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
@@ -807,9 +818,9 @@
         }
         
 
-        // 3. Renderiza los botones de acción (ACTUALIZADO para usar onSnapshot para seguir/dejar de seguir)
+        // 3. Renderiza los botones de acción
         function renderActionButtons() {
-            actionButtonsDiv.innerHTML = '';
+            actionButtonsDiv.innerHTML = '<p>Cargando...</p>';
             
             if (!currentUser) {
                  actionButtonsDiv.innerHTML = '<p style="color:#888;">Inicia sesión para interactuar.</p>';
@@ -824,10 +835,10 @@
                 `;
             } else {
                 // Perfil de otro usuario
-                const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
+                const followingRef = doc(db, "users", currentUser.uid, "following", profileUserId);
                 
                 // Listener para el estado de seguimiento (actualiza el botón en tiempo real)
-                onSnapshot(followerRef, (docSnapshot) => {
+                onSnapshot(followingRef, (docSnapshot) => {
                     const isFollowing = docSnapshot.exists();
                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
                     const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
@@ -873,7 +884,21 @@
         // ******************************************************
         // INICIO DE LA APLICACIÓN
         // ******************************************************
-        document.addEventListener('DOMContentLoaded', () => {
+        async function authenticateAndLoad() {
+            try {
+                // 1. Autenticación usando el token o anónimamente (MANDATORIO)
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                // Si la autenticación falla, redirigir al login
+                window.location.href = 'login.html'; 
+                return;
+            }
+
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
@@ -889,7 +914,10 @@
                     window.location.href = 'login.html';
                 }
             });
-        });
+        }
+        
+        // Llamar a la función de inicio de la aplicación
+        document.addEventListener('DOMContentLoaded', authenticateAndLoad);
     </script>
 </body>
 </html>
