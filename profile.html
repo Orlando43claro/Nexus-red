@@ -101,7 +101,6 @@
         <div id="profile-container" class="profile-container">
             <div id="profile-info" class="profile-info">
                 <h2>Cargando Perfil...</h2>
-                <!-- Eliminamos la línea del ID de Usuario -->
                 <p id="profile-bio">...</p>
             </div>
             
@@ -171,8 +170,10 @@
         import { 
             getFirestore, doc, getDoc, updateDoc, 
             collection, query, where, getDocs, onSnapshot,
-            setDoc, deleteDoc, orderBy
+            setDoc, deleteDoc
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        
+        // Se remueve 'orderBy' de los imports ya que haremos el ordenamiento localmente
 
         // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
@@ -248,7 +249,7 @@
             }
         }
 
-        // 2. Mostrar Modal de Listas (Actualizado para mostrar username)
+        // 2. Mostrar Modal de Listas (Mantiene la lógica de mostrar username)
         window.showFollowListModal = async function(type) {
             listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
             userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
@@ -275,17 +276,25 @@
                     
                     if (collectionName === 'followers') {
                         // En followers, el ID del usuario que nos sigue está dentro del documento
-                        targetUserId = data.userId;
+                        targetUserId = data.userId || docSnap.id; // Fallback al id del doc si el campo userId falta
                     } else {
                         // En following, el ID del usuario que seguimos es el ID del documento
                         targetUserId = docSnap.id;
                     }
                     
-                    // Añadimos la promesa de obtener el nombre de usuario
-                    usernamePromises.push(fetchUsername(targetUserId).then(username => ({
-                        userId: targetUserId,
-                        username: username
-                    })));
+                    // Si el documento ya tiene el username guardado (como en 'following' docs)
+                    if (collectionName === 'following' && data.username) {
+                        usernamePromises.push(Promise.resolve({
+                            userId: targetUserId,
+                            username: data.username
+                        }));
+                    } else {
+                        // Si no, lo buscamos en la colección 'users'
+                        usernamePromises.push(fetchUsername(targetUserId).then(username => ({
+                            userId: targetUserId,
+                            username: username
+                        })));
+                    }
                 });
                 
                 // Esperamos a que todos los nombres de usuario se carguen
@@ -305,7 +314,7 @@
             }
         }
 
-        // 3. Lógica de Seguir/Dejar de Seguir (Se mantiene similar a feed.html)
+        // 3. Lógica de Seguir/Dejar de Seguir 
         window.handleFollow = async function() {
             if (!currentUser) return;
 
@@ -318,8 +327,10 @@
                     await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
                 } else {
+                    // Usamos el username del perfil visitado para 'following'
                     await setDoc(followerRef, { userId: profileUserId, username: profileUserData.username });
-                    await setDoc(followingRef, { userId: currentUser.uid, username: currentUser.displayName || 'Usuario Nexus' });
+                    // Usamos el username del usuario actual para 'followers'
+                    await setDoc(followingRef, { userId: currentUser.uid, username: profileUserData.username || 'Usuario Nexus' });
                 }
                 // El listener de renderButtons lo actualizará automáticamente
             } catch (error) {
@@ -338,7 +349,7 @@
             logoutConfirmModal.style.display = 'none';
             try {
                 await signOut(auth);
-                // Redirigir al usuario al feed o a la página de inicio de sesión
+                // Redirigir al usuario al login
                 window.location.href = 'login.html'; 
             } catch (error) {
                 console.error("Error al cerrar sesión:", error);
@@ -365,7 +376,6 @@
                 }
                 
                 profileUserData = userDoc.data();
-                // Eliminamos la línea que mostraba el ID
                 document.getElementById('profile-info').querySelector('h2').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
@@ -411,31 +421,44 @@
             }
         }
 
-        // 3. Carga las publicaciones del perfil
+        // 3. Carga las publicaciones del perfil (FIXED)
         async function loadUserPosts() {
             userPostsDiv.innerHTML = '<p style="color: #888;">Cargando publicaciones...</p>';
             try {
+                // SOLO filtramos por userId (Quitamos el orderBy para evitar el error de índice)
                 const postsQuery = query(
                     collection(db, "posts"), 
-                    where("userId", "==", profileUserId),
-                    orderBy("createdAt", "desc")
+                    where("userId", "==", profileUserId)
                 );
                 
-                const querySnapshot = await getDocs(postsQuery);
+                let querySnapshot = await getDocs(postsQuery);
+                let posts = [];
+                // Recolectar datos en un array
+                querySnapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+
+                // Ordenar localmente por 'createdAt' (descendente)
+                // Esto soluciona el error de "Falta índice"
+                posts.sort((a, b) => {
+                    // Convertir los TimeStamp de Firebase a milisegundos para comparación
+                    const timeA = a.createdAt ? (a.createdAt.seconds * 1000) + (a.createdAt.nanoseconds / 1000000) : 0;
+                    const timeB = b.createdAt ? (b.createdAt.seconds * 1000) + (b.createdAt.nanoseconds / 1000000) : 0;
+                    return timeB - timeA; // Orden descendente (más nuevo primero)
+                });
+                
                 userPostsDiv.innerHTML = '';
 
-                if (querySnapshot.empty) {
+                if (posts.length === 0) {
                     userPostsDiv.innerHTML = '<p>Este usuario aún no tiene publicaciones.</p>';
                     return;
                 }
 
-                querySnapshot.forEach((doc) => {
-                    const post = doc.data();
+                // Renderizar las publicaciones ordenadas
+                posts.forEach((post) => {
                     const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
                     userPostsDiv.innerHTML += `
                         <div class="post-card">
                             <p>${post.text}</p>
-                            <small>Publicado: ${formattedDate} | Likes: ${post.likes || 0} | Círculo: ${post.circleTarget}</small>
+                            <small>Publicado: ${formattedDate} | Likes: ${post.likes || 0} | Círculo: ${post.circleTarget || 'Global'}</small>
                         </div>
                     `;
                 });
@@ -458,22 +481,16 @@
             const newBio = document.getElementById('edit-bio').value.trim();
             
             if (!newUsername) {
-                // Usamos la consola para errores en lugar de alert()
                 console.error("El nombre de usuario no puede estar vacío.");
                 return;
             }
 
             try {
-                // Actualizar el documento de usuario en la colección 'users'
                 await updateDoc(doc(db, "users", currentUser.uid), {
                     username: newUsername,
                     bio: newBio
                 });
                 
-                // Nota: También deberíamos actualizar el `displayName` de Firebase Auth 
-                // si queremos que se refleje en el `currentUser.displayName`, pero para 
-                // este ejemplo solo usaremos el campo 'username' de Firestore como fuente principal.
-
                 closeModal(null, 'edit-modal');
                 // Recargar datos para reflejar los cambios
                 loadProfileData(); 
