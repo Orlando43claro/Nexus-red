@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Configurar Perfil</title>
     <style>
-        /* Estilos Mínimos y Responsivos */
+        /* Estilos Mínimos y Responsivos (Tus estilos originales) */
         body { 
             font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
             display: flex; justify-content: center; align-items: center; 
@@ -43,8 +43,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        // Importamos runTransaction para crear el usuario y el círculo atómicamente
-        import { getFirestore, doc, serverTimestamp, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
         // Habilitar logs para depuración
         setLogLevel('debug');
@@ -52,7 +51,7 @@
         let app;
         let auth;
         let db;
-        let currentUser = null; 
+        let currentUser = null; // Variable para almacenar el usuario autenticado
 
         const setupForm = document.getElementById('setupForm');
         const errorDisplay = document.getElementById('errorMessage');
@@ -70,7 +69,7 @@
              let firebaseConfig = {};
              let initialAuthToken = null;
              
-             // 1. Obtener la configuración de forma robusta del entorno
+             // 1. Obtener la configuración de forma robusta del entorno (Reemplazo de la config estática)
              try {
                 if (window.__firebase_config) {
                     firebaseConfig = JSON.parse(window.__firebase_config);
@@ -115,8 +114,8 @@
                     // Mostrar el nombre de usuario
                     document.getElementById('welcome-message').textContent = `Bienvenido, @${user.displayName || 'nuevo usuario'}!`;
                 } else {
-                    // Si el usuario no está logueado, lo enviamos de vuelta al inicio de sesión
-                    showUIError("Sesión no encontrada. Redirigiendo a login...");
+                    // Si el usuario no está logueado, lo enviamos de vuelta al inicio de sesión (QUITANDO ALERT)
+                    showUIError("Debes iniciar sesión para configurar tu perfil. Redirigiendo...");
                     setTimeout(() => window.location.href = 'login.html', 1500); 
                 }
              });
@@ -129,63 +128,48 @@
             e.preventDefault();
             errorDisplay.textContent = '';
             
-            if (!currentUser || !db) {
-                showUIError('Error: Sesión no encontrada o base de datos no inicializada.');
+            if (!currentUser) {
+                errorDisplay.textContent = 'Error: Sesión no encontrada. Por favor, reinicia la página.';
                 return;
             }
 
             finishButton.disabled = true;
-            finishButton.textContent = 'Guardando perfil...';
+            finishButton.textContent = 'Guardando perfil...'; // Indicador de carga
 
-            const bio = document.getElementById('bio').value.trim();
-            const firstCircleName = document.getElementById('firstCircleName').value.trim();
+            const bio = document.getElementById('bio').value;
+            const firstCircleName = document.getElementById('firstCircleName').value;
             const userId = currentUser.uid;
 
-            // La lógica de guardado debe usar runTransaction y la ruta correcta para la subcolección privada
-            const appId = window.__app_id || 'default-app-id';
+            // Nota: La forma en que tu código original guardaba los círculos era como un array en el doc de usuario.
+            // Aunque esto no es escalable, lo mantendré para honrar tu código original.
+            // Para el entorno de Canvas, debemos usar la colección 'users'.
             const userRef = doc(db, "users", userId);
-            const circleId = firstCircleName.toLowerCase().replace(/\s+/g, '-'); 
-            // Ruta del Círculo: /artifacts/{appId}/users/{userId}/circles/{circleId}
-            const circleRef = doc(db, "artifacts", appId, "users", userId, "circles", circleId); 
 
 
             try {
-                await runTransaction(db, async (transaction) => {
-                    
-                    // A. Crear el documento de perfil principal en 'users'
-                    transaction.set(userRef, {
-                        userId: userId,
-                        username: currentUser.displayName || userId,
-                        email: currentUser.email,
-                        bio: bio,
-                        // Almacenamos la referencia al primer círculo creado
-                        defaultCircleId: circleId,
-                        defaultCircleName: firstCircleName,
-                        profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', 
-                        createdAt: serverTimestamp(),
-                        followersCount: 0,
-                        followingCount: 0,
-                    });
-
-                    // B. Crear el documento del primer Círculo de Influencia (en la subcolección)
-                    transaction.set(circleRef, {
-                        name: firstCircleName,
-                        id: circleId,
-                        isPublic: false, 
-                        ownerId: userId,
-                        members: [userId], 
-                        createdAt: serverTimestamp()
-                    });
+                // Crear el documento de perfil en la colección 'users' usando el UID como ID del documento
+                await setDoc(userRef, {
+                    username: currentUser.displayName, // Nombre de usuario guardado de Authentication
+                    email: currentUser.email,
+                    bio: bio,
+                    // El primer Círculo de Influencia (TAL COMO LO TENÍAS EN TU CÓDIGO ORIGINAL)
+                    circles: [
+                        { name: firstCircleName, isPrivate: true, membersCount: 1 }
+                    ],
+                    profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', // Placeholder por ahora
+                    createdAt: serverTimestamp()
                 });
 
-                // Éxito: Redirigir al Feed (feed.html) sin alerta.
+                // Éxito: Redirigir al Feed (feed.html), quitando el ALERT
                 finishButton.textContent = '¡Perfil configurado! Entrando...';
                 window.location.href = 'feed.html';
 
             } catch (error) {
+                // Mostrar error en la UI, no con alert
+                errorDisplay.textContent = 'Error al guardar el perfil. Revisa la consola para más detalles.';
                 console.error("Error al guardar en Firestore:", error);
-                // Mostrar el error en la UI, no con alert
-                showUIError('Error al guardar el perfil. Revisa la consola para más detalles.');
+                finishButton.disabled = false;
+                finishButton.textContent = 'Finalizar y Entrar a Nexus';
             }
         });
     </script>
