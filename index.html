@@ -80,7 +80,7 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear Publicación</a>
-            <!-- NUEVO BOTÓN: Explorar -->
+            <!-- Botón Explorar -->
             <a href="#" onclick="checkAuthAndNavigate('explore.html')">Explorar</a>
             <a href="#" onclick="checkAuthAndNavigate('profile.html')">Mi Perfil</a>
         </nav>
@@ -241,6 +241,9 @@
 
             const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
             
+            // Contadores
+            const sharesCount = post.shares || 0; // Agregado contador de compartidos
+            
             // Determinar si el usuario ya le dio like para cambiar el icono
             const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
             const likeIcon = isLiked ? '💖' : '❤️';
@@ -294,12 +297,13 @@
                     <button onclick="showCommentsModal('${post.id}')">
                         💬 Comentar
                     </button>
-                    <!-- BOTÓN COMPARTIR PROTEGIDO -->
+                    <!-- BOTÓN COMPARTIR PROTEGIDO (AHORA SUMA UN CONTADOR) -->
                     <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
                 </div>
                 <p class="post-meta">
                     <span id="likes-count-${post.id}" class="likes-info" onclick="showLikesModal('${post.id}')">${post.likes || 0}</span> Me Gusta · 
-                    <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios - ${formattedDate}
+                    <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios ·
+                    <span id="shares-count-${post.id}">${sharesCount}</span> Compartidos - ${formattedDate}
                 </p>
             `;
             return postElement;
@@ -383,6 +387,7 @@
             modalContentArea.innerHTML = '<p style="text-align:center;">Cargando comentarios...</p>';
             const commentsQuery = query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc"));
 
+            // onSnapshot se encarga de mantener la lista de comentarios actualizada
             onSnapshot(commentsQuery, (querySnapshot) => {
                 modalContentArea.innerHTML = '';
                 if (querySnapshot.empty) {
@@ -448,6 +453,7 @@
             if (!postId) return;
 
             try {
+                // 1. Agregar el comentario
                 await addDoc(collection(db, "posts", postId, "comments"), {
                     userId: currentUser.uid,
                     username: currentUser.displayName || 'Usuario Nexus',
@@ -455,13 +461,15 @@
                     timestamp: serverTimestamp()
                 });
                 
+                // 2. Incrementar el contador de comentarios en el post principal
                 await updateDoc(doc(db, "posts", postId), {
                     commentsCount: increment(1)
                 });
 
                 modalCommentText.value = ''; 
-                // Volver a cargar los comentarios para ver el nuevo
-                setupCommentsListener(postId);
+                
+                // IMPORTANTE: Se elimina la llamada explícita a setupCommentsListener(postId).
+                // La función onSnapshot ya actualizará el modal automáticamente, evitando el parpadeo.
                 
             } catch (error) {
                 console.error("Error submitting comment:", error);
@@ -469,7 +477,7 @@
         }
         
         // ******************************************************
-        // LÓGICA DE COMPARTIR (ACTUALIZADA)
+        // LÓGICA DE COMPARTIR (CORREGIDA PARA SUMAR)
         // ******************************************************
         window.sharePost = function(postId) {
             if (!isUserLoggedIn) {
@@ -477,10 +485,19 @@
                 return;
             }
             
-            // Lógica de compartir (simulada)
+            // 1. INCREMENTAR EL CONTADOR DE COMPARTIDOS
+            const postRef = doc(db, "posts", postId);
+            updateDoc(postRef, {
+                shares: increment(1)
+            }).then(() => {
+                console.log(`Contador de compartidos incrementado para el post: ${postId}.`);
+            }).catch(error => {
+                console.error("Error al incrementar el contador de compartidos:", error);
+            });
+            
+            // 2. Lógica de compartir (simulada y muestra modal)
             console.log(`Compartiendo enlace externo del post ID: ${postId}.`);
 
-            // Usar el modal para mostrar la confirmación de copia (simulada)
             currentPostIdForModal = null; // Limpiar el ID si estaba viendo comentarios
             modalTitle.textContent = '¡Enlace Copiado!';
             modalContentArea.innerHTML = `
