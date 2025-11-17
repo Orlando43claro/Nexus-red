@@ -177,7 +177,7 @@
                 <p id="profile-bio">...</p>
             </div>
             
-            <!-- BARRA DE ESTADÍSTICAS -->
+            <!-- BARRA DE ESTADÍSTICAS (Actualizada por Listener del Documento de Usuario) -->
             <div class="stats-bar">
                 <button id="followers-btn" onclick="showFollowListModal('followers')">
                     <span id="followers-count">0</span> Seguidores
@@ -246,12 +246,11 @@
             getFirestore, doc, getDoc, updateDoc, 
             collection, query, where, getDocs, onSnapshot,
             setDoc, deleteDoc, serverTimestamp, increment,
-            runTransaction
+            runTransaction, setLogLevel
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
-        // ** NOTA IMPORTANTE: LA VERSIÓN DE FIREBASE DEBE SER LA MISMA **
-        // Asegúrate de que todas las dependencias de firebase usen la misma versión (10.12.3)
-        // La configuración se mantiene como la que proporcionaste.
+        // Habilitar logs de depuración para Firestore
+        setLogLevel('Debug'); 
 
         // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
@@ -308,7 +307,6 @@
         window.handleLikePost = async function(postId, isCurrentlyLiked) {
             if (!currentUser) {
                 console.error("Debes iniciar sesión para dar Me Gusta.");
-                // Aquí podrías mostrar un modal o mensaje de error en lugar de console.error
                 return;
             }
 
@@ -415,23 +413,10 @@
         // ******************************************************
         // LÓGICA DE SEGUIMIENTO Y LISTAS
         // ******************************************************
-        function setupFollowListeners(userId) {
-            const followersRef = collection(db, "users", userId, "followers");
-            // Usamos onSnapshot para obtener los conteos en tiempo real
-            onSnapshot(followersRef, (snapshot) => {
-                followersCountSpan.textContent = snapshot.size;
-            }, (error) => {
-                console.error("Error al obtener seguidores:", error);
-            });
-
-            const followingRef = collection(db, "users", userId, "following");
-            onSnapshot(followingRef, (snapshot) => {
-                followingCountSpan.textContent = snapshot.size;
-            }, (error) => {
-                console.error("Error al obtener siguiendo:", error);
-            });
-        }
         
+        // Eliminé la función setupFollowListeners(userId) ya que ahora los contadores
+        // se obtienen del documento principal del perfil, lo que es más eficiente y rápido.
+
         /**
          * Obtiene el nombre de usuario de un ID específico.
          * @param {string} userId - ID del usuario.
@@ -440,7 +425,7 @@
         async function fetchUsername(userId) {
             try {
                 const userDoc = await getDoc(doc(db, "users", userId));
-                // Si el documento existe, devuelve el username. Si no existe, devuelve el ID para debugging
+                // Si el documento existe, devuelve el username.
                 return userDoc.exists() ? userDoc.data().username : `Usuario Desconocido (${userId.substring(0, 4)}...)`;
             } catch (e) {
                 console.error("Error fetching username:", e);
@@ -458,7 +443,6 @@
             listModal.style.display = 'flex';
 
             const collectionName = type === 'followers' ? 'followers' : 'following';
-            // La colección a la que apuntamos es la del usuario cuyo perfil estamos viendo (profileUserId)
             const listRef = collection(db, "users", profileUserId, collectionName);
 
             try {
@@ -473,8 +457,6 @@
                 const userPromises = [];
 
                 snapshot.forEach((docSnap) => {
-                    // En ambas colecciones (followers y following), el ID del documento (docSnap.id) 
-                    // ES el ID del usuario relevante.
                     const targetUserId = docSnap.id;
                     userPromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
                 });
@@ -486,18 +468,20 @@
                      userListContent.innerHTML += `
                         <div class="user-list-item">
                             <a href="profile.html?uid=${user.userId}" onclick="closeModal(null, 'list-modal')">@${user.username}</a>
-                            <!-- Aquí se podría añadir un botón "Seguir" o "Dejar de Seguir" si es necesario -->
                         </div>
                     `;
                 });
                 
             } catch (error) {
                 console.error(`Error al cargar lista de ${type}:`, error);
-                // Mostrar un mensaje de error legible al usuario
-                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista: Verifique sus reglas de Firestore.</p>`;
+                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
             }
         }
 
+        /**
+         * Maneja el seguimiento/dejar de seguir. Usa una transacción para actualizar 
+         * las subcolecciones Y los contadores del documento principal.
+         */
         window.handleFollow = async function() {
             if (!currentUser) return;
             if (currentUser.uid === profileUserId) return; // No seguirse a uno mismo
@@ -505,42 +489,53 @@
             const followBtn = actionButtonsDiv.querySelector('#follow-btn');
             if (!followBtn) return;
             
-            // Usamos el texto actual del botón para determinar la acción
             const isFollowing = followBtn.textContent.trim() === 'Siguiendo';
             
-            // Referencias para la acción de seguimiento
+            const currentUserRef = doc(db, "users", currentUser.uid); // Documento de usuario actual
+            const targetUserRef = doc(db, "users", profileUserId);      // Documento del perfil visto
+
             const currentUserFollowingRef = doc(db, "users", currentUser.uid, "following", profileUserId);
             const targetUserFollowersRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
 
             try {
-                // Obtenemos el username actual (del usuario logueado) para guardarlo en la lista de followers del target
-                const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
-                const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
-                
-                // Obtenemos el username del perfil que estamos viendo para guardarlo en la lista de following del usuario actual
-                const targetUsername = profileUserData.username || `Usuario Desconocido`;
-
-                if (isFollowing) {
-                    // DEJAR DE SEGUIR
-                    await deleteDoc(currentUserFollowingRef); // Borrar de mi lista de "siguiendo"
-                    await deleteDoc(targetUserFollowersRef); // Borrar de su lista de "seguidores"
-                } else {
-                    // SEGUIR
-                    await setDoc(currentUserFollowingRef, { 
-                        userId: profileUserId, 
-                        username: targetUsername, 
-                        timestamp: serverTimestamp() 
-                    });
-                    await setDoc(targetUserFollowersRef, { 
-                        userId: currentUser.uid, 
-                        username: currentUsername,
-                        timestamp: serverTimestamp() 
-                    });
-                }
-                // El onSnapshot en renderActionButtons actualizará el botón automáticamente.
+                // Usar transacción para asegurar que todas las actualizaciones se completen o fallen juntas
+                await runTransaction(db, async (transaction) => {
+                    // 1. Obtener la información necesaria para las subcolecciones
+                    const currentUserDoc = await transaction.get(currentUserRef);
+                    const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+                    const targetUsername = profileUserData.username || `Usuario Desconocido`;
+                    
+                    if (isFollowing) {
+                        // DEJAR DE SEGUIR
+                        transaction.delete(currentUserFollowingRef); // Borrar de mi lista de "siguiendo"
+                        transaction.delete(targetUserFollowersRef); // Borrar de su lista de "seguidores"
+                        
+                        // Decrementar contadores en los documentos principales
+                        transaction.update(currentUserRef, { followingCount: increment(-1) });
+                        transaction.update(targetUserRef, { followersCount: increment(-1) });
+                        console.log("Dejado de seguir con éxito.");
+                    } else {
+                        // SEGUIR
+                        // 2. Añadir a subcolecciones
+                        transaction.set(currentUserFollowingRef, { 
+                            userId: profileUserId, 
+                            username: targetUsername, 
+                            timestamp: serverTimestamp() 
+                        });
+                        transaction.set(targetUserFollowersRef, { 
+                            userId: currentUser.uid, 
+                            username: currentUsername,
+                            timestamp: serverTimestamp() 
+                        });
+                        
+                        // 3. Incrementar contadores en los documentos principales
+                        transaction.update(currentUserRef, { followingCount: increment(1) });
+                        transaction.update(targetUserRef, { followersCount: increment(1) });
+                        console.log("Siguiendo con éxito.");
+                    }
+                });
             } catch (error) {
-                console.error("Error al seguir/dejar de seguir:", error);
-                // Si falla, revertir la UI o mostrar un mensaje.
+                console.error("Error en la transacción al seguir/dejar de seguir:", error);
             }
         }
 
@@ -582,7 +577,7 @@
 
             const userRef = doc(db, "users", profileUserId);
             
-            // 1. Listener de Datos de Perfil y Estado Activo
+            // 1. Listener de Datos de Perfil, Estado Activo Y CONTADORES
             profileDocListener = onSnapshot(userRef, (userDoc) => {
                 if (!userDoc.exists()) {
                     profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
@@ -593,9 +588,12 @@
                 document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
+                // ACTUALIZACIÓN DE CONTADORES: Usamos los campos del documento principal
+                followersCountSpan.textContent = profileUserData.followersCount || 0;
+                followingCountSpan.textContent = profileUserData.followingCount || 0;
+                
                 checkAndDisplayStatus(profileUserData);
                 renderActionButtons();
-                setupFollowListeners(profileUserId); 
             }, (error) => {
                 console.error("Error al cargar datos del perfil:", error);
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
@@ -688,6 +686,7 @@
                     <button class="btn-danger" onclick="showLogoutModal()">Cerrar Sesión</button>
                 `;
             } else {
+                // Obtenemos una referencia al documento en la subcolección 'following' del usuario actual
                 const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
                 
                 // Listener para detectar si el usuario actual sigue al perfil que está viendo
@@ -718,8 +717,7 @@
             const newBio = document.getElementById('edit-bio').value.trim();
             
             if (!newUsername) {
-                // Usar un mensaje de error en la UI en lugar de console.error
-                alert("El nombre de usuario no puede estar vacío."); 
+                console.error("El nombre de usuario no puede estar vacío."); 
                 return;
             }
 
@@ -729,9 +727,6 @@
                     username: newUsername,
                     bio: newBio
                 });
-
-                // Opcional: Actualizar el username en todas sus referencias (posts, followers, etc.)
-                // Esto es complejo, por ahora solo actualizaremos el perfil principal.
                 
                 closeModal(null, 'edit-modal');
             } catch (error) {
