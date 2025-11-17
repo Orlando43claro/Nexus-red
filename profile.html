@@ -5,63 +5,176 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Perfil de Usuario</title>
     <style>
-        body { 
-            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
-            display: flex; justify-content: center; align-items: flex-start; 
-            min-height: 100vh; padding: 30px 20px;
-        }
+        /* Estilos Generales */
+        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
+        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { margin: 0; font-size: 1.5em; }
+        .header nav a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
+        .header nav a:hover { background-color: #005f93; }
+
+        /* Contenedor Principal del Perfil */
         .profile-container { 
-            background-color: white; padding: 40px; border-radius: 12px; 
-            max-width: 450px; width: 100%; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
+            background-color: white; margin: 20px auto; padding: 25px; 
+            border-radius: 12px; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
             text-align: center; 
         }
-        .avatar { 
-            width: 120px; height: 120px; background-color: #ccc; 
-            border-radius: 50%; margin: 0 auto 20px; 
-            display: flex; justify-content: center; align-items: center;
-            font-size: 40px; color: white; font-weight: bold;
-        }
-        h2 { color: #0077b6; margin-bottom: 5px; font-size: 1.8em; }
-        .bio { color: #555; margin-bottom: 30px; line-height: 1.4; }
-        .section-title { 
-            border-bottom: 2px solid #0077b6; padding-bottom: 5px; 
-            margin-top: 30px; margin-bottom: 20px; font-weight: bold; 
-            color: #333; font-size: 1.1em;
-        }
-        .circle-item {
-            background-color: #e0f7fa; color: #0077b6; padding: 8px 15px; 
-            border-radius: 20px; display: inline-block; margin: 5px; 
-            font-size: 0.9em; font-weight: 600;
-        }
-        .circle-item.private {
-            background-color: #ffead1; color: #cc6600;
-        }
-        .action-button { 
-            background-color: #d9534f; color: white; padding: 12px 20px; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            width: 100%; margin-top: 20px; font-weight: bold; 
-            transition: background-color 0.3s;
-        }
-        .action-button:hover { background-color: #c9302c; }
 
-        /* Botón de Seguir/Dejar de Seguir */
-        #follow-unfollow-btn {
-            background-color: #28a745; margin-top: 15px; width: auto; 
-            padding: 10px 25px; font-size: 1em; display: none;
+        /* Información del Perfil */
+        .profile-info h2 { color: #333; margin-bottom: 5px; }
+        .profile-info p { color: #555; margin-top: 0; font-size: 0.9em; }
+
+        /* Botones de Acción */
+        .action-buttons button {
+            background-color: #ff9900; color: white; border: none; padding: 10px 20px;
+            border-radius: 6px; margin: 5px; cursor: pointer; font-size: 1em;
+            transition: background-color 0.2s;
         }
-        #follow-unfollow-btn.unfollow {
-            background-color: #ff9900;
+        .action-buttons button:hover { background-color: #cc7a00; }
+        .btn-danger { background-color: #dc3545 !important; }
+        .btn-danger:hover { background-color: #c82333 !important; }
+        .btn-secondary { 
+            background-color: #6c757d !important;
+            padding: 8px 15px; margin-left: 10px;
         }
+        .btn-secondary:hover { background-color: #5a6268 !important; }
+
+
+        /* Barra de Estadísticas de Seguimiento (NUEVO) */
+        .stats-bar {
+            display: flex; justify-content: space-around;
+            padding: 15px 0; margin: 20px 0; border-top: 1px solid #eee; 
+            border-bottom: 1px solid #eee;
+        }
+        .stats-bar button {
+            background: none; border: none; cursor: pointer;
+            color: #0077b6; font-size: 1.1em; font-weight: bold;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .stats-bar button:hover { text-decoration: underline; }
+        .stats-bar span { 
+            font-size: 1.5em; color: #333; font-weight: 700; 
+            margin-bottom: 4px;
+        }
+
+        /* Área de Publicaciones */
+        #user-posts { margin-top: 20px; text-align: left; }
+        .post-card { 
+            background-color: #f8f9fa; padding: 15px; margin-bottom: 10px; 
+            border-radius: 8px; border-left: 5px solid #0077b6;
+        }
+        .post-card p { margin: 0; color: #333; }
+        .post-card small { display: block; margin-top: 5px; color: #888; }
+
+
+        /* Estilos de Modal (Comunes para todos) */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background-color: white; padding: 30px; border-radius: 10px;
+            text-align: center; max-width: 400px; width: 90%; 
+        }
+
+        /* Estilos para la lista de usuarios en el modal (NUEVO) */
+        .user-list-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid #eee;
+        }
+        .user-list-item a {
+            color: #0077b6; font-weight: bold; text-decoration: none;
+        }
+        .user-list-item a:hover { text-decoration: underline; }
     </style>
+</head>
+<body>
 
-    <!-- 1. Carga de SDKs de Firebase -->
+    <header class="header">
+        <h1>NEXUS</h1>
+        <nav>
+            <a href="feed.html">Feed</a>
+            <a href="create-post.html">Crear Publicación</a>
+        </nav>
+    </header>
+
+    <main>
+        <div id="profile-container" class="profile-container">
+            <div id="profile-info" class="profile-info">
+                <h2>Cargando Perfil...</h2>
+                <p id="profile-id">ID de Usuario: ...</p>
+                <p id="profile-bio">...</p>
+            </div>
+            
+            <!-- NUEVA BARRA DE ESTADÍSTICAS -->
+            <div class="stats-bar">
+                <button id="followers-btn" onclick="showFollowListModal('followers')">
+                    <span id="followers-count">0</span> Seguidores
+                </button>
+                <button id="following-btn" onclick="showFollowListModal('following')">
+                    <span id="following-count">0</span> Siguiendo
+                </button>
+            </div>
+
+            <div id="action-buttons" class="action-buttons">
+                <!-- Botones se renderizan aquí (Editar/Seguir/Cerrar Sesión) -->
+                <p>Cargando botones de acción...</p>
+            </div>
+
+            <h3 style="text-align: left; margin-top: 30px;">Publicaciones</h3>
+            <div id="user-posts">
+                <p style="color: #888;">Cargando publicaciones...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal 1: Edición de Perfil (Existente) -->
+    <div id="edit-modal" class="modal" onclick="closeModal(event, 'edit-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>Editar Perfil</h3>
+            <label for="edit-username">Nombre de Usuario:</label>
+            <input type="text" id="edit-username" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+            <label for="edit-bio">Biografía:</label>
+            <textarea id="edit-bio" rows="4" style="width: 100%; padding: 8px; resize: vertical;"></textarea>
+            <button onclick="saveProfileChanges()" style="background-color: #28a745; color: white; padding: 10px; border-radius: 5px; margin-top: 10px;">Guardar Cambios</button>
+            <button class="btn-secondary" onclick="closeModal(null, 'edit-modal')">Cancelar</button>
+        </div>
+    </div>
+    
+    <!-- Modal 2: Lista de Seguidores/Siguiendo (NUEVO) -->
+    <div id="list-modal" class="modal" onclick="closeModal(event, 'list-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 id="list-modal-title">Lista de Usuarios</h3>
+            <div id="user-list-content" style="text-align: left; max-height: 40vh; overflow-y: auto; padding: 10px 0;">
+                <p style="text-align: center;">Cargando lista...</p>
+            </div>
+            <button style="margin-top: 20px;" class="btn-secondary" onclick="closeModal(null, 'list-modal')">Cerrar</button>
+        </div>
+    </div>
+    
+    <!-- Modal 3: Confirmación de Cierre de Sesión (NUEVO) -->
+    <div id="logout-confirm-modal" class="modal" onclick="closeModal(event, 'logout-confirm-modal')">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3>¿Cerrar Sesión?</h3>
+            <p>Estás seguro de que quieres cerrar la sesión actual de Nexus?</p>
+            <button class="btn-danger" onclick="confirmLogout()">Sí, Cerrar Sesión</button>
+            <button class="btn-secondary" onclick="closeModal(null, 'logout-confirm-modal')">Cancelar</button>
+        </div>
+    </div>
+
+
+    <!-- ****************************************************** -->
+    <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE PERFIL DINÁMICO -->
+    <!-- ****************************************************** -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        
-        // 2. Configuración de Firebase (Tus Credenciales)
+        import { 
+            getFirestore, doc, getDoc, updateDoc, 
+            collection, query, where, getDocs, onSnapshot,
+            setDoc, deleteDoc, orderBy
+        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
+        // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -71,172 +184,282 @@
             appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
         };
 
-        // 3. Inicializar Firebase y Servicios
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUser = null; // Usuario logueado (Yo)
-        let targetUserId = null; // El UID del perfil que estamos viendo
+        let currentUser = null;
+        let profileUserId = null; // ID del usuario cuyo perfil estamos viendo
+        let profileUserData = {}; // Datos del usuario del perfil
 
         const urlParams = new URLSearchParams(window.location.search);
-        const externalUid = urlParams.get('uid');
+        
+        // Elementos UI
+        const profileInfoDiv = document.getElementById('profile-info');
+        const actionButtonsDiv = document.getElementById('action-buttons');
+        const userPostsDiv = document.getElementById('user-posts');
+        const listModal = document.getElementById('list-modal');
+        const listModalTitle = document.getElementById('list-modal-title');
+        const userListContent = document.getElementById('user-list-content');
+        const logoutConfirmModal = document.getElementById('logout-confirm-modal');
+        const followersCountSpan = document.getElementById('followers-count');
+        const followingCountSpan = document.getElementById('following-count');
 
-        // Referencias del DOM
-        const profileContainer = document.getElementById('profile-container');
-        const logoutButton = document.getElementById('logout-button');
-        const followButton = document.getElementById('follow-unfollow-btn');
 
-
-        // Función para cargar los datos del perfil
-        async function loadProfileData(uid) {
-            try {
-                const userDocRef = doc(db, "users", uid);
-                const userDoc = await getDoc(userDocRef);
-
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    
-                    // Mostrar datos
-                    document.getElementById('avatar-initial').textContent = userData.username ? userData.username.charAt(1) : 'U';
-                    document.getElementById('username-display').textContent = `@${userData.username || 'Usuario Desconocido'}`;
-                    document.getElementById('bio-display').textContent = userData.bio || 'Sin biografía.';
-
-                    // Mostrar Círculos
-                    const circlesContainer = document.getElementById('circles-display');
-                    circlesContainer.innerHTML = '';
-                    if (userData.circles && userData.circles.length > 0) {
-                        userData.circles.forEach(circle => {
-                            const isPrivate = circle.isPrivate ? 'private' : '';
-                            const icon = circle.isPrivate ? '🔒' : '🌎';
-                            circlesContainer.innerHTML += `<span class="circle-item ${isPrivate}">${icon} ${circle.name} (${circle.membersCount} Miembro)</span>`;
-                        });
-                    } else {
-                        circlesContainer.innerHTML = '<p style="color:#888;">No ha creado círculos aún.</p>';
-                    }
-
-                } else {
-                    profileContainer.innerHTML = '<p style="color:red; text-align:center;">Perfil no encontrado.</p>';
-                }
-            } catch (error) {
-                console.error("Error al cargar datos del perfil:", error);
-                profileContainer.innerHTML = '<p style="color:red; text-align:center;">Error crítico al cargar el perfil.</p>';
+        // Función para cerrar cualquier modal
+        window.closeModal = function(event, modalId) {
+            const modal = document.getElementById(modalId);
+            if (!event || event.target === modal || (event && event.currentTarget === modal)) {
+                modal.style.display = 'none';
             }
         }
         
-        // 5. Lógica de Seguir/Dejar de Seguir (Similar a la de feed.html)
-        window.handleFollow = async function() {
-            if (!currentUser || !targetUserId) return;
+        // ******************************************************
+        // LÓGICA DE SEGUIMIENTO Y LISTAS
+        // ******************************************************
 
-            const followerRef = doc(db, "users", currentUser.uid, "following", targetUserId);
-            const followingRef = doc(db, "users", targetUserId, "followers", currentUser.uid);
+        // 1. Configurar Listeners de Seguidores/Siguiendo
+        function setupFollowListeners(userId) {
+            // Listener de Seguidores (Followers)
+            const followersRef = collection(db, "users", userId, "followers");
+            onSnapshot(followersRef, (snapshot) => {
+                followersCountSpan.textContent = snapshot.size;
+            }, (error) => {
+                console.error("Error al obtener seguidores:", error);
+            });
+
+            // Listener de Siguiendo (Following)
+            const followingRef = collection(db, "users", userId, "following");
+            onSnapshot(followingRef, (snapshot) => {
+                followingCountSpan.textContent = snapshot.size;
+            }, (error) => {
+                console.error("Error al obtener siguiendo:", error);
+            });
+        }
+        
+        // 2. Mostrar Modal de Listas
+        window.showFollowListModal = async function(type) {
+            listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
+            userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
+            listModal.style.display = 'flex';
+
+            const collectionName = type === 'followers' ? 'followers' : 'following';
+            const usersRef = collection(db, "users", profileUserId, collectionName);
 
             try {
-                const followDoc = await getDoc(followerRef);
+                const snapshot = await getDocs(usersRef);
+                userListContent.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    userListContent.innerHTML = `<p style="text-align: center; color:#888;">No hay usuarios en esta lista.</p>`;
+                    return;
+                }
 
-                if (followDoc.exists()) {
-                    // YA SIGUE -> DEJAR DE SEGUIR
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const targetUserId = collectionName === 'followers' ? data.userId : docSnap.id;
+                    const username = data.username || `Usuario ID: ${targetUserId.substring(0, 8)}...`;
+                    
+                    userListContent.innerHTML += `
+                        <div class="user-list-item">
+                            <a href="profile.html?uid=${targetUserId}" onclick="closeModal(null, 'list-modal')">@${username}</a>
+                            <!-- Se podría añadir un botón de Seguir/Dejar de seguir aquí si fuera necesario -->
+                        </div>
+                    `;
+                });
+                
+            } catch (error) {
+                console.error(`Error al cargar lista de ${type}:`, error);
+                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
+            }
+        }
+
+        // 3. Lógica de Seguir/Dejar de Seguir (Se mantiene similar a feed.html)
+        window.handleFollow = async function() {
+            if (!currentUser) return;
+
+            const isFollowing = actionButtonsDiv.querySelector('#follow-btn').textContent === 'Siguiendo';
+            const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
+            const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
+
+            try {
+                if (isFollowing) {
                     await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
                 } else {
-                    // NO SIGUE -> SEGUIR
-                    await setDoc(followerRef, { userId: targetUserId, timestamp: serverTimestamp() });
-                    await setDoc(followingRef, { userId: currentUser.uid, timestamp: serverTimestamp() });
+                    await setDoc(followerRef, { userId: profileUserId, username: profileUserData.username });
+                    await setDoc(followingRef, { userId: currentUser.uid });
                 }
+                // El listener de renderButtons lo actualizará automáticamente
             } catch (error) {
                 console.error("Error al seguir/dejar de seguir:", error);
-                alert("Error de seguimiento.");
             }
         }
 
-        // Listener para actualizar el botón de Seguir/Dejar de Seguir
-        function setupFollowButtonListener() {
-             if (currentUser && targetUserId && currentUser.uid !== targetUserId) {
-                 followButton.style.display = 'inline-block';
-                 const followerRef = doc(db, "users", currentUser.uid, "following", targetUserId);
-
-                 onSnapshot(followerRef, (docSnapshot) => {
-                     if (docSnapshot.exists()) {
-                         followButton.textContent = 'Dejar de Seguir';
-                         followButton.classList.add('unfollow');
-                     } else {
-                         followButton.textContent = 'Seguir';
-                         followButton.classList.remove('unfollow');
-                     }
-                 });
-             } else {
-                 followButton.style.display = 'none'; // Ocultar si es el propio perfil o no hay usuario
-             }
+        // ******************************************************
+        // LÓGICA DE CIERRE DE SESIÓN (MODAL)
+        // ******************************************************
+        window.showLogoutModal = function() {
+            logoutConfirmModal.style.display = 'flex';
         }
 
-        // Función de Cerrar Sesión
-        window.handleLogout = async function() {
+        window.confirmLogout = async function() {
+            logoutConfirmModal.style.display = 'none';
             try {
                 await signOut(auth);
-                alert("Sesión cerrada correctamente.");
+                // Redirigir al usuario al feed o a la página de inicio de sesión
                 window.location.href = 'login.html'; 
             } catch (error) {
                 console.error("Error al cerrar sesión:", error);
-                alert("No se pudo cerrar la sesión.");
             }
         }
 
-        // 6. Verificar estado de autenticación al cargar
+        // ******************************************************
+        // LÓGICA DE RENDERIZADO PRINCIPAL
+        // ******************************************************
+        
+        // 1. Carga los datos del perfil (del usuario actualmente visto)
+        async function loadProfileData() {
+            if (!profileUserId) {
+                profileInfoDiv.innerHTML = '<h2>Error: ID de usuario no especificado.</h2>';
+                userPostsDiv.innerHTML = '';
+                return;
+            }
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", profileUserId));
+                if (!userDoc.exists()) {
+                    profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
+                    return;
+                }
+                
+                profileUserData = userDoc.data();
+                document.getElementById('profile-id').textContent = `ID de Usuario: ${profileUserId}`;
+                document.getElementById('profile-info').querySelector('h2').textContent = profileUserData.username || `Usuario Nexus`;
+                document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
+
+                renderActionButtons();
+                loadUserPosts();
+                setupFollowListeners(profileUserId); // Iniciar escucha de contadores
+                
+            } catch (error) {
+                console.error("Error al cargar datos del perfil:", error);
+                profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
+            }
+        }
+
+        // 2. Renderiza los botones de acción (Editar, Seguir, Cerrar Sesión)
+        function renderActionButtons() {
+            actionButtonsDiv.innerHTML = '';
+            
+            if (currentUser && currentUser.uid === profileUserId) {
+                // Es el perfil del usuario logueado
+                actionButtonsDiv.innerHTML = `
+                    <button onclick="showEditModal()">Editar Perfil</button>
+                    <button class="btn-danger" onclick="showLogoutModal()">Cerrar Sesión</button>
+                `;
+            } else {
+                // Es otro perfil. Renderizar botón de Seguir.
+                // Usamos un listener para actualizar el botón en tiempo real
+                const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
+                
+                onSnapshot(followerRef, (docSnapshot) => {
+                    const isFollowing = docSnapshot.exists();
+                    const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
+                    const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
+                    
+                    actionButtonsDiv.innerHTML = `
+                        <button id="follow-btn" class="${buttonClass}" onclick="handleFollow()">${buttonText}</button>
+                    `;
+                }, (error) => {
+                    console.error("Error al escuchar estado de seguimiento:", error);
+                });
+            }
+        }
+
+        // 3. Carga las publicaciones del perfil
+        async function loadUserPosts() {
+            userPostsDiv.innerHTML = '<p style="color: #888;">Cargando publicaciones...</p>';
+            try {
+                const postsQuery = query(
+                    collection(db, "posts"), 
+                    where("userId", "==", profileUserId),
+                    orderBy("createdAt", "desc")
+                );
+                
+                const querySnapshot = await getDocs(postsQuery);
+                userPostsDiv.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    userPostsDiv.innerHTML = '<p>Este usuario aún no tiene publicaciones.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((doc) => {
+                    const post = doc.data();
+                    const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
+                    userPostsDiv.innerHTML += `
+                        <div class="post-card">
+                            <p>${post.text}</p>
+                            <small>Publicado: ${formattedDate} | Likes: ${post.likes || 0} | Círculo: ${post.circleTarget}</small>
+                        </div>
+                    `;
+                });
+
+            } catch (error) {
+                console.error("Error al cargar publicaciones:", error);
+                userPostsDiv.innerHTML = '<p style="color: red;">Error al cargar las publicaciones del usuario.</p>';
+            }
+        }
+
+        // 4. Lógica de edición de perfil (Se mantiene igual)
+        window.showEditModal = function() {
+            document.getElementById('edit-username').value = profileUserData.username || '';
+            document.getElementById('edit-bio').value = profileUserData.bio || '';
+            document.getElementById('edit-modal').style.display = 'flex';
+        }
+
+        window.saveProfileChanges = async function() {
+            const newUsername = document.getElementById('edit-username').value.trim();
+            const newBio = document.getElementById('edit-bio').value.trim();
+            
+            if (!newUsername) {
+                alert("El nombre de usuario no puede estar vacío.");
+                return;
+            }
+
+            try {
+                await updateDoc(doc(db, "users", currentUser.uid), {
+                    username: newUsername,
+                    bio: newBio
+                });
+                
+                closeModal(null, 'edit-modal');
+                // Recargar datos para reflejar los cambios
+                loadProfileData(); 
+
+            } catch (error) {
+                console.error("Error al guardar cambios:", error);
+            }
+        }
+
+        // ******************************************************
+        // INICIO DE LA APLICACIÓN
+        // ******************************************************
         document.addEventListener('DOMContentLoaded', () => {
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
-
-                    if (externalUid && externalUid !== user.uid) {
-                        // Viendo perfil de otro usuario
-                        targetUserId = externalUid;
-                        logoutButton.style.display = 'none'; // Ocultar cerrar sesión en perfil ajeno
-                        document.title = `Nexus | Perfil de ${targetUserId}`;
-                    } else {
-                        // Viendo mi propio perfil (o 'profile.html' sin uid)
-                        targetUserId = user.uid;
-                        logoutButton.style.display = 'block'; 
-                        logoutButton.addEventListener('click', handleLogout);
-                        document.title = `Nexus | Mi Perfil`;
-                    }
-                    
-                    // Cargar los datos del perfil objetivo
-                    loadProfileData(targetUserId); 
-                    // Configurar el botón de seguir/dejar de seguir
-                    setupFollowButtonListener(); 
-
+                    // Determinar si estamos viendo nuestro propio perfil o el de otro
+                    profileUserId = urlParams.get('uid') || currentUser.uid;
+                    loadProfileData();
                 } else {
                     // Si no está logueado, redirigir al login
-                    alert("Debes iniciar sesión para ver perfiles. Redirigiendo...");
-                    window.location.href = 'login.html'; 
+                    window.location.href = 'login.html';
                 }
             });
         });
     </script>
-</head>
-<body>
-
-    <div class="profile-container" id="profile-container">
-        <div class="avatar">
-            <span id="avatar-initial">U</span>
-        </div>
-        
-        <h2 id="username-display">@Cargando...</h2>
-        <p class="bio" id="bio-display">Cargando biografía...</p>
-
-        <!-- Botón de Seguir/Dejar de Seguir (Visible si es un perfil ajeno) -->
-        <button id="follow-unfollow-btn" class="action-button" onclick="handleFollow()">Seguir</button>
-        
-        <div class="section-title">Círculos de Influencia Creados</div>
-        <div id="circles-display">
-            Cargando círculos...
-        </div>
-        
-        <!-- Botón de Cerrar Sesión (Visible solo en el propio perfil) -->
-        <button id="logout-button" class="action-button">Cerrar Sesión</button>
-        
-        <p style="margin-top: 20px;"><a href="feed.html">Volver al Feed</a></p>
-    </div>
 </body>
 </html>
 
