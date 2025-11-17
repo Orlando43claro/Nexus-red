@@ -414,9 +414,6 @@
         // LÓGICA DE SEGUIMIENTO Y LISTAS
         // ******************************************************
         
-        // Eliminé la función setupFollowListeners(userId) ya que ahora los contadores
-        // se obtienen del documento principal del perfil, lo que es más eficiente y rápido.
-
         /**
          * Obtiene el nombre de usuario de un ID específico.
          * @param {string} userId - ID del usuario.
@@ -500,10 +497,16 @@
             try {
                 // Usar transacción para asegurar que todas las actualizaciones se completen o fallen juntas
                 await runTransaction(db, async (transaction) => {
-                    // 1. Obtener la información necesaria para las subcolecciones
+                    // 1. Obtener la información necesaria
                     const currentUserDoc = await transaction.get(currentUserRef);
-                    const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
-                    const targetUsername = profileUserData.username || `Usuario Desconocido`;
+                    const targetUserDoc = await transaction.get(targetUserRef);
+
+                    if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
+                        throw new Error("Uno o ambos perfiles no existen.");
+                    }
+                    
+                    const currentUsername = currentUserDoc.data().username || 'Usuario Nexus';
+                    const targetUsername = targetUserDoc.data().username || 'Usuario Desconocido';
                     
                     if (isFollowing) {
                         // DEJAR DE SEGUIR
@@ -578,17 +581,44 @@
             const userRef = doc(db, "users", profileUserId);
             
             // 1. Listener de Datos de Perfil, Estado Activo Y CONTADORES
-            profileDocListener = onSnapshot(userRef, (userDoc) => {
+            profileDocListener = onSnapshot(userRef, async (userDoc) => {
                 if (!userDoc.exists()) {
                     profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
                     return;
                 }
                 
                 profileUserData = userDoc.data();
+                
+                // === INICIALIZACIÓN PREVENTIVA DE CONTADORES (CORRECCIÓN) ===
+                let needsUpdate = false;
+                const updateFields = {};
+
+                if (typeof profileUserData.followersCount === 'undefined' || profileUserData.followersCount === null) {
+                    updateFields.followersCount = 0;
+                    needsUpdate = true;
+                }
+                if (typeof profileUserData.followingCount === 'undefined' || profileUserData.followingCount === null) {
+                    updateFields.followingCount = 0;
+                    needsUpdate = true;
+                }
+
+                // Si detectamos campos faltantes, los inicializamos en la base de datos
+                if (needsUpdate) {
+                    try {
+                        await updateDoc(userRef, updateFields);
+                        // Los datos se volverán a cargar automáticamente por el onSnapshot,
+                        // pero por si acaso, actualizamos los datos locales.
+                        profileUserData = {...profileUserData, ...updateFields};
+                    } catch (e) {
+                        console.error("Error al inicializar contadores del perfil:", e);
+                    }
+                }
+                // =============================================================
+
                 document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
-                // ACTUALIZACIÓN DE CONTADORES: Usamos los campos del documento principal
+                // MOSTRAR CONTADORES ACTUALIZADOS
                 followersCountSpan.textContent = profileUserData.followersCount || 0;
                 followingCountSpan.textContent = profileUserData.followingCount || 0;
                 
