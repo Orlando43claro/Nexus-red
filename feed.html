@@ -106,7 +106,7 @@
         </div>
     </div>
 
-    <!-- Modal 2: Comentarios / Ver Likes -->
+    <!-- Modal 2: Comentarios / Ver Likes / Mensajes de Confirmación -->
     <div id="comments-likes-modal" class="modal" onclick="closeModal(event, 'comments-likes-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
             <h3 id="modal-title">Comentarios</h3>
@@ -177,7 +177,7 @@
             }
         }
         
-        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR (Se mantiene igual)
+        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR 
         window.handleFollow = async function(authorId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -231,7 +231,7 @@
         }
 
 
-        // Función para renderizar una publicación (CAMBIO CLAVE AQUÍ)
+        // Función para renderizar una publicación
         function renderPost(post) {
             const postElement = document.createElement('article');
             postElement.className = 'post';
@@ -277,7 +277,7 @@
             postElement.innerHTML = `
                 <div class="post-header">
                     <div class="author-info">
-                        <!-- CAMBIO CLAVE: Usamos checkAuthAndNavigate para el enlace del autor -->
+                        <!-- Enlace del autor protegido -->
                         <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
                         ${followButtonHTML}
                     </div>
@@ -292,6 +292,7 @@
                     <button onclick="showCommentsModal('${post.id}')">
                         💬 Comentar
                     </button>
+                    <!-- BOTÓN COMPARTIR PROTEGIDO -->
                     <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
                 </div>
                 <p class="post-meta">
@@ -302,7 +303,7 @@
             return postElement;
         }
 
-        // 7. Lógica del Botón "Me Gusta" (Se mantiene igual)
+        // 7. Lógica del Botón "Me Gusta"
         window.handleInteraction = async function(action, postId) {
             if (!isUserLoggedIn) {
                 showRegistrationModal();
@@ -339,11 +340,11 @@
                 } 
             } catch (error) {
                 console.error(`Error al procesar ${action} en el post ${postId}:`, error);
-                alert(`Error al procesar ${action}. Revisa la consola.`);
+                // NOTA: Reemplazado alert() por un console log para errores.
             }
         }
 
-        // 8. FUNCIONES DEL MODAL (Se mantienen igual)
+        // 8. FUNCIONES DEL MODAL 
         window.closeModal = function(event, modalId) {
             const modal = document.getElementById(modalId);
             if (!event || event.target === modal) {
@@ -430,7 +431,14 @@
         window.submitCommentFromModal = async function() {
             const text = modalCommentText.value.trim();
             if (!text) {
-                alert('El comentario no puede estar vacío.');
+                console.error('El comentario no puede estar vacío.');
+                // Pequeña notificación visual en el modal
+                modalContentArea.insertAdjacentHTML('afterbegin', '<p style="color:red;">¡El comentario está vacío!</p>');
+                setTimeout(() => {
+                    // Remover el error después de 2 segundos
+                    const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
+                    if(errorMsg) errorMsg.remove();
+                    }, 2000);
                 return;
             }
 
@@ -450,14 +458,38 @@
                 });
 
                 modalCommentText.value = ''; 
+                // Volver a cargar los comentarios para ver el nuevo
+                setupCommentsListener(postId);
                 
             } catch (error) {
-                alert('Error al enviar el comentario.');
                 console.error("Error submitting comment:", error);
             }
         }
         
-        // 9. Configurar el Listener del Feed de Firestore (Se mantiene igual)
+        // ******************************************************
+        // LÓGICA DE COMPARTIR (ACTUALIZADA)
+        // ******************************************************
+        window.sharePost = function(postId) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+            
+            // Lógica de compartir (simulada)
+            console.log(`Compartiendo enlace externo del post ID: ${postId}.`);
+
+            // Usar el modal para mostrar la confirmación de copia (simulada)
+            currentPostIdForModal = null; // Limpiar el ID si estaba viendo comentarios
+            modalTitle.textContent = '¡Enlace Copiado!';
+            modalContentArea.innerHTML = `
+                <p>El enlace a la publicación ha sido copiado al portapapeles (simulado).</p>
+                <p style="font-size:0.8em; color:#888;">(ID: ${postId})</p>
+            `;
+            commentInputArea.style.display = 'none'; // Ocultar el área de comentarios
+            commentsLikesModal.style.display = 'flex';
+        }
+        
+        // 9. Configurar el Listener del Feed de Firestore 
         function setupFeedListener() {
             const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
 
@@ -499,12 +531,6 @@
                 console.error("Error al obtener publicaciones:", error);
                 feedContainer.innerHTML = `<p style="text-align:center; padding: 20px; color: red;">Error al cargar el feed: ${error.message}</p>`;
             });
-        }
-        
-        // Lógica de Compartir (se mantiene igual)
-        window.sharePost = function(postId) {
-             console.log(`Compartiendo enlace externo del post ID: ${postId}. No requiere registro.`);
-             alert("Enlace copiado al portapapeles. ¡Compártelo!"); 
         }
 
         // 10. Observar el estado de autenticación al cargar
