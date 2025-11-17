@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Perfil de Usuario</title>
-    <!-- Incluir Font Awesome para el icono del corazón -->
+    <!-- Incluir Font Awesome para los iconos -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Estilos Generales */
-        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
+        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f0f2f5; }
         .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { margin: 0; font-size: 1.5em; }
         .header nav a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
@@ -17,7 +17,7 @@
         /* Contenedor Principal del Perfil */
         .profile-container { 
             background-color: white; margin: 20px auto; padding: 25px; 
-            border-radius: 12px; max-width: 600px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
+            border-radius: 12px; max-width: 600px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
             text-align: center; 
         }
 
@@ -45,6 +45,7 @@
             background-color: #ff9900; color: white; border: none; padding: 10px 20px;
             border-radius: 6px; margin: 5px; cursor: pointer; font-size: 1em;
             transition: background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .action-buttons button:hover { background-color: #cc7a00; }
         .btn-danger { background-color: #dc3545 !important; }
@@ -54,6 +55,17 @@
             padding: 8px 15px; margin-left: 10px;
         }
         .btn-secondary:hover { background-color: #5a6268 !important; }
+        
+        /* Botón de Seguir/Siguiendo */
+        #follow-btn {
+            background-color: #0077b6;
+        }
+        #follow-btn.following {
+            background-color: #6c757d; /* Gris cuando ya está siguiendo */
+        }
+        #follow-btn:hover.following {
+             background-color: #5a6268;
+        }
 
 
         /* Barra de Estadísticas de Seguimiento */
@@ -65,7 +77,7 @@
             border-top: 1px solid #eee; 
             border-bottom: 1px solid #eee;
         }
-        .stats-bar button, .stat-item { /* Estilos base para todos los ítems de la barra */
+        .stats-bar button, .stat-item { 
             background: none; 
             border: none; 
             color: #0077b6; 
@@ -77,8 +89,9 @@
         }
         .stats-bar button {
              cursor: pointer;
+             transition: color 0.2s;
         }
-        .stats-bar button:hover { text-decoration: underline; }
+        .stats-bar button:hover { color: #005f93; }
         .stats-bar span { 
             font-size: 1.5em; color: #333; font-weight: 700; 
             margin-bottom: 4px;
@@ -89,6 +102,7 @@
         .post-card { 
             background-color: #f8f9fa; padding: 15px; margin-bottom: 10px; 
             border-radius: 8px; border-left: 5px solid #0077b6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .post-card p { margin: 0; color: #333; }
         .post-footer {
@@ -127,17 +141,19 @@
         .modal-content {
             background-color: white; padding: 30px; border-radius: 10px;
             text-align: center; max-width: 400px; width: 90%; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
         }
 
         /* Estilos para la lista de usuarios en el modal */
         .user-list-item {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0; border-bottom: 1px solid #eee;
+            padding: 10px 0; border-bottom: 1px solid #eee;
         }
         .user-list-item a {
             color: #0077b6; font-weight: bold; text-decoration: none;
+            transition: color 0.2s;
         }
-        .user-list-item a:hover { text-decoration: underline; }
+        .user-list-item a:hover { text-decoration: underline; color: #005f93; }
     </style>
 </head>
 <body>
@@ -161,7 +177,7 @@
                 <p id="profile-bio">...</p>
             </div>
             
-            <!-- BARRA DE ESTADÍSTICAS (ACTUALIZADA con Total de Likes) -->
+            <!-- BARRA DE ESTADÍSTICAS -->
             <div class="stats-bar">
                 <button id="followers-btn" onclick="showFollowListModal('followers')">
                     <span id="followers-count">0</span> Seguidores
@@ -169,7 +185,6 @@
                 <button id="following-btn" onclick="showFollowListModal('following')">
                     <span id="following-count">0</span> Siguiendo
                 </button>
-                <!-- NUEVO: Total de Likes -->
                 <div class="stat-item">
                     <span id="total-likes-count">0</span> Me Gusta Totales
                 </div>
@@ -190,11 +205,11 @@
     <div id="edit-modal" class="modal" onclick="closeModal(event, 'edit-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
             <h3>Editar Perfil</h3>
-            <label for="edit-username">Nombre de Usuario:</label>
-            <input type="text" id="edit-username" style="width: 100%; padding: 8px; margin-bottom: 10px;">
-            <label for="edit-bio">Biografía:</label>
-            <textarea id="edit-bio" rows="4" style="width: 100%; padding: 8px; resize: vertical;"></textarea>
-            <button onclick="saveProfileChanges()" style="background-color: #28a745; color: white; padding: 10px; border-radius: 5px; margin-top: 10px;">Guardar Cambios</button>
+            <label for="edit-username" style="display: block; text-align: left; margin-bottom: 5px;">Nombre de Usuario:</label>
+            <input type="text" id="edit-username" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
+            <label for="edit-bio" style="display: block; text-align: left; margin-bottom: 5px;">Biografía:</label>
+            <textarea id="edit-bio" rows="4" style="width: 100%; padding: 8px; resize: vertical; border: 1px solid #ccc; border-radius: 4px;"></textarea>
+            <button onclick="saveProfileChanges()" style="background-color: #28a745; color: white; padding: 10px; border-radius: 5px; margin-top: 15px;">Guardar Cambios</button>
             <button class="btn-secondary" onclick="closeModal(null, 'edit-modal')">Cancelar</button>
         </div>
     </div>
@@ -234,6 +249,10 @@
             runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
+        // ** NOTA IMPORTANTE: LA VERSIÓN DE FIREBASE DEBE SER LA MISMA **
+        // Asegúrate de que todas las dependencias de firebase usen la misma versión (10.12.3)
+        // La configuración se mantiene como la que proporcionaste.
+
         // Configuración de Firebase (Tus Credenciales)
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -264,7 +283,7 @@
         const logoutConfirmModal = document.getElementById('logout-confirm-modal');
         const followersCountSpan = document.getElementById('followers-count');
         const followingCountSpan = document.getElementById('following-count');
-        const totalLikesCountSpan = document.getElementById('total-likes-count'); // <-- NUEVO
+        const totalLikesCountSpan = document.getElementById('total-likes-count'); 
         const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
 
 
@@ -289,6 +308,7 @@
         window.handleLikePost = async function(postId, isCurrentlyLiked) {
             if (!currentUser) {
                 console.error("Debes iniciar sesión para dar Me Gusta.");
+                // Aquí podrías mostrar un modal o mensaje de error en lugar de console.error
                 return;
             }
 
@@ -370,6 +390,7 @@
             let isOnline = false;
 
             if (lastSeen) {
+                // Manejar tanto Firestore Timestamps como objetos Date si ya fueron convertidos
                 const lastSeenTime = lastSeen.toDate ? lastSeen.toDate().getTime() : (lastSeen.seconds * 1000) + (lastSeen.nanoseconds / 1000000); 
                 
                 if (now - lastSeenTime < activeThreshold) {
@@ -384,7 +405,9 @@
                 onlineStatusIndicator.classList.add('online');
                 onlineStatusIndicator.title = "Activo ahora";
             } else if (lastSeen) {
-                onlineStatusIndicator.title = `Últ. vez activo: ${new Date(lastSeen.toDate()).toLocaleTimeString()}`;
+                // Usar .toDate() si es un Timestamp, o usar la lógica de arriba
+                const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen.seconds * 1000);
+                onlineStatusIndicator.title = `Últ. vez activo: ${lastSeenDate.toLocaleTimeString()}`;
             }
         }
 
@@ -394,6 +417,7 @@
         // ******************************************************
         function setupFollowListeners(userId) {
             const followersRef = collection(db, "users", userId, "followers");
+            // Usamos onSnapshot para obtener los conteos en tiempo real
             onSnapshot(followersRef, (snapshot) => {
                 followersCountSpan.textContent = snapshot.size;
             }, (error) => {
@@ -408,26 +432,37 @@
             });
         }
         
+        /**
+         * Obtiene el nombre de usuario de un ID específico.
+         * @param {string} userId - ID del usuario.
+         * @returns {Promise<string>} - Nombre de usuario o 'Usuario Desconocido'.
+         */
         async function fetchUsername(userId) {
             try {
                 const userDoc = await getDoc(doc(db, "users", userId));
-                return userDoc.exists() ? userDoc.data().username : 'Usuario Desconocido';
+                // Si el documento existe, devuelve el username. Si no existe, devuelve el ID para debugging
+                return userDoc.exists() ? userDoc.data().username : `Usuario Desconocido (${userId.substring(0, 4)}...)`;
             } catch (e) {
                 console.error("Error fetching username:", e);
-                return 'Usuario Desconocido';
+                return 'Error al cargar';
             }
         }
-
+        
+        /**
+         * Muestra el modal de lista de seguidores o seguidos.
+         * @param {string} type - 'followers' o 'following'.
+         */
         window.showFollowListModal = async function(type) {
             listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
             userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
             listModal.style.display = 'flex';
 
             const collectionName = type === 'followers' ? 'followers' : 'following';
-            const usersRef = collection(db, "users", profileUserId, collectionName);
+            // La colección a la que apuntamos es la del usuario cuyo perfil estamos viendo (profileUserId)
+            const listRef = collection(db, "users", profileUserId, collectionName);
 
             try {
-                const snapshot = await getDocs(usersRef);
+                const snapshot = await getDocs(listRef);
                 userListContent.innerHTML = '';
                 
                 if (snapshot.empty) {
@@ -435,61 +470,77 @@
                     return;
                 }
                 
-                const usernamePromises = [];
+                const userPromises = [];
 
                 snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    let targetUserId;
-                    
-                    if (collectionName === 'followers') {
-                        targetUserId = data.userId || docSnap.id;
-                    } else {
-                        targetUserId = docSnap.id;
-                    }
-                    
-                    if (data.username) {
-                        usernamePromises.push(Promise.resolve({ userId: targetUserId, username: data.username }));
-                    } else {
-                        usernamePromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
-                    }
+                    // En ambas colecciones (followers y following), el ID del documento (docSnap.id) 
+                    // ES el ID del usuario relevante.
+                    const targetUserId = docSnap.id;
+                    userPromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
                 });
                 
-                const userList = await Promise.all(usernamePromises);
+                const userList = await Promise.all(userPromises);
 
                 userList.forEach((user) => {
+                     // Creamos el enlace al perfil del usuario en la lista
                      userListContent.innerHTML += `
                         <div class="user-list-item">
                             <a href="profile.html?uid=${user.userId}" onclick="closeModal(null, 'list-modal')">@${user.username}</a>
+                            <!-- Aquí se podría añadir un botón "Seguir" o "Dejar de Seguir" si es necesario -->
                         </div>
                     `;
                 });
                 
             } catch (error) {
                 console.error(`Error al cargar lista de ${type}:`, error);
-                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
+                // Mostrar un mensaje de error legible al usuario
+                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista: Verifique sus reglas de Firestore.</p>`;
             }
         }
 
         window.handleFollow = async function() {
             if (!currentUser) return;
+            if (currentUser.uid === profileUserId) return; // No seguirse a uno mismo
 
-            const isFollowing = actionButtonsDiv.querySelector('#follow-btn').textContent === 'Siguiendo';
-            const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
-            const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
+            const followBtn = actionButtonsDiv.querySelector('#follow-btn');
+            if (!followBtn) return;
+            
+            // Usamos el texto actual del botón para determinar la acción
+            const isFollowing = followBtn.textContent.trim() === 'Siguiendo';
+            
+            // Referencias para la acción de seguimiento
+            const currentUserFollowingRef = doc(db, "users", currentUser.uid, "following", profileUserId);
+            const targetUserFollowersRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
 
             try {
+                // Obtenemos el username actual (del usuario logueado) para guardarlo en la lista de followers del target
                 const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
                 const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+                
+                // Obtenemos el username del perfil que estamos viendo para guardarlo en la lista de following del usuario actual
+                const targetUsername = profileUserData.username || `Usuario Desconocido`;
 
                 if (isFollowing) {
-                    await deleteDoc(followerRef);
-                    await deleteDoc(followingRef);
+                    // DEJAR DE SEGUIR
+                    await deleteDoc(currentUserFollowingRef); // Borrar de mi lista de "siguiendo"
+                    await deleteDoc(targetUserFollowersRef); // Borrar de su lista de "seguidores"
                 } else {
-                    await setDoc(followerRef, { userId: profileUserId, username: profileUserData.username });
-                    await setDoc(followingRef, { userId: currentUser.uid, username: currentUsername });
+                    // SEGUIR
+                    await setDoc(currentUserFollowingRef, { 
+                        userId: profileUserId, 
+                        username: targetUsername, 
+                        timestamp: serverTimestamp() 
+                    });
+                    await setDoc(targetUserFollowersRef, { 
+                        userId: currentUser.uid, 
+                        username: currentUsername,
+                        timestamp: serverTimestamp() 
+                    });
                 }
+                // El onSnapshot en renderActionButtons actualizará el botón automáticamente.
             } catch (error) {
                 console.error("Error al seguir/dejar de seguir:", error);
+                // Si falla, revertir la UI o mostrar un mensaje.
             }
         }
 
@@ -512,7 +563,7 @@
         }
 
         // ******************************************************
-        // LÓGICA DE RENDERIZADO PRINCIPAL (MODIFICADA)
+        // LÓGICA DE RENDERIZADO PRINCIPAL
         // ******************************************************
         
         let profileDocListener = null;
@@ -525,7 +576,7 @@
                 return;
             }
             
-            // Desuscribir listeners previos
+            // Desuscribir listeners previos para evitar duplicados
             if (profileDocListener) profileDocListener();
             if (postSnapshotListener) postSnapshotListener();
 
@@ -550,7 +601,7 @@
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
             });
             
-            // 2. Listener en tiempo real para las publicaciones (Ahora calcula el total de likes)
+            // 2. Listener en tiempo real para las publicaciones (incluye cálculo de likes)
             const postsQuery = query(
                 collection(db, "posts"), 
                 where("userId", "==", profileUserId)
@@ -558,17 +609,15 @@
 
             postSnapshotListener = onSnapshot(postsQuery, (snapshot) => {
                 let posts = [];
-                let totalLikes = 0; // <-- NUEVO: Inicializar contador total de likes
+                let totalLikes = 0; 
                 
                 snapshot.forEach(doc => {
                     const postData = doc.data();
                     posts.push({ id: doc.id, ...postData });
                     
-                    // Sumar los likes de cada publicación. Si es undefined, usar 0.
                     totalLikes += (postData.likes || 0);
                 });
                 
-                // ACTUALIZAR EL UI con el total de likes
                 totalLikesCountSpan.textContent = totalLikes;
 
                 // Ordenar localmente por 'createdAt' (descendente)
@@ -597,7 +646,7 @@
                 return;
             }
 
-            // Mapear posts a promesas para obtener el estado de "like" para cada uno
+            // Usamos Promise.all para obtener todos los estados de like en paralelo antes de renderizar
             const postRenderPromises = posts.map(async (post) => {
                 const isLiked = await checkUserLiked(post.id);
                 const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
@@ -619,13 +668,12 @@
                 `;
             });
 
-            // Esperar a que se resuelvan todas las promesas y luego agregarlas al DOM
             const postHTML = await Promise.all(postRenderPromises);
             userPostsDiv.innerHTML = postHTML.join('');
         }
         
 
-        // 3. Renderiza los botones de acción (MANTENIDA)
+        // 3. Renderiza los botones de acción
         function renderActionButtons() {
             actionButtonsDiv.innerHTML = '';
             
@@ -642,21 +690,23 @@
             } else {
                 const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
                 
+                // Listener para detectar si el usuario actual sigue al perfil que está viendo
                 onSnapshot(followerRef, (docSnapshot) => {
                     const isFollowing = docSnapshot.exists();
                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
-                    const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
+                    const buttonClass = isFollowing ? 'following' : '';
                     
                     actionButtonsDiv.innerHTML = `
                         <button id="follow-btn" class="${buttonClass}" onclick="handleFollow()">${buttonText}</button>
                     `;
                 }, (error) => {
                     console.error("Error al escuchar estado de seguimiento:", error);
+                    actionButtonsDiv.innerHTML = `<p style="color:red;">Error de carga de seguimiento.</p>`;
                 });
             }
         }
 
-        // 4. Lógica de edición de perfil (MANTENIDA)
+        // 4. Lógica de edición de perfil
         window.showEditModal = function() {
             document.getElementById('edit-username').value = profileUserData.username || '';
             document.getElementById('edit-bio').value = profileUserData.bio || '';
@@ -668,15 +718,20 @@
             const newBio = document.getElementById('edit-bio').value.trim();
             
             if (!newUsername) {
-                console.error("El nombre de usuario no puede estar vacío.");
+                // Usar un mensaje de error en la UI en lugar de console.error
+                alert("El nombre de usuario no puede estar vacío."); 
                 return;
             }
 
             try {
+                // Actualizar el documento del usuario
                 await updateDoc(doc(db, "users", currentUser.uid), {
                     username: newUsername,
                     bio: newBio
                 });
+
+                // Opcional: Actualizar el username en todas sus referencias (posts, followers, etc.)
+                // Esto es complejo, por ahora solo actualizaremos el perfil principal.
                 
                 closeModal(null, 'edit-modal');
             } catch (error) {
@@ -691,14 +746,16 @@
             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
+                    // Determinar el perfil a mostrar: si hay 'uid' en la URL, se muestra ese; si no, el propio.
                     profileUserId = urlParams.get('uid') || currentUser.uid;
                     
                     updatePresence(); 
-                    setInterval(updatePresence, 30000); 
+                    setInterval(updatePresence, 30000); // Actualizar cada 30 segundos
 
                     loadProfileData();
 
                 } else {
+                    // Si no hay usuario, redirigir al login
                     window.location.href = 'login.html';
                 }
             });
@@ -706,3 +763,4 @@
     </script>
 </body>
 </html>
+
