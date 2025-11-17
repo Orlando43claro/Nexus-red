@@ -59,6 +59,7 @@
             display: flex; align-items: center; gap: 5px;
         }
         .post-actions button:hover { background-color: #f0f2f5; color: #0077b6; }
+        .like-active { color: #e74c3c !important; } /* Color de corazón lleno */
         
         /* Mensajes de Estado */
         .status-message {
@@ -89,7 +90,7 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Flujo</a>
-            <!-- NUEVO ENLACE A EXPLORAR -->
+            <!-- ENLACE DIRECTO A EXPLORAR -->
             <a href="explore.html">Explorar</a> 
             <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear</a>
             <a href="#" onclick="checkAuthAndNavigate('profile.html')">Perfil</a>
@@ -114,8 +115,8 @@
     <!-- Modal 1: Registro/Login (Reutilizado) -->
     <div id="registration-modal" class="modal" onclick="closeModal(event, 'registration-modal')">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <h2>¡Únete a la Comunidad!</h2>
-            <p>Para interactuar o crear contenido, necesitas unirte a Nexus.</p>
+            <h2>¡Únete a la Conversación!</h2>
+            <p>Para interactuar, dar 'Me Gusta', comentar o crear contenido, necesitas unirte a Nexus.</p>
             <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
             <p style="margin-top: 15px;">¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a></p>
         </div>
@@ -129,7 +130,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { 
             getFirestore, collection, doc, query, onSnapshot, orderBy, where, 
-            serverTimestamp, setDoc, deleteDoc, getDoc, getDocs
+            setDoc, deleteDoc, getDoc, getDocs
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // Variables Globales de Canvas (MANDATORIAS)
@@ -147,9 +148,9 @@
         let currentUser = null; 
         let userId = null;
         let currentFeedType = 'global'; 
-        let unsubscribePosts = null; // Listener de publicaciones
-        let unsubscribeFollowing = null; // Listener de seguimiento
-        let followingIds = []; // Lista de IDs que sigo
+        let unsubscribePosts = null; 
+        let unsubscribeFollowing = null; 
+        let followingIds = []; 
 
         // Referencias a Elementos del DOM
         const postsContainer = document.getElementById('posts-container');
@@ -175,39 +176,39 @@
         
         // Listener de estado de autenticación
         onAuthStateChanged(auth, (user) => {
-            isAuthReady = true; // La autenticación ha terminado su chequeo inicial
+            isAuthReady = true; 
             if (user) {
+                // Si el usuario no es anónimo, está logueado
                 isUserLoggedIn = !user.isAnonymous;
                 currentUser = user;
                 userId = user.uid;
             } else {
                 isUserLoggedIn = false;
                 currentUser = null;
-                // Si es anónimo o no está logueado, se le da un ID para guardar temporalmente
+                // Usar el UID del anónimo si existe, o un placeholder si no (debería existir)
                 userId = auth.currentUser?.uid || 'anonymous'; 
             }
             
-            // Iniciar la lógica de los feeds una vez que la autenticación está lista
+            // Si el usuario está logueado, necesitamos saber a quién sigue
             if (isUserLoggedIn) {
                 setupFollowingListener();
             } else {
-                // Si no está logueado, solo se puede ver el feed global
+                // Si no está logueado, solo puede ver el feed global
                 switchFeed('global');
             }
         });
 
         // ******************************************************
-        // LÓGICA DE SEGUIR/DEJAR DE SEGUIR
+        // LÓGICA DE SEGUIR/DEJAR DE SEGUIR (Necesario para 'Mis Círculos')
         // ******************************************************
 
         /**
          * Observa la lista de usuarios que el usuario actual sigue.
          */
         function setupFollowingListener() {
-            if (unsubscribeFollowing) unsubscribeFollowing(); // Limpiar listener anterior
+            if (unsubscribeFollowing) unsubscribeFollowing(); 
 
             const followingRef = collection(db, "users", userId, "following");
-            // Nota: No usamos orderBy, solo necesitamos los IDs.
             const q = query(followingRef);
 
             unsubscribeFollowing = onSnapshot(q, (snapshot) => {
@@ -216,7 +217,7 @@
                     followingIds.push(doc.id);
                 });
                 console.log("Usuarios seguidos actualizados:", followingIds.length);
-                // Si estamos en el feed de círculos, actualizarlo
+                // Si estamos en el feed de círculos, actualizarlo con la nueva lista
                 if (currentFeedType === 'circles') {
                     setupPostListener();
                 }
@@ -237,7 +238,7 @@
          */
         function setupPostListener() {
             if (unsubscribePosts) {
-                unsubscribePosts(); // Limpiar listener anterior
+                unsubscribePosts(); 
             }
             
             postsContainer.innerHTML = '';
@@ -256,7 +257,7 @@
             } else if (currentFeedType === 'circles') {
                 // MIS CÍRCULOS: Publicaciones de usuarios seguidos
                 
-                // 1. Manejar el caso de NO SEGUIR A NADIE
+                // 1. Manejar el caso de NO SEGUIR A NADIE (Corregido)
                 if (followingIds.length === 0) {
                     loadingMessage.style.display = 'none';
                     postsContainer.innerHTML = `
@@ -270,7 +271,7 @@
                 }
                 
                 // 2. Ejecutar la consulta normal (limitada por el límite 'in' de Firestore)
-                // Usamos un array de 1 a 10 IDs para la cláusula 'in'
+                // Usamos un array de 1 a 10 IDs para la cláusula 'in' (limitación de Firestore)
                 const idsToQuery = followingIds.slice(0, 10); 
                 
                 postsQuery = query(
@@ -280,7 +281,6 @@
                 );
             }
             
-            // Si postsQuery no está definido (por ejemplo, si no estamos logueados y tratamos de ir a círculos)
             if (!postsQuery) {
                 loadingMessage.style.display = 'none';
                 return;
@@ -290,31 +290,30 @@
             // Listener de Publicaciones
             unsubscribePosts = onSnapshot(postsQuery, async (snapshot) => {
                 loadingMessage.style.display = 'none';
-                
+                postsContainer.innerHTML = ''; 
+
                 if (snapshot.empty) {
-                     // Si el feed no es global y está vacío, podría ser porque la gente no ha publicado
+                    let messageHtml;
                     if (currentFeedType === 'circles' && followingIds.length > 0) {
-                        postsContainer.innerHTML = `
+                         messageHtml = `
                             <div class="status-message">
                                 <h3>Esperando Publicaciones</h3>
-                                <p>Tus amigos aún no han compartido nada nuevo. Vuelve pronto.</p>
+                                <p>Las personas que sigues aún no han compartido nada nuevo. Vuelve pronto.</p>
                             </div>
                         `;
                     } else if (currentFeedType === 'global') {
-                         // Si el feed global está vacío, es que no hay ninguna publicación en la app
-                        postsContainer.innerHTML = `
+                        messageHtml = `
                             <div class="status-message">
                                 <h3>¡Sé el Primero!</h3>
                                 <p>Aún no hay publicaciones en Nexus. <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crea tu primera publicación aquí</a>.</p>
                             </div>
                         `;
                     }
+                    if (messageHtml) postsContainer.innerHTML = messageHtml;
                     return;
                 }
-
-                postsContainer.innerHTML = ''; 
                 
-                // Obtener datos de los usuarios (usernames) para cada post
+                // Obtener datos de los usuarios (usernames) para cada post de forma concurrente
                 const userPromises = snapshot.docs.map(docSnapshot => {
                     const post = docSnapshot.data();
                     // Obtener el perfil del usuario que creó el post
@@ -322,8 +321,13 @@
                         .then(userDoc => ({
                             postId: docSnapshot.id,
                             ...post,
-                            username: userDoc.exists() ? userDoc.data().username : 'Usuario Desconocido'
-                        }));
+                            // Si no existe, se usa un nombre por defecto
+                            username: userDoc.exists() ? userDoc.data().username : 'Usuario Desconocido' 
+                        }))
+                        .catch(err => {
+                            console.error("Error fetching user data:", err);
+                            return { postId: docSnapshot.id, ...post, username: 'Error de Carga' };
+                        });
                 });
 
                 const postsWithUserInfo = await Promise.all(userPromises);
@@ -335,7 +339,7 @@
 
             }, (error) => {
                 console.error("Error al obtener publicaciones:", error);
-                loadingMessage.textContent = 'Error al cargar publicaciones. Inténtalo de nuevo.';
+                loadingMessage.textContent = 'Error grave al cargar publicaciones. Revisa la consola.';
                 loadingMessage.style.display = 'block';
             });
         }
@@ -346,7 +350,6 @@
 
         /**
          * Cambia el tipo de feed (Global o Círculos) y actualiza la UI.
-         * @param {string} type - 'global' o 'circles'.
          */
         window.switchFeed = function(type) {
             if (type === currentFeedType) return;
@@ -367,7 +370,6 @@
                 circlesBtn.classList.add('active');
             }
 
-            // Iniciar el listener con el nuevo tipo de feed
             if (isAuthReady) {
                 setupPostListener();
             }
@@ -376,7 +378,6 @@
 
         /**
          * Crea el elemento HTML para una publicación.
-         * @param {Object} post - Datos del post con el username incluido.
          */
         function renderPost(post) {
             const item = document.createElement('div');
@@ -393,7 +394,6 @@
                 <div class="post-header">
                     <div class="post-avatar">${firstLetter}</div>
                     <div class="post-user-info">
-                        <!-- Navegar al perfil del autor, protegido por checkAuthAndNavigate -->
                         <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')">@${post.username}</a>
                         <p>${formattedTime}</p>
                     </div>
@@ -402,13 +402,56 @@
                     <p>${post.content.replace(/\n/g, '<br>')}</p>
                 </div>
                 <div class="post-actions">
-                    <button><i class="far fa-heart"></i> Me Gusta (0)</button>
-                    <button><i class="far fa-comment"></i> Comentar (0)</button>
-                    <button><i class="fas fa-share"></i> Compartir</button>
+                    <button id="like-btn-${post.postId}" onclick="handlePostAction('${post.postId}', 'like', event)"><i class="far fa-heart"></i> Me Gusta (0)</button>
+                    <button onclick="handlePostAction('${post.postId}', 'comment', event)"><i class="far fa-comment"></i> Comentar (0)</button>
+                    <button onclick="handlePostAction('${post.postId}', 'share', event)"><i class="fas fa-share"></i> Compartir</button>
                 </div>
             `;
             
             return item;
+        }
+
+        // ******************************************************
+        // LÓGICA DE ACCIONES DE POSTS (Me Gusta, Comentar) (Implementación visual)
+        // ******************************************************
+        
+        /**
+         * Maneja las acciones de Me Gusta, Comentar, Compartir.
+         */
+        window.handlePostAction = function(postId, action, event) {
+            if (!isUserLoggedIn) {
+                showRegistrationModal();
+                return;
+            }
+
+            console.log(`Usuario ${userId} ejecutó la acción '${action}' en el post ${postId}`);
+
+            const button = event.currentTarget;
+
+            if (action === 'like') {
+                const icon = button.querySelector('i');
+                const isLiked = icon.classList.contains('fas'); 
+
+                if (isLiked) {
+                    // Quitar Like (Visual)
+                    icon.classList.remove('fas');
+                    icon.classList.add('far'); 
+                    button.classList.remove('like-active');
+                    // (Aquí iría la lógica para ELIMINAR el like de Firestore)
+                    console.log(`Like removido de ${postId}`);
+                } else {
+                    // Dar Like (Visual)
+                    icon.classList.remove('far');
+                    icon.classList.add('fas'); 
+                    button.classList.add('like-active');
+                    // (Aquí iría la lógica para AGREGAR el like a Firestore)
+                    console.log(`Like añadido a ${postId}`);
+                }
+            } else if (action === 'comment') {
+                console.log("Comentar: Funcionalidad pendiente, revisa la consola.");
+            } else if (action === 'share') {
+                console.log("Compartir: Funcionalidad pendiente, revisa la consola.");
+            }
         }
 
         // ******************************************************
@@ -436,7 +479,7 @@
             registrationModal.style.display = 'flex';
         }
 
-        // 1. Iniciar Autenticación al cargar
+        // Iniciar Autenticación al cargar
         setupAuth();
 
     </script>
