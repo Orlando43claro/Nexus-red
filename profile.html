@@ -58,21 +58,32 @@
 
         /* Barra de Estadísticas de Seguimiento */
         .stats-bar {
-            display: flex; justify-content: space-around;
-            padding: 15px 0; margin: 20px 0; border-top: 1px solid #eee; 
+            display: flex; 
+            justify-content: space-around;
+            padding: 15px 0; 
+            margin: 20px 0; 
+            border-top: 1px solid #eee; 
             border-bottom: 1px solid #eee;
         }
+        .stats-bar button, .stat-item { /* Estilos base para todos los ítems de la barra */
+            background: none; 
+            border: none; 
+            color: #0077b6; 
+            font-size: 1.1em; 
+            font-weight: bold;
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+        }
         .stats-bar button {
-            background: none; border: none; cursor: pointer;
-            color: #0077b6; font-size: 1.1em; font-weight: bold;
-            display: flex; flex-direction: column; align-items: center;
+             cursor: pointer;
         }
         .stats-bar button:hover { text-decoration: underline; }
         .stats-bar span { 
             font-size: 1.5em; color: #333; font-weight: 700; 
             margin-bottom: 4px;
         }
-
+        
         /* Área de Publicaciones */
         #user-posts { margin-top: 20px; text-align: left; }
         .post-card { 
@@ -142,7 +153,7 @@
     <main>
         <div id="profile-container" class="profile-container">
             <div id="profile-info" class="profile-info">
-                <!-- ESTRUCTURA ACTUALIZADA: Nombre de usuario con indicador de estado -->
+                <!-- Nombre de usuario con indicador de estado -->
                 <div style="display: flex; align-items: center; justify-content: center;">
                     <h2 id="profile-username">Cargando Perfil...</h2>
                     <div id="online-status-indicator" class="status-indicator" title="Estado"></div>
@@ -150,7 +161,7 @@
                 <p id="profile-bio">...</p>
             </div>
             
-            <!-- BARRA DE ESTADÍSTICAS -->
+            <!-- BARRA DE ESTADÍSTICAS (ACTUALIZADA con Total de Likes) -->
             <div class="stats-bar">
                 <button id="followers-btn" onclick="showFollowListModal('followers')">
                     <span id="followers-count">0</span> Seguidores
@@ -158,6 +169,10 @@
                 <button id="following-btn" onclick="showFollowListModal('following')">
                     <span id="following-count">0</span> Siguiendo
                 </button>
+                <!-- NUEVO: Total de Likes -->
+                <div class="stat-item">
+                    <span id="total-likes-count">0</span> Me Gusta Totales
+                </div>
             </div>
 
             <div id="action-buttons" class="action-buttons">
@@ -215,8 +230,8 @@
         import { 
             getFirestore, doc, getDoc, updateDoc, 
             collection, query, where, getDocs, onSnapshot,
-            setDoc, deleteDoc, serverTimestamp, increment, // <-- increment importado para los likes
-            runTransaction // <-- runTransaction importado para likes seguros
+            setDoc, deleteDoc, serverTimestamp, increment,
+            runTransaction
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
         // Configuración de Firebase (Tus Credenciales)
@@ -249,6 +264,7 @@
         const logoutConfirmModal = document.getElementById('logout-confirm-modal');
         const followersCountSpan = document.getElementById('followers-count');
         const followingCountSpan = document.getElementById('following-count');
+        const totalLikesCountSpan = document.getElementById('total-likes-count'); // <-- NUEVO
         const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
 
 
@@ -261,7 +277,7 @@
         }
         
         // ******************************************************
-        // LÓGICA DE LIKES (NUEVA)
+        // LÓGICA DE LIKES
         // ******************************************************
 
         /**
@@ -309,10 +325,6 @@
                         console.log("Like dado con éxito.");
                     }
                 });
-                
-                // La función loadUserPosts se llamará de nuevo para actualizar el UI
-                // Pero para un UX más rápido, podríamos actualizar el botón inmediatamente (lo hacemos en loadUserPosts)
-
             } catch (error) {
                 console.error("Error al manejar el like:", error);
             }
@@ -336,7 +348,7 @@
         
 
         // ******************************************************
-        // LÓGICA DE PRESENCIA Y ESTADO ACTIVO (MANTENIDA)
+        // LÓGICA DE PRESENCIA Y ESTADO ACTIVO
         // ******************************************************
         function updatePresence() {
             if (currentUser) {
@@ -378,7 +390,7 @@
 
 
         // ******************************************************
-        // LÓGICA DE SEGUIMIENTO Y LISTAS (MANTENIDA)
+        // LÓGICA DE SEGUIMIENTO Y LISTAS
         // ******************************************************
         function setupFollowListeners(userId) {
             const followersRef = collection(db, "users", userId, "followers");
@@ -483,7 +495,7 @@
 
 
         // ******************************************************
-        // LÓGICA DE CIERRE DE SESIÓN (MANTENIDA)
+        // LÓGICA DE CIERRE DE SESIÓN
         // ******************************************************
         window.showLogoutModal = function() {
             logoutConfirmModal.style.display = 'flex';
@@ -500,10 +512,9 @@
         }
 
         // ******************************************************
-        // LÓGICA DE RENDERIZADO PRINCIPAL
+        // LÓGICA DE RENDERIZADO PRINCIPAL (MODIFICADA)
         // ******************************************************
         
-        // 1. Carga los datos del perfil y sus publicaciones (MODIFICADA: Se agrega un listener de publicaciones)
         let profileDocListener = null;
         let postSnapshotListener = null;
 
@@ -520,7 +531,7 @@
 
             const userRef = doc(db, "users", profileUserId);
             
-            // Listener de Datos de Perfil y Estado Activo
+            // 1. Listener de Datos de Perfil y Estado Activo
             profileDocListener = onSnapshot(userRef, (userDoc) => {
                 if (!userDoc.exists()) {
                     profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
@@ -539,7 +550,7 @@
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
             });
             
-            // 2. Listener en tiempo real para las publicaciones (Incluye likes)
+            // 2. Listener en tiempo real para las publicaciones (Ahora calcula el total de likes)
             const postsQuery = query(
                 collection(db, "posts"), 
                 where("userId", "==", profileUserId)
@@ -547,7 +558,18 @@
 
             postSnapshotListener = onSnapshot(postsQuery, (snapshot) => {
                 let posts = [];
-                snapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+                let totalLikes = 0; // <-- NUEVO: Inicializar contador total de likes
+                
+                snapshot.forEach(doc => {
+                    const postData = doc.data();
+                    posts.push({ id: doc.id, ...postData });
+                    
+                    // Sumar los likes de cada publicación. Si es undefined, usar 0.
+                    totalLikes += (postData.likes || 0);
+                });
+                
+                // ACTUALIZAR EL UI con el total de likes
+                totalLikesCountSpan.textContent = totalLikes;
 
                 // Ordenar localmente por 'createdAt' (descendente)
                 posts.sort((a, b) => {
@@ -556,7 +578,7 @@
                     return timeB - timeA;
                 });
                 
-                renderPosts(posts); // Llamar a la función de renderizado
+                renderPosts(posts);
             }, (error) => {
                 console.error("Error al escuchar publicaciones:", error);
                 userPostsDiv.innerHTML = '<p style="color: red;">Error al cargar las publicaciones del usuario en tiempo real.</p>';
@@ -583,7 +605,6 @@
                 const heartClass = isLiked ? 'fa-heart liked' : 'fa-heart-o';
                 const likeStatus = isLiked ? 'true' : 'false';
                 
-                // Usamos el id del post y el estado actual para la función handleLikePost
                 return `
                     <div class="post-card">
                         <p>${post.text}</p>
@@ -604,7 +625,7 @@
         }
         
 
-        // 2. Renderiza los botones de acción (MANTENIDA)
+        // 3. Renderiza los botones de acción (MANTENIDA)
         function renderActionButtons() {
             actionButtonsDiv.innerHTML = '';
             
@@ -635,7 +656,7 @@
             }
         }
 
-        // 3. Lógica de edición de perfil (MANTENIDA)
+        // 4. Lógica de edición de perfil (MANTENIDA)
         window.showEditModal = function() {
             document.getElementById('edit-username').value = profileUserData.username || '';
             document.getElementById('edit-bio').value = profileUserData.bio || '';
