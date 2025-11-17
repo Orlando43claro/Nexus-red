@@ -226,27 +226,60 @@
     <!-- ****************************************************** -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signOut, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { 
             getFirestore, doc, getDoc, updateDoc, 
             collection, query, where, getDocs, onSnapshot,
             setDoc, deleteDoc, serverTimestamp, increment,
-            runTransaction
+            runTransaction, setLogLevel
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
-        // Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
+        // Habilitar logs para depuración
+        setLogLevel('debug');
+        
+        // --- INICIALIZACIÓN DE FIREBASE Y AUTH ---
+        let app;
+        let auth;
+        let db;
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        async function initializeFirebase() {
+             let firebaseConfig = {};
+             let initialAuthToken = null;
+             
+             try {
+                if (window.__firebase_config) {
+                    firebaseConfig = JSON.parse(window.__firebase_config);
+                }
+                if (window.__initial_auth_token) {
+                    initialAuthToken = window.__initial_auth_token;
+                }
+             } catch (e) {
+                 console.error("Error al parsear variables globales:", e);
+                 // No mostrar error en UI, solo log
+             }
+             
+             if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
+                 console.error("Error: Configuración de Firebase no encontrada.");
+                 return;
+             }
+
+             app = initializeApp(firebaseConfig);
+             db = getFirestore(app);
+             auth = getAuth(app);
+             
+             try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth); 
+                }
+             } catch (e) {
+                 console.error("Error de autenticación inicial:", e);
+             }
+        }
+        
+        // Llamar a la inicialización antes de cualquier cosa
+        initializeFirebase();
 
         let currentUser = null;
         let profileUserId = null; 
@@ -264,7 +297,7 @@
         const logoutConfirmModal = document.getElementById('logout-confirm-modal');
         const followersCountSpan = document.getElementById('followers-count');
         const followingCountSpan = document.getElementById('following-count');
-        const totalLikesCountSpan = document.getElementById('total-likes-count'); // <-- NUEVO
+        const totalLikesCountSpan = document.getElementById('total-likes-count'); 
         const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
 
 
@@ -279,13 +312,7 @@
         // ******************************************************
         // LÓGICA DE LIKES
         // ******************************************************
-
-        /**
-         * Maneja el evento de dar o quitar "Me Gusta" a una publicación.
-         * Usa una transacción para actualizar el contador de likes de forma segura.
-         * @param {string} postId El ID del documento de la publicación.
-         * @param {string} isCurrentlyLiked Un string 'true' o 'false' para el estado actual.
-         */
+        
         window.handleLikePost = async function(postId, isCurrentlyLiked) {
             if (!currentUser) {
                 console.error("Debes iniciar sesión para dar Me Gusta.");
@@ -297,7 +324,6 @@
             const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
 
             try {
-                // Ejecutar la transacción para garantizar la atomicidad (seguridad)
                 await runTransaction(db, async (transaction) => {
                     const postDoc = await transaction.get(postRef);
                     if (!postDoc.exists()) {
@@ -305,24 +331,14 @@
                     }
 
                     if (isLiked) {
-                        // 1. Quitar like
                         transaction.delete(likeRef);
-                        // 2. Decrementar el contador
-                        transaction.update(postRef, {
-                            likes: increment(-1)
-                        });
-                        console.log("Like quitado con éxito.");
+                        transaction.update(postRef, { likes: increment(-1) });
                     } else {
-                        // 1. Dar like
                         transaction.set(likeRef, { 
                             userId: currentUser.uid, 
                             timestamp: serverTimestamp() 
                         });
-                        // 2. Incrementar el contador
-                        transaction.update(postRef, {
-                            likes: increment(1)
-                        });
-                        console.log("Like dado con éxito.");
+                        transaction.update(postRef, { likes: increment(1) });
                     }
                 });
             } catch (error) {
@@ -330,11 +346,6 @@
             }
         }
         
-        /**
-         * Verifica si el usuario actual le ha dado like a una publicación.
-         * @param {string} postId 
-         * @returns {Promise<boolean>}
-         */
         async function checkUserLiked(postId) {
             if (!currentUser) return false;
             try {
@@ -384,15 +395,16 @@
                 onlineStatusIndicator.classList.add('online');
                 onlineStatusIndicator.title = "Activo ahora";
             } else if (lastSeen) {
-                onlineStatusIndicator.title = `Últ. vez activo: ${new Date(lastSeen.toDate()).toLocaleTimeString()}`;
+                onlineStatusIndicator.title = `Últ. vez activo: ${lastSeen.toDate ? lastSeen.toDate().toLocaleTimeString() : 'N/A'}`;
             }
         }
 
 
         // ******************************************************
-        // LÓGICA DE SEGUIMIENTO Y LISTAS
+        // LÓGICA DE SEGUIMIENTO Y LISTAS (CORREGIDA)
         // ******************************************************
         function setupFollowListeners(userId) {
+            // Listener para el contador de Seguidores (funciona bien)
             const followersRef = collection(db, "users", userId, "followers");
             onSnapshot(followersRef, (snapshot) => {
                 followersCountSpan.textContent = snapshot.size;
@@ -400,6 +412,7 @@
                 console.error("Error al obtener seguidores:", error);
             });
 
+            // Listener para el contador de Siguiendo (funciona bien)
             const followingRef = collection(db, "users", userId, "following");
             onSnapshot(followingRef, (snapshot) => {
                 followingCountSpan.textContent = snapshot.size;
@@ -418,6 +431,9 @@
             }
         }
 
+        /**
+         * CORRECCIÓN: Ahora usa los datos directamente del documento si están disponibles.
+         */
         window.showFollowListModal = async function(type) {
             listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
             userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
@@ -435,58 +451,93 @@
                     return;
                 }
                 
-                const usernamePromises = [];
+                const userListHTML = [];
+                const fetchPromises = [];
 
                 snapshot.forEach((docSnap) => {
+                    const docId = docSnap.id;
                     const data = docSnap.data();
+                    
                     let targetUserId;
-                    
-                    if (collectionName === 'followers') {
-                        targetUserId = data.userId || docSnap.id;
-                    } else {
-                        targetUserId = docSnap.id;
+                    let usernamePromise;
+
+                    if (type === 'followers') {
+                        // En la colección 'followers' de A, los documentos son el UID de B (el seguidor), 
+                        // y el cuerpo del documento debe contener el username de B.
+                        targetUserId = docId;
+                        if (data.username) {
+                            usernamePromise = Promise.resolve(data.username);
+                        } else {
+                            usernamePromise = fetchUsername(targetUserId);
+                        }
+
+                    } else { // type === 'following'
+                        // En la colección 'following' de A, los documentos son el UID de B (el seguido),
+                        // y el cuerpo del documento debe contener el username de B.
+                        targetUserId = docId;
+                        if (data.username) {
+                            usernamePromise = Promise.resolve(data.username);
+                        } else {
+                            usernamePromise = fetchUsername(targetUserId);
+                        }
                     }
                     
-                    if (data.username) {
-                        usernamePromises.push(Promise.resolve({ userId: targetUserId, username: data.username }));
-                    } else {
-                        usernamePromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
-                    }
+                    fetchPromises.push(usernamePromise.then(username => {
+                        userListHTML.push(`
+                            <div class="user-list-item">
+                                <a href="profile.html?uid=${targetUserId}" onclick="closeModal(null, 'list-modal')">@${username || 'Usuario Desconocido'}</a>
+                            </div>
+                        `);
+                    }));
                 });
                 
-                const userList = await Promise.all(usernamePromises);
-
-                userList.forEach((user) => {
-                     userListContent.innerHTML += `
-                        <div class="user-list-item">
-                            <a href="profile.html?uid=${user.userId}" onclick="closeModal(null, 'list-modal')">@${user.username}</a>
-                        </div>
-                    `;
-                });
+                await Promise.all(fetchPromises);
+                userListContent.innerHTML = userListHTML.join('');
                 
             } catch (error) {
                 console.error(`Error al cargar lista de ${type}:`, error);
                 userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
             }
         }
-
+        
+        /**
+         * CORRECCIÓN: Se asegura que el documento de seguimiento contenga el 'username' del usuario 
+         * que está siguiendo/siendo seguido para la lista del modal.
+         */
         window.handleFollow = async function() {
             if (!currentUser) return;
 
             const isFollowing = actionButtonsDiv.querySelector('#follow-btn').textContent === 'Siguiendo';
-            const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
-            const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
+            const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId); // El usuario actual sigue al perfil
+            const followingRef = doc(db, "users", profileUserId, "followers", currentUser.uid); // El perfil es seguido por el usuario actual
 
             try {
-                const currentUserDoc = await getDoc(doc(db, "users", currentUser.uid));
-                const currentUsername = currentUserDoc.exists() ? currentUserDoc.data().username : 'Usuario Nexus';
+                // Obtener el nombre de usuario del seguidor (currentUser)
+                const followerDoc = await getDoc(doc(db, "users", currentUser.uid));
+                const followerUsername = followerDoc.exists() ? followerDoc.data().username : 'Usuario Nexus';
+
+                // Obtener el nombre de usuario del seguido (profileUserId)
+                const followedDoc = await getDoc(doc(db, "users", profileUserId));
+                const followedUsername = followedDoc.exists() ? followedDoc.data().username : 'Usuario Nexus';
+
 
                 if (isFollowing) {
                     await deleteDoc(followerRef);
                     await deleteDoc(followingRef);
                 } else {
-                    await setDoc(followerRef, { userId: profileUserId, username: profileUserData.username });
-                    await setDoc(followingRef, { userId: currentUser.uid, username: currentUsername });
+                    // El usuario actual sigue al perfil
+                    await setDoc(followerRef, { 
+                        userId: profileUserId, 
+                        username: followedUsername,
+                        timestamp: serverTimestamp() 
+                    });
+                    
+                    // El perfil es seguido por el usuario actual
+                    await setDoc(followingRef, { 
+                        userId: currentUser.uid, 
+                        username: followerUsername, 
+                        timestamp: serverTimestamp() 
+                    });
                 }
             } catch (error) {
                 console.error("Error al seguir/dejar de seguir:", error);
@@ -512,7 +563,7 @@
         }
 
         // ******************************************************
-        // LÓGICA DE RENDERIZADO PRINCIPAL (MODIFICADA)
+        // LÓGICA DE RENDERIZADO PRINCIPAL
         // ******************************************************
         
         let profileDocListener = null;
@@ -525,7 +576,6 @@
                 return;
             }
             
-            // Desuscribir listeners previos
             if (profileDocListener) profileDocListener();
             if (postSnapshotListener) postSnapshotListener();
 
@@ -558,20 +608,17 @@
 
             postSnapshotListener = onSnapshot(postsQuery, (snapshot) => {
                 let posts = [];
-                let totalLikes = 0; // <-- NUEVO: Inicializar contador total de likes
+                let totalLikes = 0; 
                 
                 snapshot.forEach(doc => {
                     const postData = doc.data();
                     posts.push({ id: doc.id, ...postData });
                     
-                    // Sumar los likes de cada publicación. Si es undefined, usar 0.
                     totalLikes += (postData.likes || 0);
                 });
                 
-                // ACTUALIZAR EL UI con el total de likes
                 totalLikesCountSpan.textContent = totalLikes;
 
-                // Ordenar localmente por 'createdAt' (descendente)
                 posts.sort((a, b) => {
                     const timeA = a.createdAt ? (a.createdAt.seconds * 1000) + (a.createdAt.nanoseconds / 1000000) : 0;
                     const timeB = b.createdAt ? (b.createdAt.seconds * 1000) + (b.createdAt.nanoseconds / 1000000) : 0;
@@ -587,7 +634,6 @@
         
         /**
          * Renderiza las publicaciones y el botón de like.
-         * @param {Array<Object>} posts - Array de objetos de publicación.
          */
         async function renderPosts(posts) {
             userPostsDiv.innerHTML = '';
@@ -597,7 +643,6 @@
                 return;
             }
 
-            // Mapear posts a promesas para obtener el estado de "like" para cada uno
             const postRenderPromises = posts.map(async (post) => {
                 const isLiked = await checkUserLiked(post.id);
                 const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
@@ -619,13 +664,12 @@
                 `;
             });
 
-            // Esperar a que se resuelvan todas las promesas y luego agregarlas al DOM
             const postHTML = await Promise.all(postRenderPromises);
             userPostsDiv.innerHTML = postHTML.join('');
         }
         
 
-        // 3. Renderiza los botones de acción (MANTENIDA)
+        // 3. Renderiza los botones de acción
         function renderActionButtons() {
             actionButtonsDiv.innerHTML = '';
             
@@ -656,7 +700,7 @@
             }
         }
 
-        // 4. Lógica de edición de perfil (MANTENIDA)
+        // 4. Lógica de edición de perfil
         window.showEditModal = function() {
             document.getElementById('edit-username').value = profileUserData.username || '';
             document.getElementById('edit-bio').value = profileUserData.bio || '';
@@ -678,6 +722,13 @@
                     bio: newBio
                 });
                 
+                // Si el nombre de usuario cambia, actualiza el displayName de Auth también
+                if (currentUser.displayName !== newUsername) {
+                    // NOTA: Para actualizar displayName se necesitaría 'updateProfile' del SDK de Auth,
+                    // pero no es estrictamente necesario aquí si dependemos solo de Firestore.
+                    // Mantendremos la actualización en Firestore.
+                }
+
                 closeModal(null, 'edit-modal');
             } catch (error) {
                 console.error("Error al guardar cambios:", error);
@@ -699,6 +750,7 @@
                     loadProfileData();
 
                 } else {
+                    // Solo redirigir si no estamos en una página de perfil de invitado (siempre debería haber un usuario autenticado)
                     window.location.href = 'login.html';
                 }
             });
