@@ -90,16 +90,14 @@
                     const circles = userData.circles || [];
 
                     if (circles.length > 0) {
-                        // Llenar el <select> con los círculos encontrados
                         circlesSelect.innerHTML = '';
                         circles.forEach(circle => {
                             const option = document.createElement('option');
-                            option.value = circle.name; // Usamos el nombre del círculo como valor
+                            option.value = circle.name; 
                             option.textContent = circle.name;
                             circlesSelect.appendChild(option);
                         });
                         
-                        // Ocultar overlay y mostrar el formulario
                         loadingOverlay.style.display = 'none';
                         formContent.style.display = 'block';
 
@@ -137,35 +135,27 @@
             const postText = document.getElementById('postText').value.trim();
             const circleTarget = circlesSelect.value; 
 
-            if (!postText) {
-                errorDisplay.textContent = 'La publicación no puede estar vacía.';
-                return;
-            }
-
-            if (!circleTarget) {
-                 errorDisplay.textContent = 'Debes seleccionar un Círculo de Influencia.';
+            if (!postText || !circleTarget) {
+                errorDisplay.textContent = 'La publicación y el círculo son obligatorios.';
                 return;
             }
 
             try {
-                // Crear el objeto de la publicación
                 const newPost = {
                     userId: currentUser.uid,
-                    username: currentUser.displayName || 'Usuario Nexus', // Usar el nombre guardado en Auth
+                    username: currentUser.displayName || 'Usuario Nexus', 
                     text: postText,
                     circleTarget: circleTarget,
                     likes: 0,
                     commentsCount: 0,
-                    createdAt: serverTimestamp() // Marca de tiempo del servidor
+                    createdAt: serverTimestamp() 
                 };
 
-                // Guardar la publicación en la colección 'posts'
                 await addDoc(collection(db, "posts"), newPost);
 
                 successDisplay.textContent = '¡Publicación enviada con éxito!';
-                document.getElementById('postText').value = ''; // Limpiar textarea
+                document.getElementById('postText').value = ''; 
                 
-                // Redirigir al feed después de un breve momento
                 setTimeout(() => {
                     window.location.href = 'feed.html';
                 }, 1500);
@@ -187,8 +177,8 @@
                     // El usuario está logueado, cargar sus círculos
                     loadCircles(user); 
                 } else {
-                    // El usuario NO está logueado, redirigir
-                    alert("Debes iniciar sesión para crear publicaciones.");
+                    // El usuario NO está logueado, redirigir al login
+                    alert("Debes iniciar sesión para crear publicaciones. Redirigiendo...");
                     window.location.href = 'login.html'; 
                 }
             });
@@ -201,7 +191,7 @@
         
         <div id="loading-overlay">
             <h2>Crear Nueva Publicación</h2>
-            Cargando Circles de Influencia...
+            Cargando... (Verificando Autenticación)
         </div>
 
         <div id="form-content" style="display:none;">
