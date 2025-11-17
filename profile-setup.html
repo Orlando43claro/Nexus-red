@@ -34,6 +34,7 @@
             transition: background-color 0.3s;
         }
         button:hover { background-color: #1e7e34; }
+        button:disabled { background-color: #a7f3d0; cursor: not-allowed; }
         .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; }
         .info-message { color: #0077b6; margin-bottom: 20px; }
     </style>
@@ -41,80 +42,151 @@
     <!-- 1. Carga de SDKs de Firebase (Auth y Firestore) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        // Importamos runTransaction para crear el usuario y el círculo atómicamente
+        import { getFirestore, doc, serverTimestamp, runTransaction, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         
-        // 2. Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
+        // Habilitar logs para depuración
+        setLogLevel('debug');
 
-        // 3. Inicializar Firebase y Servicios
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        let app;
+        let auth;
+        let db;
+        let currentUser = null; 
 
-        let currentUser = null; // Variable para almacenar el usuario autenticado
+        const setupForm = document.getElementById('setupForm');
+        const errorDisplay = document.getElementById('errorMessage');
+        const finishButton = document.querySelector('button[type="submit"]');
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const setupForm = document.getElementById('setupForm');
-            const errorDisplay = document.getElementById('errorMessage');
+        // Función para mostrar errores en la UI
+        function showUIError(message) {
+            errorDisplay.textContent = message;
+            finishButton.disabled = false;
+            finishButton.textContent = 'Finalizar y Entrar a Nexus';
+        }
 
-            // 4. Verificar el estado de Autenticación
-            onAuthStateChanged(auth, (user) => {
+        // --- INICIALIZACIÓN DE FIREBASE Y AUTH ---
+        async function initializeAppAndAuth() {
+             let firebaseConfig = {};
+             let initialAuthToken = null;
+             
+             // 1. Obtener la configuración de forma robusta del entorno
+             try {
+                if (window.__firebase_config) {
+                    firebaseConfig = JSON.parse(window.__firebase_config);
+                }
+                if (window.__initial_auth_token) {
+                    initialAuthToken = window.__initial_auth_token;
+                }
+             } catch (e) {
+                 console.error("Error al parsear variables globales:", e);
+                 showUIError("Error de configuración inicial: Variables de Firebase no válidas.");
+                 return;
+             }
+             
+             // 2. Inicializar Firebase
+             if (Object.keys(firebaseConfig).length === 0 || !firebaseConfig.apiKey) {
+                 showUIError("Error interno: Configuración de Firebase no encontrada. Recarga la página.");
+                 return;
+             }
+
+             app = initializeApp(firebaseConfig);
+             db = getFirestore(app);
+             auth = getAuth(app);
+             
+             // 3. Autenticar usando el token o de forma anónima
+             try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth); 
+                }
+             } catch (e) {
+                 console.error("Error de autenticación inicial:", e);
+                 showUIError("Error de autenticación. Por favor, reinicia la sesión.");
+                 return;
+             }
+
+             // 4. Verificar el estado de Autenticación
+             onAuthStateChanged(auth, (user) => {
                 if (user) {
                     currentUser = user;
                     console.log("Usuario autenticado. UID:", user.uid);
-                    // Mostrar el nombre de usuario que viene de la etapa de registro
+                    // Mostrar el nombre de usuario
                     document.getElementById('welcome-message').textContent = `Bienvenido, @${user.displayName || 'nuevo usuario'}!`;
                 } else {
                     // Si el usuario no está logueado, lo enviamos de vuelta al inicio de sesión
-                    alert("Debes iniciar sesión para configurar tu perfil.");
-                    window.location.href = 'login.html'; 
+                    showUIError("Sesión no encontrada. Redirigiendo a login...");
+                    setTimeout(() => window.location.href = 'login.html', 1500); 
                 }
-            });
+             });
+        }
 
-            // 5. Manejar el envío del formulario para guardar datos en Firestore
-            setupForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                errorDisplay.textContent = '';
-                
-                if (!currentUser) {
-                    errorDisplay.textContent = 'Error: Sesión no encontrada. Por favor, reinicia la página.';
-                    return;
-                }
+        document.addEventListener('DOMContentLoaded', initializeAppAndAuth);
 
-                const bio = document.getElementById('bio').value;
-                const firstCircleName = document.getElementById('firstCircleName').value;
+        // 5. Manejar el envío del formulario para guardar datos en Firestore
+        setupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            errorDisplay.textContent = '';
+            
+            if (!currentUser || !db) {
+                showUIError('Error: Sesión no encontrada o base de datos no inicializada.');
+                return;
+            }
 
-                try {
-                    // Crear el documento de perfil en la colección 'users' usando el UID como ID del documento
-                    await setDoc(doc(db, "users", currentUser.uid), {
-                        username: currentUser.displayName, // Nombre de usuario guardado de Authentication
+            finishButton.disabled = true;
+            finishButton.textContent = 'Guardando perfil...';
+
+            const bio = document.getElementById('bio').value.trim();
+            const firstCircleName = document.getElementById('firstCircleName').value.trim();
+            const userId = currentUser.uid;
+
+            // La lógica de guardado debe usar runTransaction y la ruta correcta para la subcolección privada
+            const appId = window.__app_id || 'default-app-id';
+            const userRef = doc(db, "users", userId);
+            const circleId = firstCircleName.toLowerCase().replace(/\s+/g, '-'); 
+            // Ruta del Círculo: /artifacts/{appId}/users/{userId}/circles/{circleId}
+            const circleRef = doc(db, "artifacts", appId, "users", userId, "circles", circleId); 
+
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    
+                    // A. Crear el documento de perfil principal en 'users'
+                    transaction.set(userRef, {
+                        userId: userId,
+                        username: currentUser.displayName || userId,
                         email: currentUser.email,
                         bio: bio,
-                        // El primer Círculo de Influencia es crucial para la experiencia Nexus
-                        circles: [
-                            { name: firstCircleName, isPrivate: true, membersCount: 1 }
-                        ],
-                        profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', // Placeholder por ahora
-                        createdAt: serverTimestamp()
+                        // Almacenamos la referencia al primer círculo creado
+                        defaultCircleId: circleId,
+                        defaultCircleName: firstCircleName,
+                        profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', 
+                        createdAt: serverTimestamp(),
+                        followersCount: 0,
+                        followingCount: 0,
                     });
 
-                    // Éxito: Redirigir al Feed, ahora con el usuario logueado
-                    alert("¡Perfil configurado! Ya puedes empezar a conectar en Nexus.");
-                    window.location.href = 'feed.html';
+                    // B. Crear el documento del primer Círculo de Influencia (en la subcolección)
+                    transaction.set(circleRef, {
+                        name: firstCircleName,
+                        id: circleId,
+                        isPublic: false, 
+                        ownerId: userId,
+                        members: [userId], 
+                        createdAt: serverTimestamp()
+                    });
+                });
 
-                } catch (error) {
-                    errorDisplay.textContent = 'Error al guardar el perfil. Revisa la consola para más detalles.';
-                    console.error("Error al guardar en Firestore:", error);
-                }
-            });
+                // Éxito: Redirigir al Feed (feed.html) sin alerta.
+                finishButton.textContent = '¡Perfil configurado! Entrando...';
+                window.location.href = 'feed.html';
+
+            } catch (error) {
+                console.error("Error al guardar en Firestore:", error);
+                // Mostrar el error en la UI, no con alert
+                showUIError('Error al guardar el perfil. Revisa la consola para más detalles.');
+            }
         });
     </script>
 </head>
@@ -133,10 +205,6 @@
             <input type="text" id="firstCircleName" placeholder="Ej: Amigos Cercanos, Familia, Proyectos de Trabajo" required>
             <small style="display: block; text-align: left; color: #888;">Este es el grupo donde compartirás tu contenido más privado o específico.</small>
             
-            <!-- Nota: La carga de fotos a Firebase Storage es omitida por simplicidad en un solo archivo -->
-            <!-- <label for="profilePic">Foto de Perfil (Opcional):</label>
-            <input type="file" id="profilePic" accept="image/*"> -->
-
             <button type="submit">Finalizar y Entrar a Nexus</button>
         </form>
 
@@ -144,3 +212,4 @@
     </div>
 </body>
 </html>
+
