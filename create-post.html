@@ -4,55 +4,110 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Crear Publicación</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         /* Estilos Base */
-        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; display: flex; flex-direction: column; min-height: 100vh; }
+        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
         .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { margin: 0; font-size: 1.5em; }
         .header nav { display: flex; gap: 10px; }
         .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
         .header a:hover { background-color: #005f93; }
 
-        /* Contenedor Principal */
-        .container { max-width: 600px; margin: 20px auto; padding: 20px; background-color: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); flex-grow: 1; }
-        h2 { color: #0077b6; text-align: center; margin-bottom: 20px; }
-
-        /* Formulario de Publicación */
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #333; }
-        textarea, select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 1em; resize: vertical; }
-        textarea { height: 150px; }
-
-        /* Estilos de Botón */
-        .btn-post {
-            background-color: #0077b6; color: white; padding: 12px 20px;
-            border: none; border-radius: 6px; cursor: pointer; 
-            font-size: 1.1em; font-weight: bold; width: 100%;
-            transition: background-color 0.3s, transform 0.1s;
+        /* Estilos del Formulario de Creación */
+        .post-container {
+            background-color: white; 
+            margin: 40px auto; 
+            padding: 30px; 
+            border-radius: 12px; 
+            max-width: 600px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1); 
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
         }
-        .btn-post:hover { background-color: #005f93; }
-        .btn-post:active { transform: scale(0.99); }
-        .btn-post:disabled { background-color: #999; cursor: not-allowed; }
 
-        /* Mensajes de estado */
-        .message {
-            padding: 10px; border-radius: 6px; margin-top: 15px;
-            text-align: center; font-weight: bold;
+        .post-container h2 {
+            color: #333;
+            border-bottom: 2px solid #0077b6;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
         }
-        .message.success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .message.error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* Círculos de Influencia */
-        .circles-container {
-            border: 1px solid #eee; padding: 10px; border-radius: 6px;
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            resize: vertical;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+        textarea:focus {
+            border-color: #0077b6;
+            outline: none;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
             background-color: #f9f9f9;
+            font-size: 14px;
         }
-        .circle-item {
-            display: flex; align-items: center; margin-bottom: 5px;
+
+        .btn-publish {
+            background-color: #28a745;
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: background-color 0.3s;
         }
-        .circle-item input[type="radio"] { margin-right: 10px; }
-        .circle-item label { font-weight: normal; margin-bottom: 0; }
+        .btn-publish:hover {
+            background-color: #1e7e34;
+        }
+        .btn-publish:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        
+        /* Mensajes de estado (Éxito/Error) */
+        .message-box {
+            padding: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+            display: none; /* Oculto por defecto */
+        }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+
+        /* Estilos de Modal de Registro */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background-color: white; padding: 30px; border-radius: 10px;
+            text-align: center; max-width: 400px; width: 90%; 
+        }
+        .btn-register {
+            background-color: #0077b6; color: white; padding: 10px 20px;
+            border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;
+        }
+
     </style>
 </head>
 <body>
@@ -60,227 +115,196 @@
     <header class="header">
         <h1>NEXUS</h1>
         <nav>
-            <a href="feed.html">Flujo</a>
-            <a href="explore.html">Explorar</a>
-            <a href="create-post.html" style="background-color: #005f93;">Crear</a>
-            <a href="profile.html">Perfil</a>
+            <a href="index.html">Feed</a>
+            <a href="#" onclick="checkAuthAndNavigate('explore.html')">Explorar</a>
+            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Mi Perfil</a>
         </nav>
     </header>
 
-    <div class="container">
+    <main class="post-container">
         <h2>Crear Nueva Publicación</h2>
 
-        <div class="form-group">
-            <label for="post-content">Contenido de la Publicación:</label>
-            <textarea id="post-content" placeholder="¿Qué quieres compartir con Nexus?"></textarea>
+        <div id="status-message" class="message-box"></div>
+
+        <div class="input-group">
+            <label for="post-text">¿Qué estás pensando?</label>
+            <textarea id="post-text" placeholder="Escribe tu publicación aquí..." maxlength="500"></textarea>
+            <small id="char-count" style="float: right; color: #888;">0/500</small>
         </div>
 
-        <!-- Opciones de Círculos (Visibilidad) -->
-        <div class="form-group">
-            <label>Visibilidad de la Publicación:</label>
-            <div id="circles-options" class="circles-container">
-                <div id="loading-circles">
-                    <i class="fas fa-spinner fa-spin"></i> Cargando Círculos de Influencia...
-                </div>
-                <!-- Opciones de círculos/privacidad se insertarán aquí -->
-            </div>
+        <div class="input-group">
+            <label for="circle-target">Visibilidad / Círculo</label>
+            <select id="circle-target">
+                <option value="Global" selected>Global (Todos pueden ver)</option>
+                <option value="Amigos">Amigos (Seguidores)</option>
+                <option value="Privado">Círculo Privado (Solo tú)</option>
+                <!-- Opciones que puedes expandir más tarde (ej. #Deportes) -->
+                <option value="#Tendencias">#Tendencias</option>
+            </select>
         </div>
 
-        <button class="btn-post" id="post-button" onclick="createPost()">
-            <i class="fas fa-paper-plane"></i> Publicar en Nexus
-        </button>
+        <button id="publish-button" class="btn-publish" onclick="submitPost()">Publicar en Nexus</button>
+    </main>
 
-        <div id="status-message" class="message" style="display: none;"></div>
+    <!-- Modal de Registro (Si el usuario no está logueado y llega aquí directamente) -->
+    <div id="registration-modal" class="modal">
+        <div class="modal-content">
+            <h2>Acceso Restringido</h2>
+            <p>Debes iniciar sesión para crear y compartir publicaciones en Nexus.</p>
+            <a href="login.html" class="btn-register">Iniciar Sesión</a>
+            <p style="margin-top: 15px;">¿No tienes cuenta? <a href="register.html">Regístrate</a></p>
+        </div>
     </div>
+
 
     <!-- ****************************************************** -->
     <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE PUBLICACIÓN -->
     <!-- ****************************************************** -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { 
-            getFirestore, collection, addDoc, serverTimestamp, query, onSnapshot, doc
-        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Variables Globales de Canvas (MANDATORIAS)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { /* Configuración de Firebase por defecto si falla */ };
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-        
-        // Inicializar Firebase
+        // Configuración de Firebase (Usando las mismas credenciales que index.html)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         
         let isUserLoggedIn = false;
-        let userId = null;
+        let currentUser = null; 
         
-        // Referencias a Elementos del DOM
-        const postContent = document.getElementById('post-content');
-        const postButton = document.getElementById('post-button');
+        // Elementos del DOM
+        const registrationModal = document.getElementById('registration-modal');
+        const postTextarea = document.getElementById('post-text');
+        const circleSelect = document.getElementById('circle-target');
+        const publishButton = document.getElementById('publish-button');
+        const charCount = document.getElementById('char-count');
         const statusMessage = document.getElementById('status-message');
-        const circlesOptionsDiv = document.getElementById('circles-options');
-        const loadingCirclesDiv = document.getElementById('loading-circles');
 
-
-        // ******************************************************
-        // LÓGICA DE AUTENTICACIÓN
-        // ******************************************************
-        async function setupAuth() {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("Sesión iniciada con Custom Token.");
-                } else {
-                    // Si no hay token inicial, intentamos iniciar sesión anónima (aunque para crear posts, el usuario debe estar logueado)
-                    await signInAnonymously(auth);
-                    console.log("Sesión iniciada anónimamente.");
-                }
-            } catch (error) {
-                console.error("Error signing in:", error);
-                showStatus('Error al iniciar sesión. Recarga la página.', 'error');
-                postButton.disabled = true;
-            }
+        // Función de utilidad para mostrar mensajes
+        function showMessage(message, type) {
+            statusMessage.textContent = message;
+            statusMessage.className = `message-box ${type}`;
+            statusMessage.style.display = 'block';
+            
+            // Ocultar después de 5 segundos
+            setTimeout(() => {
+                statusMessage.style.display = 'none';
+            }, 5000);
         }
-        
-        // Listener de estado de autenticación
-        onAuthStateChanged(auth, (user) => {
-            if (user && !user.isAnonymous) {
-                isUserLoggedIn = true;
-                userId = user.uid;
-                postButton.disabled = false;
-                setupCirclesListener();
+
+        // Contador de caracteres
+        postTextarea.addEventListener('input', () => {
+            const currentLength = postTextarea.value.length;
+            charCount.textContent = `${currentLength}/500`;
+            if (currentLength > 500) {
+                postTextarea.value = postTextarea.value.substring(0, 500);
+                charCount.style.color = 'red';
             } else {
-                isUserLoggedIn = false;
-                userId = null;
-                postButton.disabled = true;
-                if (!auth.currentUser) {
-                     showStatus('Debes <a href="login.html">iniciar sesión</a> o <a href="register.html">registrarte</a> para crear publicaciones.', 'error');
-                } else if (auth.currentUser.isAnonymous) {
-                    showStatus('La sesión anónima no permite crear publicaciones. <a href="login.html">Inicia Sesión</a>.', 'error');
-                }
+                 charCount.style.color = '#888';
             }
+            // Habilita el botón solo si hay texto
+            publishButton.disabled = currentLength === 0;
         });
-
-        // ******************************************************
-        // LÓGICA DE CÍRCULOS DE INFLUENCIA
-        // ******************************************************
-        function setupCirclesListener() {
-            if (!userId) return;
-
-            const circlesRef = collection(db, "artifacts", appId, "users", userId, "circles");
-            const q = query(circlesRef);
-
-            onSnapshot(q, (snapshot) => {
-                loadingCirclesDiv.style.display = 'none';
-                circlesOptionsDiv.innerHTML = '';
-                
-                // 1. Opción por defecto: Global
-                circlesOptionsDiv.innerHTML += `
-                    <div class="circle-item">
-                        <input type="radio" id="visibility-global" name="visibility" value="global" checked>
-                        <label for="visibility-global"><i class="fas fa-globe"></i> Global (Público)</label>
-                    </div>
-                `;
-
-                // 2. Opción: Solo yo (Privado)
-                circlesOptionsDiv.innerHTML += `
-                    <div class="circle-item">
-                        <input type="radio" id="visibility-private" name="visibility" value="private">
-                        <label for="visibility-private"><i class="fas fa-lock"></i> Solo Yo (Privado)</label>
-                    </div>
-                `;
-
-                // 3. Opciones de Círculos
-                if (snapshot.empty) {
-                    circlesOptionsDiv.innerHTML += `<p style="margin-top: 10px; color: #555;">No tienes Círculos de Influencia creados.</p>`;
-                } else {
-                    snapshot.forEach((doc) => {
-                        const circle = doc.data();
-                        circlesOptionsDiv.innerHTML += `
-                            <div class="circle-item">
-                                <input type="radio" id="visibility-${doc.id}" name="visibility" value="${doc.id}">
-                                <label for="visibility-${doc.id}"><i class="fas fa-users"></i> Círculo: ${circle.name}</label>
-                            </div>
-                        `;
-                    });
-                }
-            }, (error) => {
-                console.error("Error al cargar los círculos:", error);
-                loadingCirclesDiv.textContent = 'Error al cargar círculos.';
-            });
+        
+        // Lógica de protección de navegación global (de create-post a otras)
+        window.checkAuthAndNavigate = function(url) {
+            if (isUserLoggedIn) {
+                window.location.href = url;
+            } else {
+                registrationModal.style.display = 'flex';
+            }
         }
         
-        // ******************************************************
-        // LÓGICA DE CREAR PUBLICACIÓN (EL CAMBIO CLAVE ESTÁ AQUÍ)
-        // ******************************************************
-        window.createPost = async function() {
-            if (!isUserLoggedIn || !userId) {
-                showStatus('Por favor, inicia sesión para publicar.', 'error');
+        // Función principal para enviar el post
+        window.submitPost = async function() {
+            if (!isUserLoggedIn) {
+                registrationModal.style.display = 'flex';
                 return;
             }
 
-            const content = postContent.value.trim();
-            if (content.length === 0) {
-                showStatus('El contenido no puede estar vacío.', 'error');
+            const text = postTextarea.value.trim();
+            const circleTarget = circleSelect.value;
+
+            if (text.length === 0) {
+                showMessage('La publicación no puede estar vacía.', 'error');
                 return;
             }
             
-            const selectedVisibility = document.querySelector('input[name="visibility"]:checked')?.value || 'global';
-            
-            postButton.disabled = true;
-            showStatus('Publicando...', 'success', true);
+            publishButton.disabled = true; // Deshabilitar para evitar duplicados
+            publishButton.textContent = 'Publicando...';
 
             try {
-                // Definir la RUTA DE COLECCIÓN PÚBLICA para posts
-                const postCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-                
-                // Definir los datos del post
-                const postData = {
-                    userId: userId,
-                    content: content,
-                    timestamp: serverTimestamp(),
+                // Estructura de datos que se guarda en la colección 'posts'
+                const newPost = {
+                    userId: currentUser.uid,
+                    username: currentUser.displayName || 'Usuario Nexus', // Usar el display name del usuario
+                    text: text,
+                    circleTarget: circleTarget,
+                    createdAt: serverTimestamp(),
                     likes: 0,
-                    comments: 0,
-                    // 'global', 'private', o el ID del círculo
-                    visibility: selectedVisibility, 
-                    status: 'active' 
+                    commentsCount: 0,
+                    shares: 0,
                 };
 
-                // Guardar la publicación
-                await addDoc(postCollectionRef, postData);
+                // Añadir el documento a la colección 'posts'
+                await addDoc(collection(db, "posts"), newPost);
 
-                showStatus('¡Publicación creada con éxito!', 'success');
-                postContent.value = ''; // Limpiar el campo
-                postButton.disabled = false;
+                showMessage('¡Publicación creada con éxito! Volviendo al Feed...', 'success');
                 
-                // Redirigir al feed
+                // Limpiar el formulario y navegar
+                postTextarea.value = '';
+                charCount.textContent = '0/500';
+                publishButton.disabled = true;
+
+                // Redirigir al feed después de un breve momento
                 setTimeout(() => {
-                    window.location.href = 'feed.html';
+                    window.location.href = 'index.html';
                 }, 1500);
 
+
             } catch (error) {
-                console.error("Error al crear la publicación:", error);
-                showStatus(`Error al publicar: ${error.message || 'Error desconocido'}`, 'error');
-                postButton.disabled = false;
+                console.error("Error al publicar:", error);
+                showMessage(`Error al publicar: ${error.message}. Asegúrate de que las Reglas de Seguridad permitan 'create'.`, 'error');
+                publishButton.disabled = false;
+                publishButton.textContent = 'Publicar en Nexus';
             }
         }
 
-        // ******************************************************
-        // UTILIDADES
-        // ******************************************************
-        function showStatus(message, type, isLoading = false) {
-            statusMessage.className = `message ${type}`;
-            statusMessage.innerHTML = isLoading ? 
-                `<i class="fas fa-spinner fa-spin"></i> ${message}` : 
-                message;
-            statusMessage.style.display = 'block';
-        }
 
-        // 1. Iniciar el proceso de Autenticación
-        setupAuth();
+        // Observar el estado de autenticación al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            publishButton.disabled = true; // Deshabilita al inicio
 
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    isUserLoggedIn = true;
+                    currentUser = user;
+                    // Ocultar modal si el usuario ya está aquí y logueado
+                    registrationModal.style.display = 'none';
+                    // Revisa si hay texto al cargar por si se recargó la página
+                    if(postTextarea.value.trim().length > 0) {
+                        publishButton.disabled = false;
+                    }
+
+                } else {
+                    // Si no está logueado, muestra el modal y desactiva el botón
+                    isUserLoggedIn = false;
+                    currentUser = null;
+                    publishButton.disabled = true;
+                    registrationModal.style.display = 'flex';
+                }
+            });
+        });
     </script>
 </body>
 </html>
