@@ -45,6 +45,7 @@
         .btn-finish:disabled { background-color: #a7f3d0; cursor: not-allowed; }
         .message-box { padding: 10px; border-radius: 8px; margin-top: 15px; font-weight: 600; }
         .error-message { background-color: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+        .success-message { background-color: #d1fae5; color: #059669; border: 1px solid #a7f3d0; }
     </style>
 </head>
 <body>
@@ -81,14 +82,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, serverTimestamp, runTransaction 
+            getFirestore, doc, serverTimestamp, runTransaction 
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Configuración de Firebase
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        // Obtener la configuración de Firebase de forma segura
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+                             ? JSON.parse(__firebase_config) 
+                             : {};
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
+        
         let app;
         let auth;
         let db;
@@ -108,22 +110,24 @@
         
         // --- INICIALIZACIÓN DE FIREBASE ---
         document.addEventListener('DOMContentLoaded', async () => {
-            if (Object.keys(firebaseConfig).length > 0) {
+            // 1. Verificar y Inicializar Firebase
+            if (Object.keys(firebaseConfig).length > 0 && firebaseConfig.apiKey) {
                 app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 auth = getAuth(app);
             } else {
-                 console.error("Firebase no configurado.");
-                 displayMessage("Error interno: Configuración de Firebase no encontrada.", true);
+                 // Error detectado en la captura, se muestra el mensaje de error de configuración.
+                 displayMessage("Error interno: Configuración de Firebase no encontrada. Verifica las variables globales.", true);
                  return;
             }
 
-            // Autenticación inicial (o anónima si es necesario)
+            // 2. Autenticación (o Anónima si no hay token)
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
                 } else {
-                    await signInAnonymously(auth);
+                    // Si no hay token inicial, debe ser un usuario no logueado
+                    await signInAnonymously(auth); 
                 }
             } catch (e) {
                 console.error("Error de autenticación inicial:", e);
@@ -131,21 +135,18 @@
                 return;
             }
 
-            // Listener de estado de autenticación
+            // 3. Listener de estado de autenticación
             onAuthStateChanged(auth, (user) => {
-                if (user) {
+                if (user && user.displayName) {
                     currentUser = user;
-                    // Asume que el nombre de usuario (displayName) ya se estableció en register.html
-                    welcomeUsernameEl.textContent = `@${user.displayName || 'Anonimo'}`;
-                    
-                    // Si el usuario no tiene displayName, lo redirigimos para que se registre correctamente
-                    if (!user.displayName) {
-                        console.warn("Nombre de usuario faltante. Redirigiendo a login.");
-                        window.location.href = 'login.html';
-                    }
-
+                    welcomeUsernameEl.textContent = `@${user.displayName}`;
+                } else if (user) {
+                     // Usuario logueado, pero falta el displayName (posiblemente error en register.html)
+                    console.warn("Nombre de usuario (displayName) faltante. Redirigiendo a login.");
+                    displayMessage("Error: Nombre de usuario no establecido. Intente iniciar sesión de nuevo.", true);
+                    // No redirigimos inmediatamente para que el usuario pueda ver el error.
                 } else {
-                    // Si el usuario no está logueado, forzar al login.
+                    // Usuario no logueado, forzar al login.
                     window.location.href = 'login.html';
                 }
             });
@@ -155,14 +156,14 @@
         setupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            if (!currentUser) {
-                displayMessage("Error: Sesión no válida o no autenticada.", true);
+            if (!currentUser || !db) {
+                displayMessage("Error: La aplicación no ha cargado completamente. Intente de nuevo.", true);
                 return;
             }
 
             finishBtn.disabled = true;
             finishBtn.textContent = 'Guardando perfil...';
-            messageDisplay.textContent = ''; // Limpiar mensajes anteriores
+            messageDisplay.textContent = ''; 
 
             const bio = document.getElementById('bio').value.trim();
             const circleName = document.getElementById('circle-name').value.trim();
@@ -170,12 +171,10 @@
             
             // 1. Referencias de los documentos
             const userRef = doc(db, "users", userId);
-            // Creamos un ID simple para el primer círculo (usaremos el nombre)
             const circleId = circleName.toLowerCase().replace(/\s+/g, '-'); 
             const circleRef = doc(db, "users", userId, "circles", circleId); 
 
             try {
-                // Usamos una transacción para asegurar que ambos documentos se creen o ninguno lo haga.
                 await runTransaction(db, async (transaction) => {
                     
                     // A. Crear el documento principal del usuario
@@ -186,7 +185,6 @@
                         createdAt: serverTimestamp(),
                         followersCount: 0,
                         followingCount: 0,
-                        // Guardamos la referencia al primer círculo
                         defaultCircleId: circleId,
                         defaultCircleName: circleName 
                     });
@@ -195,21 +193,19 @@
                     transaction.set(circleRef, {
                         name: circleName,
                         id: circleId,
-                        isPublic: false, // Por defecto, el primer círculo es privado
+                        isPublic: false, 
                         ownerId: userId,
-                        members: [userId], // El creador es el primer miembro
+                        members: [userId], 
                         createdAt: serverTimestamp()
                     });
                 });
 
-                // 2. Éxito: Redirigir al feed
-                // ¡IMPORTANTE! Redirección automática sin alert()
+                // Éxito: Redirigir al feed
                 window.location.href = 'index.html'; 
 
             } catch (error) {
                 console.error("Error completo al guardar el perfil:", error);
                 
-                // Muestra un mensaje detallado para depuración y UX
                 if (error.code && error.code.includes('permission-denied')) {
                      displayMessage(`Error de Permisos: La regla de seguridad está bloqueando la creación del perfil o círculo. Asegúrate de que 'allow create' esté configurado correctamente para 'users/{userId}' y 'users/{userId}/circles/{circleId}'.`, true);
                 } else {
