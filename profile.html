@@ -6,7 +6,7 @@
     <title>Nexus | @perfil</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p: #0077b6; --s: #28a745; --d: #dc3545; --o: #ff9900; --g: #6c757d; }
+        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --d:#dc3545; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.7em; font-weight:700; }
@@ -26,20 +26,27 @@
         .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
         .stat span { color:var(--g); font-weight:500; }
         .actions { display:flex; gap:12px; margin:16px 0; }
-        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; transition:0.2s; }
+        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; }
         .btn-primary { background:var(--p); color:white; }
         .btn-orange { background:var(--o); color:white; }
         .btn-gray { background:var(--g); color:white; }
         .btn-gray:hover { background:var(--d); }
 
         .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
-        .post-text { font-size:1.05em; line-height:1.6; margin:12px 0; white-space:pre-wrap; word-break:break-word; }
-        .circle-badge { background:#e0f7fa; color:var(--p); padding:4px 12px; border-radius:20px; font-size:0.9em; }
+        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+        .circle { background:#e0f7fa; color:var(--p); padding:4px 12px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
         .post-footer { display:flex; justify-content:space-between; align-items:center; color:#666; font-size:0.9em; margin-top:10px; }
         .interaction button { background:none; border:none; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
         .liked { color:#e91e63 !important; }
-
         .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
+
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000; padding:20px; }
+        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; }
+        .modal-header { padding:16px 20px; border-bottom:1px solid #eee; font-weight:600; font-size:1.2em; }
+        .modal-body { flex:1; overflow-y:auto; padding:20px; }
+        .user-item { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #eee; }
+        .user-item a { color:var(--p); font-weight:600; text-decoration:none; }
+        .user-avatar { width:44px; height:44px; border-radius:50%; background:var(--p); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; }
     </style>
 </head>
 <body>
@@ -56,33 +63,40 @@
         <div class="cover"></div>
         <div class="avatar" id="avatar">?</div>
         <div class="info">
-            <div class="username" id="username">
-                <div>@cargando</div>
-                <div class="online" id="online" style="display:none"></div>
-            </div>
+            <h2 class="username" id="username">Cargando...</h2>
             <div class="bio" id="bio">Cargando perfil...</div>
 
             <div class="stats">
-                <div class="stat" onclick="openList('following')"><strong id="following">0</strong><span>Siguiendo</span></div>
-                <div class="stat" onclick="openList('followers')"><strong id="followers">0</strong><span>Seguidores</span></div>
+                <div class="stat" onclick="showList('following')"><strong id="following">0</strong><span>Siguiendo</span></div>
+                <div class="stat" onclick="showList('followers')"><strong id="followers">0</strong><span>Seguidores</span></div>
                 <div class="stat"><strong id="total-likes">0</strong><span>Me gusta</span></div>
             </div>
 
             <div class="actions" id="actions"></div>
         </div>
 
-        <div id="posts"></div>
+        <div id="posts-container"></div>
+    </div>
+
+    <!-- Modal Lista -->
+    <div class="modal" id="list-modal" onclick="this.style.display='none'">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header" id="list-title">Seguidores</div>
+            <div class="modal-body" id="list-body">Cargando...</div>
+        </div>
     </div>
 
     <!-- Modal Editar Perfil -->
-    <div class="modal" id="edit-modal" style="display:none" onclick="this.style.display='none'">
-        <div class="modal-content" style="background:white;border-radius:16px;padding:20px;max-width:400px" onclick="event.stopPropagation()">
-            <h3>Editar Perfil</h3>
-            <input type="text" id="edit-name" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
-            <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
-            <div style="display:flex;gap:10px">
-                <button class="btn btn-primary" onclick="saveProfile()">Guardar</button>
-                <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
+    <div class="modal" id="edit-modal" onclick="this.style.display='none'">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">Editar Perfil</div>
+            <div class="modal-body">
+                <input type="text" id="edit-username" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
+                <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
+                <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button class="btn btn-primary" onclick="saveProfile()">Guardar</button>
+                    <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
+                </div>
             </div>
         </div>
     </div>
@@ -90,7 +104,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, getDocs, updateDoc, serverTimestamp, increment, deleteDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp, increment, deleteDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -105,140 +119,151 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let me = null;
-        let uid = new URLSearchParams(location.search).get('uid');
+        let currentUser = null;
+        let profileUid = new URLSearchParams(location.search).get('uid');
 
         const $ = id => document.getElementById(id);
         const avatar = $('avatar');
-        const username = $('username').firstChild;
-        const online = $('online');
-        const bio = $('bio');
-        const following = $('following');
-        const followers = $('followers');
-        const totalLikes = $('total-likes');
-        const actions = $('actions');
-        const postsContainer = $('posts');
-
-        function updatePresence() {
-            if (me) updateDoc(doc(db, "users", me.uid), { lastSeen: serverTimestamp() });
-        }
-
-        window.openList = type => alert("Lista de " + (type === 'followers' ? 'seguidores' : 'siguiendo') + " próximamente");
-
-        async function saveProfile() {
-            const name = $('edit-name').value.trim();
-            const newBio = $('edit-bio').value.trim();
-            if (!name) return alert("El nombre no puede estar vacío");
-            await updateDoc(doc(db, "users", me.uid), { username: name, bio: newBio });
-            $('edit-modal').style.display = 'none';
-        }
+        const usernameEl = $('username');
+        const bioEl = $('bio');
+        const onlineDot = document.createElement('div');
+        onlineDot.className = 'online';
+        onlineDot.style.display = 'none';
+        usernameEl.appendChild(onlineDot);
 
         onAuthStateChanged(auth, user => {
             if (!user) return location.href = 'login.html';
-            me = user;
-            uid = uid || user.uid;
+            currentUser = user;
+            profileUid = profileUid || user.uid;
 
-            updatePresence();
-            setInterval(updatePresence, 30000);
-
-            // === DATOS DEL PERFIL ===
-            const userRef = doc(db, "users", uid);
+            // === PERFIL ===
+            const userRef = doc(db, "users", profileUid);
             onSnapshot(userRef, snap => {
-                if (!snap.exists()) { bio.textContent = "Usuario no encontrado"; return; }
+                if (!snap.exists()) {
+                    usernameEl.textContent = "Usuario no encontrado";
+                    return;
+                }
                 const d = snap.data();
                 avatar.textContent = (d.username?.[0] || '?').toUpperCase();
-                username.textContent = '@' + (d.username || 'Anónimo');
-                bio.textContent = d.bio || 'Sin biografía aún.';
-                const last = d.lastSeen?.toDate?.() || 0;
-                online.style.display = (Date.now() - last < 60000) ? 'block' : 'none';
+                usernameEl.firstChild.textContent = '@' + (d.username || 'Anónimo');
+                bioEl.textContent = d.bio || 'Sin biografía aún.';
+                onlineDot.style.display = (Date.now() - (d.lastSeen?.toDate?.() || 0) < 60000) ? 'block' : 'none';
 
                 // Botones
-                if (user.uid === uid) {
-                    actions.innerHTML = `
+                if (user.uid === profileUid) {
+                    $('actions').innerHTML = `
                         <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                        <div class="btn btn-orange" onclick="document.getElementById('edit-modal').style.display='flex';
-                            $('edit-name').value = '${d.username||''}';
-                            $('edit-bio').value = '${d.bio||''}';">Editar Perfil</div>
+                        <div class="btn btn-orange" onclick="openEditModal('${d.username||''}', '${d.bio||''}')">Editar Perfil</div>
                     `;
                 } else {
-                    const followRef = doc(db, "users", user.uid, "following", uid);
+                    const followRef = doc(db, "users", user.uid, "following", profileUid);
                     onSnapshot(followRef, s => {
-                        const f = s.exists();
-                        actions.innerHTML = `<div class="btn ${f?'btn-gray':'btn-orange'}" onclick="toggleFollow('${uid}',this)">
-                            ${f?'Siguiendo':'Seguir'}
+                        const following = s.exists();
+                        $('actions').innerHTML = `<div class="btn ${following?'btn-gray':'btn-orange'}" onclick="toggleFollow('${profileUid}')">
+                            ${following?'Siguiendo':'Seguir'}
                         </div>`;
                     });
                 }
             });
 
             // === CONTADORES ===
-            onSnapshot(collection(db, "users", uid, "followers"), s => followers.textContent = s.size);
-            onSnapshot(collection(db, "users", uid, "following"), s => following.textContent = s.size);
+            onSnapshot(collection(db, "users", profileUid, "followers"), s => $('followers').textContent = s.size);
+            onSnapshot(collection(db, "users", profileUid, "following"), s => $('following').textContent = s.size);
 
-            // === PUBLICACIONES + ME GUSTA TOTALES ===
-            const q = query(collection(db, "posts"), where("userId", "==", uid), orderBy("createdAt", "desc"));
+            // === PUBLICACIONES + TOTAL LIKES ===
+            const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
-                postsContainer.innerHTML = '';
-                let likesSum = 0;
+                const container = $('posts-container');
+                container.innerHTML = '';
+                let total = 0;
                 if (snap.empty) {
-                    postsContainer.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
-                    totalLikes.textContent = '0';
+                    container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+                    $('total-likes').textContent = '0';
                     return;
                 }
-
                 snap.forEach(d => {
                     const p = d.data();
-                    likesSum += p.likes || 0;
-
+                    total += p.likes || 0;
                     const post = document.createElement('div');
                     post.className = 'post';
                     post.innerHTML = `
                         <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                        ${p.circleTarget ? `<div class="circle-badge">${p.circleTarget}</div>` : ''}
+                        ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
                         <div class="post-footer">
                             <div class="interaction">
-                                <button onclick="like('${d.id}', this)">
+                                <button onclick="likePost('${d.id}', this)">
                                     <i class="far fa-heart"></i> <span>${p.likes||0}</span>
                                 </button>
                             </div>
                             <small>${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}</small>
                         </div>
                     `;
-
-                    // Estado del like del usuario actual
-                    if (me) {
-                        onSnapshot(doc(db, "posts", d.id, "likes", me.uid), s => {
+                    if (currentUser) {
+                        onSnapshot(doc(db, "posts", d.id, "likes", currentUser.uid), s => {
                             post.querySelector('i').className = s.exists() ? 'fas fa-heart liked' : 'far fa-heart';
                         });
                     }
-
-                    postsContainer.appendChild(post);
+                    container.appendChild(post);
                 });
-
-                totalLikes.textContent = likesSum;
+                $('total-likes').textContent = total;
             });
         });
 
-        window.toggleFollow = async (target, btn) => {
-            const myRef = doc(db, "users", me.uid, "following", target);
-            const theirRef = doc(db, "users", target, "followers", me.uid);
-            const exists = (await getDoc(myRef)).exists();
-            if (exists) { await deleteDoc(myRef); await deleteDoc(theirRef); }
-            else { await setDoc(myRef, {t:serverTimestamp()}); await setDoc(theirRef, {t:serverTimestamp()}); }
+        window.openEditModal = (name, bio) => {
+            $('edit-username').value = name;
+            $('edit-bio').value = bio;
+            $('edit-modal').style.display = 'flex';
         };
 
-        window.like = async (postId, btn) => {
-            if (!me) return;
-            const ref = doc(db, "posts", postId, "likes", me.uid);
-            const postRef = doc(db, "posts", postId);
+        window.saveProfile = async () => {
+            const name = $('edit-username').value.trim();
+            const bio = $('edit-bio').value.trim();
+            if (!name) return alert("El nombre no puede estar vacío");
+            await updateDoc(doc(db, "users", currentUser.uid), { username: name, bio });
+            $('edit-modal').style.display = 'none';
+        };
+
+        window.showList = (type) => {
+            const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
+            $('list-title').textContent = title;
+            const body = $('list-body');
+            body.innerHTML = 'Cargando...';
+            $('list-modal').style.display = 'flex';
+
+            onSnapshot(collection(db, "users", profileUid, type), snap => {
+                if (snap.empty) {
+                    body.innerHTML = '<div class="empty">Aún no hay nadie</div>';
+                    return;
+                }
+                body.innerHTML = '';
+                snap.forEach(d => {
+                    getDoc(doc(db, "users", d.id)).then(u => {
+                        const data = u.data() || {};
+                        body.innerHTML += `
+                            <div class="user-item">
+                                <div class="user-avatar">${data.username?.[0] || '?'}</div>
+                                <a href="profile.html?uid=${d.id}">@${data.username || 'Anónimo'}</a>
+                            </div>
+                        `;
+                    });
+                });
+            });
+        };
+
+        window.toggleFollow = async (uid) => {
+            const my = doc(db, "users", currentUser.uid, "following", uid);
+            const their = doc(db, "users", uid, "followers", currentUser.uid);
+            const exists = (await getDoc(my)).exists();
+            if (exists) { await deleteDoc(my); await deleteDoc(their); }
+            else { await setDoc(my, {t:serverTimestamp()}); await setDoc(their, {t:serverTimestamp()}); }
+        };
+
+        window.likePost = async (id, btn) => {
+            const ref = doc(db, "posts", id, "likes", currentUser.uid);
+            const postRef = doc(db, "posts", id);
             const exists = (await getDoc(ref)).exists();
-            if (exists) {
-                await deleteDoc(ref);
-                await updateDoc(postRef, {likes: increment(-1)});
-            } else {
-                await setDoc(ref, {t:serverTimestamp()});
-                await updateDoc(postRef, {likes: increment(1)});
-            }
+            if (exists) { await deleteDoc(ref); await updateDoc(postRef, {likes: increment(-1)}); }
+            else { await setDoc(ref, {t:serverTimestamp()}); await updateDoc(postRef, {likes: increment(1)}); }
         };
     </script>
 </body>
