@@ -22,7 +22,6 @@
         .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#444; }
         .empty { text-align:center; padding:60px 20px; color:#888; }
 
-        /* MODAL COMENTARIOS */
         .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
         .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
         .comment-header { padding:14px 20px; border-bottom:1px solid #eee; text-align:center; position:relative; font-weight:700; font-size:1.2em; }
@@ -74,7 +73,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -90,7 +89,9 @@
         const db = getFirestore(app);
 
         let currentPostId = null;
+        const container = document.getElementById('posts-container');
 
+        // ABRIR Y CARGAR COMENTARIOS
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
@@ -99,7 +100,7 @@
 
         function loadComments(postId) {
             const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
-            const unsubscribe = onSnapshot(q, snap => {
+            onSnapshot(q, snap => {
                 const list = document.getElementById('comments-list');
                 list.innerHTML = snap.empty ? '<div style="text-align:center;padding:40px;color:#888;">Sé el primero en comentar</div>' : '';
                 snap.forEach(d => {
@@ -117,7 +118,7 @@
             });
         }
 
-        // ENVIAR COMENTARIO + ACTUALIZAR CONTADOR EN TIEMPO REAL
+        // ENVIAR COMENTARIO + ACTUALIZAR CONTADOR
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !auth.currentUser) return;
@@ -126,13 +127,10 @@
                 await runTransaction(db, async (transaction) => {
                     const postRef = doc(db, "posts", currentPostId);
                     const postSnap = await transaction.get(postRef);
-                    if (!postSnap.exists()) throw "No existe el post";
+                    if (!postSnap.exists()) throw "Post no existe";
 
-                    // Aseguramos que el campo exista y lo incrementamos
-                    const newCount = (postSnap.data().commentsCount || 0) + 1;
-                    transaction.update(postRef, { commentsCount: newCount });
+                    transaction.update(postRef, { commentsCount: increment(1) });
 
-                    // Añadir comentario
                     const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
                     transaction.set(commentRef, {
                         text,
@@ -142,34 +140,30 @@
                         createdAt: serverTimestamp()
                     });
                 });
-
                 document.getElementById('comment-text').value = '';
             } catch (e) {
-                console.error("Error al comentar:", e);
+                console.error("Error:", e);
             }
         };
 
+        // CARGA DEL FEED (AHORA SÍ FUNCIONA AL INSTANTE)
         onAuthStateChanged(auth, user => {
             if (!user) return location.href = 'login.html';
 
             document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
 
-            // ESCUCHAR TODOS LOS POSTS EN TIEMPO REAL
             const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
-                const container = document.getElementById('posts-container');
-                container.innerHTML = '';
+                container.innerHTML = ''; // Limpiamos siempre
 
                 if (snap.empty) {
                     container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
                     return;
                 }
 
-                snap.forEach(async doc => {
+                snap.forEach(doc => {
                     const p = doc.data();
                     const postId = doc.id;
-
-                    // Contador de comentarios (se actualiza aunque no haya comentarios aún)
                     const commentsCount = p.commentsCount || 0;
 
                     container.innerHTML += `
@@ -183,7 +177,7 @@
                             <div class="post-footer">
                                 <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
                                 <button onclick="openComments('${postId}')">
-                                    <i class="far fa-comment"></i> <strong>${commentsCount}</strong>
+                                    <i class="far fa-comment"></i> ${commentsCount}
                                 </button>
                                 <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
                             </div>
