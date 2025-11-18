@@ -74,7 +74,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -91,17 +91,15 @@
 
         let currentPostId = null;
 
-        // ABRIR MODAL DE COMENTARIOS
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
             loadComments(postId);
         };
 
-        // CARGAR COMENTARIOS
         function loadComments(postId) {
             const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
-            onSnapshot(q, snap => {
+            const unsubscribe = onSnapshot(q, snap => {
                 const list = document.getElementById('comments-list');
                 list.innerHTML = snap.empty ? '<div style="text-align:center;padding:40px;color:#888;">Sé el primero en comentar</div>' : '';
                 snap.forEach(d => {
@@ -112,14 +110,14 @@
                             <div>
                                 <div class="comment-user">@${c.username || 'Anónimo'}</div>
                                 <div class="comment-text">${c.text}</div>
-                                <div class="comment-date">${new Date(c.createdAt?.seconds*1000).toLocaleDateString()}</div>
+                                <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : ''}</div>
                             </div>
                         </div>`;
                 });
             });
         }
 
-        // ENVIAR COMENTARIO + AUMENTAR CONTADOR
+        // ENVIAR COMENTARIO + ACTUALIZAR CONTADOR EN TIEMPO REAL
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !auth.currentUser) return;
@@ -127,11 +125,14 @@
             try {
                 await runTransaction(db, async (transaction) => {
                     const postRef = doc(db, "posts", currentPostId);
+                    const postSnap = await transaction.get(postRef);
+                    if (!postSnap.exists()) throw "No existe el post";
 
-                    // Incrementamos el contador de comentarios
-                    transaction.update(postRef, { commentsCount: increment(1) });
+                    // Aseguramos que el campo exista y lo incrementamos
+                    const newCount = (postSnap.data().commentsCount || 0) + 1;
+                    transaction.update(postRef, { commentsCount: newCount });
 
-                    // Añadimos el comentario
+                    // Añadir comentario
                     const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
                     transaction.set(commentRef, {
                         text,
@@ -144,25 +145,31 @@
 
                 document.getElementById('comment-text').value = '';
             } catch (e) {
-                console.error("Error:", e);
+                console.error("Error al comentar:", e);
             }
         };
 
-        // CARGA DEL FEED CON CONTADOR DE COMENTARIOS EN TIEMPO REAL
         onAuthStateChanged(auth, user => {
             if (!user) return location.href = 'login.html';
 
-            // Foto en el input de comentario
             document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
 
+            // ESCUCHAR TODOS LOS POSTS EN TIEMPO REAL
             const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
                 const container = document.getElementById('posts-container');
-                container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones en el feed</div>' : '';
+                container.innerHTML = '';
 
-                snap.forEach(doc => {
+                if (snap.empty) {
+                    container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+                    return;
+                }
+
+                snap.forEach(async doc => {
                     const p = doc.data();
                     const postId = doc.id;
+
+                    // Contador de comentarios (se actualiza aunque no haya comentarios aún)
                     const commentsCount = p.commentsCount || 0;
 
                     container.innerHTML += `
@@ -172,11 +179,11 @@
                                 <div class="post-username">@${p.username || 'Anónimo'}</div>
                             </div>
                             <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                            ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
+                            \( {p.circleTarget ? `<div class="circle"> \){p.circleTarget}</div>` : ''}
                             <div class="post-footer">
                                 <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
                                 <button onclick="openComments('${postId}')">
-                                    <i class="far fa-comment"></i> ${commentsCount}
+                                    <i class="far fa-comment"></i> <strong>${commentsCount}</strong>
                                 </button>
                                 <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
                             </div>
