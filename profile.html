@@ -253,6 +253,7 @@
         setLogLevel('Debug'); 
 
         // Configuración de Firebase (Tus Credenciales)
+        // NOTE: Replace these with the actual global variables if running in a Canvas environment.
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -261,7 +262,6 @@
             messagingSenderId: "601285349766",
             appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
         };
-
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -497,12 +497,13 @@
             try {
                 // Usar transacción para asegurar que todas las actualizaciones se completen o fallen juntas
                 await runTransaction(db, async (transaction) => {
-                    // 1. Obtener la información necesaria
+                    // 1. Obtener los documentos para verificar existencia
                     const currentUserDoc = await transaction.get(currentUserRef);
                     const targetUserDoc = await transaction.get(targetUserRef);
 
                     if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
-                        throw new Error("Uno o ambos perfiles no existen.");
+                        // Esto debe ser un error muy raro, pero es un buen chequeo de seguridad
+                        throw new Error("Uno o ambos perfiles principales no existen.");
                     }
                     
                     const currentUsername = currentUserDoc.data().username || 'Usuario Nexus';
@@ -514,10 +515,10 @@
                         transaction.delete(targetUserFollowersRef); // Borrar de su lista de "seguidores"
                         
                         // Decrementar contadores en los documentos principales
-                        // Usamos un incremento negativo. Si el campo no existe, lo inicializa a 0 y luego resta.
+                        // Nota: Firestore increment() manejará la inicialización a 0 si el campo no existe.
                         transaction.update(currentUserRef, { followingCount: increment(-1) });
                         transaction.update(targetUserRef, { followersCount: increment(-1) });
-                        console.log("Dejado de seguir con éxito.");
+                        console.log("Dejado de seguir con éxito. Contadores decrementados.");
                     } else {
                         // SEGUIR
                         // 2. Añadir a subcolecciones
@@ -533,10 +534,10 @@
                         });
                         
                         // 3. Incrementar contadores en los documentos principales
-                        // Si el campo no existe, lo crea con el valor 1.
+                        // Nota: Si los campos no existen, Firestore los crea con el valor 1 (o -1 si es decremento).
                         transaction.update(currentUserRef, { followingCount: increment(1) });
                         transaction.update(targetUserRef, { followersCount: increment(1) });
-                        console.log("Siguiendo con éxito.");
+                        console.log("Siguiendo con éxito. Contadores incrementados.");
                     }
                 });
             } catch (error) {
@@ -568,6 +569,15 @@
         
         let profileDocListener = null;
         let postSnapshotListener = null;
+        let followStatusListener = null;
+
+        // Función para limpiar todos los listeners
+        function unsubscribeAllListeners() {
+            if (profileDocListener) { profileDocListener(); profileDocListener = null; }
+            if (postSnapshotListener) { postSnapshotListener(); postSnapshotListener = null; }
+            if (followStatusListener) { followStatusListener(); followStatusListener = null; }
+        }
+
 
         function loadProfileData() {
             if (!profileUserId) {
@@ -576,9 +586,8 @@
                 return;
             }
             
-            // Desuscribir listeners previos para evitar duplicados
-            if (profileDocListener) profileDocListener();
-            if (postSnapshotListener) postSnapshotListener();
+            // Desuscribir todos los listeners antes de cargar nuevos datos
+            unsubscribeAllListeners();
 
             const userRef = doc(db, "users", profileUserId);
             
@@ -591,13 +600,12 @@
                 
                 profileUserData = userDoc.data();
                 
-                // === LECTURA SEGURA DE CONTADORES (CORRECCIÓN CLAVE) ===
-                // Usamos el operador || 0 para asegurarnos de que el valor siempre sea un número (0)
-                // si el campo falta o es nulo en Firestore.
+                // === LECTURA SEGURA DE CONTADORES (USANDO || 0) ===
+                // Esto asegura que si el campo no existe en el documento, se use 0
                 const followersCount = profileUserData.followersCount || 0;
                 const followingCount = profileUserData.followingCount || 0;
                 
-                // Si el contador es un número negativo (lo cual no debería pasar, pero como doble chequeo)
+                // Aseguramos que los números nunca sean negativos
                 const safeFollowersCount = Math.max(0, followersCount);
                 const safeFollowingCount = Math.max(0, followingCount);
                 // =======================================================
@@ -610,7 +618,8 @@
                 followingCountSpan.textContent = safeFollowingCount;
                 
                 checkAndDisplayStatus(profileUserData);
-                renderActionButtons();
+                // NOTA: renderActionButtons() ahora maneja su propio listener de seguimiento si no es el usuario actual.
+                renderActionButtons(); 
             }, (error) => {
                 console.error("Error al cargar datos del perfil:", error);
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
@@ -698,20 +707,26 @@
             }
 
             if (currentUser.uid === profileUserId) {
+                // Usuario mirando su propio perfil
                 actionButtonsDiv.innerHTML = `
                     <button onclick="showEditModal()">Editar Perfil</button>
                     <button class="btn-danger" onclick="showLogoutModal()">Cerrar Sesión</button>
                 `;
             } else {
-                // Obtenemos una referencia al documento en la subcolección 'following' del usuario actual
+                // Usuario mirando otro perfil, configurar listener de seguimiento
+                
+                // Limpiar listener de seguimiento anterior si existe
+                if (followStatusListener) { followStatusListener(); followStatusListener = null; }
+                
                 const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
                 
                 // Listener para detectar si el usuario actual sigue al perfil que está viendo
-                onSnapshot(followerRef, (docSnapshot) => {
+                followStatusListener = onSnapshot(followerRef, (docSnapshot) => {
                     const isFollowing = docSnapshot.exists();
                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
                     const buttonClass = isFollowing ? 'following' : '';
                     
+                    // Renderiza el botón de seguimiento con el estado actual
                     actionButtonsDiv.innerHTML = `
                         <button id="follow-btn" class="${buttonClass}" onclick="handleFollow()">${buttonText}</button>
                     `;
@@ -762,7 +777,8 @@
                     profileUserId = urlParams.get('uid') || currentUser.uid;
                     
                     updatePresence(); 
-                    setInterval(updatePresence, 30000); // Actualizar cada 30 segundos
+                    // Actualizar presencia cada 30 segundos
+                    setInterval(updatePresence, 30000); 
 
                     loadProfileData();
 
@@ -771,6 +787,9 @@
                     window.location.href = 'login.html';
                 }
             });
+            
+            // Asegúrate de limpiar los listeners al salir de la página
+            window.addEventListener('beforeunload', unsubscribeAllListeners);
         });
     </script>
 </body>
