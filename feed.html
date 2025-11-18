@@ -19,10 +19,10 @@
         .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
         .circle { background:#e0f7fa; color:var(--p); padding:5px 14px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
         .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:#666; font-size:0.95em; gap:20px; }
-        .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; }
+        .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#444; }
         .empty { text-align:center; padding:60px 20px; color:#888; }
 
-        /* COMENTARIOS */
+        /* MODAL COMENTARIOS */
         .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
         .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
         .comment-header { padding:14px 20px; border-bottom:1px solid #eee; text-align:center; position:relative; font-weight:700; font-size:1.2em; }
@@ -52,10 +52,10 @@
     </header>
 
     <div class="feed" id="posts-container">
-        <div class="empty">Cargando publicaciones...</div>
+        <div class="empty">Cargando feed...</div>
     </div>
 
-    <!-- MODAL DE COMENTARIOS -->
+    <!-- MODAL COMENTARIOS -->
     <div class="comment-modal" id="comment-modal">
         <div class="comment-content">
             <div class="comment-header">
@@ -74,9 +74,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        const firebaseConfig = { /* TU CONFIG AQUÍ (la misma que siempre) */
+        const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
             projectId: "nexus-2c445",
@@ -88,15 +88,17 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
         let currentPostId = null;
 
-        // ABRIR COMENTARIOS
+        // ABRIR MODAL DE COMENTARIOS
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
             loadComments(postId);
         };
 
+        // CARGAR COMENTARIOS
         function loadComments(postId) {
             const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
             onSnapshot(q, snap => {
@@ -107,7 +109,7 @@
                     list.innerHTML += `
                         <div class="comment-item">
                             <img src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.username||'U')+'&background=0077b6&color=fff'}">
-                            <div class="comment-body">
+                            <div>
                                 <div class="comment-user">@${c.username || 'Anónimo'}</div>
                                 <div class="comment-text">${c.text}</div>
                                 <div class="comment-date">${new Date(c.createdAt?.seconds*1000).toLocaleDateString()}</div>
@@ -117,33 +119,52 @@
             });
         }
 
+        // ENVIAR COMENTARIO + AUMENTAR CONTADOR
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !auth.currentUser) return;
-            await addDoc(collection(db, "posts", currentPostId, "comments"), {
-                text,
-                username: auth.currentUser.displayName || 'Anónimo',
-                photoURL: auth.currentUser.photoURL,
-                userId: auth.currentUser.uid,
-                createdAt: serverTimestamp()
-            });
-            document.getElementById('comment-text').value = '';
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const postRef = doc(db, "posts", currentPostId);
+
+                    // Incrementamos el contador de comentarios
+                    transaction.update(postRef, { commentsCount: increment(1) });
+
+                    // Añadimos el comentario
+                    const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
+                    transaction.set(commentRef, {
+                        text,
+                        username: auth.currentUser.displayName || 'Anónimo',
+                        photoURL: auth.currentUser.photoURL,
+                        userId: auth.currentUser.uid,
+                        createdAt: serverTimestamp()
+                    });
+                });
+
+                document.getElementById('comment-text').value = '';
+            } catch (e) {
+                console.error("Error:", e);
+            }
         };
 
+        // CARGA DEL FEED CON CONTADOR DE COMENTARIOS EN TIEMPO REAL
         onAuthStateChanged(auth, user => {
-            if (!user) location.href = 'login.html';
-            if (user) {
-                document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
-            }
+            if (!user) return location.href = 'login.html';
 
-            // CARGAR TODAS LAS PUBLICACIONES
+            // Foto en el input de comentario
+            document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
+
             const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
                 const container = document.getElementById('posts-container');
-                container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones</div>' : '';
+                container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones en el feed</div>' : '';
+
                 snap.forEach(doc => {
                     const p = doc.data();
+                    const postId = doc.id;
                     const commentsCount = p.commentsCount || 0;
+
                     container.innerHTML += `
                         <div class="post">
                             <div class="post-header">
@@ -154,7 +175,7 @@
                             ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
                             <div class="post-footer">
                                 <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
-                                <button onclick="openComments('${doc.id}')">
+                                <button onclick="openComments('${postId}')">
                                     <i class="far fa-comment"></i> ${commentsCount}
                                 </button>
                                 <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
