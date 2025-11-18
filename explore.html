@@ -3,45 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Explorar</title>
+    <title>Nexus | Perfil</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --s:#28a745; }
+        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --s:#28a745; --d:#dc3545; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
 
-        .container { max-width:700px; margin:0 auto; padding:16px; }
+        .profile { max-width:600px; margin:0 auto; padding:16px; }
+        .cover { height:180px; background:linear-gradient(135deg,var(--p),#005f93); border-radius:16px 16px 0 0; position:relative; }
+        .avatar { width:120px; height:120px; border-radius:50%; object-fit:cover; position:absolute; bottom:-60px; left:20px;
+            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+        .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; }
+        .username { font-size:1.8em; font-weight:700; margin:0 0 8px; display:flex; align-items:center; gap:10px; }
+        .online { width:14px; height:14px; background:#28a745; border-radius:50%; border:3px solid white; box-shadow:0 0 0 2px #28a745; }
+        .bio { color:#555; font-size:1.05em; line-height:1.5; margin:12px 0; }
+        .stats { display:flex; justify-content:space-around; padding:16px 0; background:#fafafa; border-radius:12px; margin:16px 0; }
+        .stat { text-align:center; cursor:pointer; }
+        .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
+        .stat span { color:var(--g); font-weight:500; }
+        .actions { display:flex; gap:12px; margin:16px 0; }
+        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; }
+        .btn-primary { background:var(--p); color:white; }
+        .btn-orange { background:var(--o); color:white; }
+        .btn-follow { background:var(--o); color:white; }
+        .btn-following { background:var(--g); color:white; }
+        .btn-following:hover { background:var(--d); }
 
-        .search-bar {
-            background:white; padding:14px 16px; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom:20px; display:flex; align-items:center; gap:12px; position:sticky; top:70px; z-index:99; background:#fff;
-        }
-        .search-bar input { border:none; outline:none; flex:1; font-size:1.1em; }
-        .search-bar i { color:#888; font-size:1.3em; }
+        .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+        .circle { background:#e0f7fa; color:var(--p); padding:4px 12px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
+        .post-footer { display:flex; justify-content:space-between; align-items:center; color:#666; font-size:0.9em; margin-top:10px; }
+        .interaction button { background:none; border:none; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
+        .liked { color:#e91e63 !important; }
+        .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
 
-        .section { background:white; border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
-        .section h2 { margin:0 0 16px; color:var(--p); font-size:1.4em; display:flex; align-items:center; gap:8px; }
-
-        .trend-item { padding:16px; border-bottom:1px solid #eee; cursor:pointer; border-radius:12px; transition:0.2s; }
-        .trend-item:hover { background:#f8fbff; }
-        .trend-title { font-weight:600; font-size:1.1em; margin-bottom:6px; }
-        .trend-meta { color:#666; font-size:0.9em; }
-
-        .user-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:16px; }
-        .user-card { background:white; border-radius:16px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.08); transition:0.2s; }
-        .user-card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.12); }
-        .user-avatar { width:70px; height:70px; border-radius:50%; object-fit:cover; margin:0 auto 10px; border:4px solid var(--p); }
-        .user-name { font-webpack:600; color:#1a1a1a; margin:8px 0 4px; }
-        .user-username { color:var(--g); font-size:0.9em; }
-        .follow-btn { background:var(--o); color:white; border:none; padding:8px 16px; border-radius:30px; font-weight:600; cursor:pointer; font-size:0.9em; margin-top:8px; }
-        .follow-btn.following { background:var(--s); }
-        .follow-btn:hover { opacity:0.9; }
-
-        .empty { text-align:center; padding:40px 20px; color:#888; font-size:1.1em; }
-        .loading { text-align:center; padding:60px; color:#666; }
-        #search-results { background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.1); margin-bottom:20px; max-height:70vh; overflow-y:auto; }
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000; padding:20px; }
+        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; padding:20px; }
+        .avatar-preview { width:100px; height:100px; border-radius:50%; object-fit:cover; margin:15px auto; display:block; border:4px solid var(--p); }
+        .file-label { background:var(--p); color:white; padding:12px 24px; border-radius:30px; cursor:pointer; display:inline-block; margin:10px 0; font-weight:600; }
+        .file-label:hover { background:#005f93; }
     </style>
 </head>
 <body>
@@ -50,35 +53,65 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Feed</a>
-            <a href="explore.html" style="font-weight:bold;">Explorar</a>
+            <a href="explore.html">Explorar</a>
             <a href="create-post.html">Crear</a>
             <a href="profile.html">Perfil</a>
         </nav>
     </header>
 
-    <div class="container">
-        <div class="search-bar">
-            <i class="fas fa-search"></i>
-            <input type="text" id="search-input" placeholder="Buscar usuarios o #hashtags..." autocomplete="off">
+    <div class="profile">
+        <div class="cover"></div>
+        <img class="avatar" id="avatar" src="">
+        <div class="info">
+            <h2 class="username" id="username">Cargando...</h2>
+            <div class="bio" id="bio">Cargando perfil...</div>
+
+            <div class="stats">
+                <div class="stat" onclick="showList('following')"><strong id="following">0</strong><span>Siguiendo</span></div>
+                <div class="stat" onclick="showList('followers')"><strong id="followers">0</strong><span>Seguidores</span></div>
+                <div class="stat"><strong id="total-likes">0</strong><span>Me gusta</span></div>
+            </div>
+
+            <div class="actions" id="actions"></div>
         </div>
 
-        <div id="search-results" style="display:none;"></div>
+        <div id="posts-container"></div>
+    </div>
 
-        <div class="section" id="trends-section">
-            <h2>Tendencias Globales</h2>
-            <div id="trend-list" class="loading">Cargando tendencias...</div>
+    <!-- Modal Editar Perfil -->
+    <div class="modal" id="edit-modal">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin-top:0;text-align:center;">Editar Perfil</h3>
+            <div style="text-align:center;">
+                <img id="avatar-preview" class="avatar-preview" src="">
+                <br>
+                <label class="file-label">
+                    Cambiar foto
+                    <input type="file" id="photo-input" accept="image/*" style="display:none">
+                </label>
+            </div>
+            <input type="text" id="edit-username" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
+            <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button class="btn btn-primary" id="save-btn">Guardar Cambios</button>
+                <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
+            </div>
         </div>
+    </div>
 
-        <div class="section" id="users-section">
-            <h2>Quién seguir</h2>
-            <div id="user-grid" class="user-grid loading">Buscando usuarios populares...</div>
+    <!-- Modal Listas -->
+    <div class="modal" id="list-modal">
+        <div class="modal-content">
+            <div style="padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;font-size:1.2em;" id="list-title">Seguidores</div>
+            <div style="padding:20px;max-height:70vh;overflow-y:auto;" id="list-body">Cargando...</div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, getDocs, getDoc, updateDoc, serverTimestamp, increment, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -92,144 +125,170 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let currentUser = null;
-        const trendList = document.getElementById('trend-list');
-        const userGrid = document.getElementById('user-grid');
-        const searchInput = document.getElementById('search-input');
-        const searchResults = document.getElementById('search-results');
+        let profileUid = new URLSearchParams(location.search).get('uid');
 
-        // BUSCADOR (funciona perfecto)
-        searchInput.addEventListener('input', async () => {
-            const q = searchInput.value.trim().toLowerCase();
-            if (q.length < 2) { searchResults.style.display = 'none'; return; }
+        const avatar = document.getElementById('avatar');
+        const usernameEl = document.getElementById('username');
+        const bioEl = document.getElementById('bio');
+        const actionsDiv = document.getElementById('actions');
+        const onlineDot = document.createElement('div');
+        onlineDot.className = 'online';
+        onlineDot.style.display = 'none';
+        usernameEl.appendChild(onlineDot);
 
-            searchResults.style.display = 'block';
-            searchResults.innerHTML = '<div class="loading">Buscando...</div>';
-
-            let html = '';
-            const usersSnap = await getDocs(collection(db, "users"));
-            usersSnap.forEach(doc => {
-                const u = doc.data();
-                const username = (u.username || '').toLowerCase();
-                if (username.includes(q) && (!currentUser || doc.id !== currentUser.uid)) {
-                    html += `
-                        <div style="padding:16px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #eee; cursor:pointer;" onclick="location.href='profile.html?uid=${doc.id}'">
-                            <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U')}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
-                            <div><div style="font-weight:600;">${u.username || 'Anónimo'}</div></div>
-                        </div>`;
-                }
-            });
-            searchResults.innerHTML = html || '<div class="empty">No hay resultados</div>';
-        });
-
-        // TENDENCIAS → SIN orderBy para que nunca falle
-        async function loadTrends() {
-            try {
-                const snap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias")));
-                trendList.innerHTML = '';
-
-                if (snap.empty) {
-                    trendList.innerHTML = '<div class="empty">Aún no hay publicaciones con <strong>#Tendencias</strong><br><small>¡Crea una publicación con ese círculo y aparecerá aquí!</small></div>';
-                    return;
-                }
-
-                // Ordenamos manualmente por timestamp (cualquiera que exista)
-                const posts = snap.docs.map(d => ({id: d.id, ...d.data()}));
-                posts.sort((a, b) => {
-                    const ta = a.createdAt?.seconds || a.timestamp?.seconds || 0;
-                    const tb = b.createdAt?.seconds || b.timestamp?.seconds || 0;
-                    return tb - ta;
-                });
-
-                posts.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = 'trend-item';
-                    div.onclick = () => location.href = `feed.html#post-${p.id}`;
-                    div.innerHTML = `
-                        <div class="trend-title">${p.text.split('\n')[0]}</div>
-                        <div class="trend-meta">
-                            Por <span style="color:var(--p);cursor:pointer;" onclick="event.stopPropagation(); location.href='profile.html?uid=${p.userId}'">@${p.username || 'Anónimo'}</span>
-                            · ${p.likes || 0} Me gusta
-                        </div>
-                    `;
-                    trendList.appendChild(div);
-                });
-            } catch (e) {
-                trendList.innerHTML = '<div class="empty">Error cargando tendencias</div>';
-                console.error(e);
-            }
-        }
-
-        // USUARIOS SUGERIDOS
-        async function loadSuggestedUsers() {
-            try {
-                const postsSnap = await getDocs(collection(db, "posts"));
-                const counts = {};
-                postsSnap.forEach(d => {
-                    const uid = d.data().userId;
-                    if (uid) counts[uid] = (counts[uid] || 0) + 1;
-                });
-
-                const sorted = Object.keys(counts)
-                    .sort((a, b) => counts[b] - counts[a])
-                    .filter(uid => !currentUser || uid !== currentUser.uid)
-                    .slice(0, 12);
-
-                userGrid.innerHTML = '';
-                if (sorted.length === 0) {
-                    userGrid.innerHTML = '<div class="empty">No hay usuarios activos aún</div>';
-                    return;
-                }
-
-                for (const uid of sorted) {
-                    const userDoc = await getDoc(doc(db, "users", uid));
-                    if (!userDoc.exists()) continue;
-                    const u = userDoc.data();
-
-                    const following = currentUser ? (await getDoc(doc(db, "users", currentUser.uid, "following", uid))).exists() : false;
-
-                    const card = document.createElement('div');
-                    card.className = 'user-card';
-                    card.innerHTML = `
-                        <img class="user-avatar" src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U') + '&background=0077b6&color=fff'}">
-                        <div class="user-name">${u.username || 'Usuario'}</div>
-                        <div class="user-username">@${u.username || 'anon'}</div>
-                        <button class="follow-btn ${following ? 'following' : ''}" onclick="toggleFollow('${uid}', this)">
-                            ${following ? 'Siguiendo' : 'Seguir'}
-                        </button>
-                    `;
-                    userGrid.appendChild(card);
-                }
-            } catch (e) {
-                userGrid.innerHTML = '<div class="empty">Error cargando usuarios</div>';
-            }
-        }
-
-        window.toggleFollow = async (targetId, btn) => {
-            if (!currentUser) return alert("Inicia sesión");
-            const myRef = doc(db, "users", currentUser.uid, "following", targetId);
-            const theirRef = doc(db, "users", targetId, "followers", currentUser.uid);
-            const exists = (await getDoc(myRef)).exists();
-
-            btn.disabled = true;
-            if (exists) {
-                await deleteDoc(myRef); await deleteDoc(theirRef);
-                btn.textContent = 'Seguir'; btn.classList.remove('following');
-            } else {
-                await setDoc(myRef, {t: serverTimestamp()});
-                await setDoc(theirRef, {t: serverTimestamp()});
-                btn.textContent = 'Siguiendo'; btn.classList.add('following');
-            }
-            btn.disabled = false;
+        // ABRIR MODAL EDITAR
+        window.openEditModal = async () => {
+            const snap = await getDoc(doc(db, "users", currentUser.uid));
+            const d = snap.data();
+            document.getElementById('edit-username').value = d.username || '';
+            document.getElementById('edit-bio').value = d.bio || '';
+            document.getElementById('avatar-preview').src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff`;
+            document.getElementById('edit-modal').style.display = 'flex';
         };
 
-        // INICIAR
-        onAuthStateChanged(auth, user => {
-            currentUser = user;
-            loadTrends();
-            loadSuggestedUsers();
+        // GUARDAR PERFIL
+        document.getElementById('save-btn').addEventListener('click', async () => {
+            const name = document.getElementById('edit-username').value.trim();
+            const bio = document.getElementById('edit-bio').value.trim();
+            const file = document.getElementById('photo-input').files[0];
+
+            if (!name) return alert("El nombre es obligatorio");
+
+            const updates = { username: name, bio: bio };
+            if (file) {
+                const storageRef = ref(storage, `avatars/${currentUser.uid}`);
+                await uploadBytes(storageRef, file);
+                updates.photoURL = await getDownloadURL(storageRef);
+            }
+
+            await updateDoc(doc(db, "users", currentUser.uid), updates);
+            document.getElementById('edit-modal').style.display = 'none';
+            alert("¡Perfil actualizado!");
         });
+
+        document.getElementById('photo-input').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => document.getElementById('avatar-preview').src = ev.target.result;
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // TOGGLE FOLLOW (para perfiles ajenos)
+        window.toggleFollow = async (targetUid) => {
+            if (!currentUser) return alert("Inicia sesión");
+            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
+            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
+            const exists = (await getDoc(myRef)).exists();
+
+            if (exists) {
+                await deleteDoc(myRef);
+                await deleteDoc(theirRef);
+                document.getElementById('follow-btn').textContent = 'Seguir';
+                document.getElementById('follow-btn').classList.remove('btn-following');
+                document.getElementById('follow-btn').classList.add('btn-follow');
+            } else {
+                await setDoc(myRef, { t: serverTimestamp() });
+                await setDoc(theirRef, { t: serverTimestamp() });
+                document.getElementById('follow-btn').textContent = 'Siguiendo';
+                document.getElementById('follow-btn').classList.remove('btn-follow');
+                document.getElementById('follow-btn').classList.add('btn-following');
+            }
+        };
+
+        onAuthStateChanged(auth, async user => {
+            if (!user) return location.href = 'login.html';
+            currentUser = user;
+            profileUid = profileUid || user.uid;
+
+            const userRef = doc(db, "users", profileUid);
+            onSnapshot(userRef, async snap => {
+                if (!snap.exists()) { usernameEl.textContent = "Usuario no encontrado"; return; }
+                const d = snap.data();
+
+                avatar.src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=120`;
+                usernameEl.firstChild.textContent = '@' + (d.username || 'Anónimo');
+                bioEl.textContent = d.bio || 'Sin biografía aún.';
+                onlineDot.style.display = (Date.now() - (d.lastSeen?.toDate?.() || 0) < 60000) ? 'block' : 'none';
+
+                // BOTONES SEGÚN SEA TU PERFIL O NO
+                if (user.uid === profileUid) {
+                    actionsDiv.innerHTML = `
+                        <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
+                        <div class="btn btn-orange" onclick="openEditModal()">Editar Perfil</div>
+                    `;
+                } else {
+                    const followRef = doc(db, "users", user.uid, "following", profileUid);
+                    const following = (await getDoc(followRef)).exists();
+                    actionsDiv.innerHTML = `
+                        <div class="btn ${following ? 'btn-following' : 'btn-follow'}" 
+                             id="follow-btn" 
+                             onclick="toggleFollow('${profileUid}')">
+                             ${following ? 'Siguiendo' : 'Seguir'}
+                        </div>
+                    `;
+                }
+            });
+
+            // CONTADORES
+            onSnapshot(collection(db, "users", profileUid, "followers"), s => document.getElementById('followers').textContent = s.size);
+            onSnapshot(collection(db, "users", profileUid, "following"), s => document.getElementById('following').textContent = s.size);
+
+            // PUBLICACIONES
+            const postsQuery = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
+            onSnapshot(postsQuery, snap => {
+                const container = document.getElementById('posts-container');
+                container.innerHTML = '';
+                let totalLikes = 0;
+                if (snap.empty) {
+                    container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+                    document.getElementById('total-likes').textContent = '0';
+                    return;
+                }
+                snap.forEach(doc => {
+                    const p = doc.data();
+                    totalLikes += p.likes || 0;
+                    const post = document.createElement('div');
+                    post.className = 'post';
+                    post.innerHTML = `
+                        <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
+                        ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
+                        <div class="post-footer">
+                            <button><i class="far fa-heart"></i> <span>${p.likes||0}</span></button>
+                            <small>${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}</small>
+                        </div>
+                    `;
+                    container.appendChild(post);
+                });
+                document.getElementById('total-likes').textContent = totalLikes;
+            });
+        });
+
+        // LISTAS DE SEGUIDORES/SEGUINDO
+        window.showList = (type) => {
+            document.getElementById('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
+            const body = document.getElementById('list-body');
+            body.innerHTML = 'Cargando...';
+            document.getElementById('list-modal').style.display = 'flex';
+
+            onSnapshot(collection(db, "users", profileUid, type), snap => {
+                body.innerHTML = snap.empty ? '<div class="empty">Aún nadie</div>' : '';
+                snap.forEach(d => {
+                    getDoc(doc(db, "users", d.id)).then(u => {
+                        const data = u.data() || {};
+                        body.innerHTML += `
+                            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eee;">
+                                <img src="${data.photoURL || 'https://ui-avatars.com/api/?name=' + (data.username||'?')}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                                <a href="profile.html?uid=${d.id}" style="color:var(--p);font-weight:600;text-decoration:none;">@${data.username || 'Anónimo'}</a>
+                            </div>`;
+                    });
+                });
+            });
+        };
     </script>
 </body>
 </html>
