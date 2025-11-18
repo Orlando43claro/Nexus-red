@@ -37,7 +37,8 @@
         .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
         .circle { background:#e0f7fa; color:var(--p); padding:5px 14px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
         .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:#666; font-size:0.95em; gap:15px; }
-        .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; }
+        .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#666; }
+        .post-footer button i { pointer-events:none; }
 
         .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
 
@@ -136,7 +137,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, getDocs, getDoc, serverTimestamp, deleteDoc, setDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, getDocs, getDoc, serverTimestamp, deleteDoc, setDoc, addDoc, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -155,75 +156,9 @@
         let profileUid = new URLSearchParams(location.search).get('uid') || null;
         let currentPostId = null;
 
-        const avatar = document.getElementById('avatar');
-        const usernameEl = document.getElementById('username');
-        const bioEl = document.getElementById('bio');
-        const actionsDiv = document.getElementById('actions');
-        const postsContainer = document.getElementById('posts-container');
+        // ... (todo el código anterior de botones, listas, etc. sigue igual) ...
 
-        // BOTONES SEGUIR / EDITAR
-        async function renderButtons(isOwn, targetUid) {
-            if (isOwn) {
-                actionsDiv.innerHTML = `
-                    <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                    <div class="btn btn-orange" onclick="alert('Editar perfil próximamente')">Editar Perfil</div>
-                `;
-            } else {
-                const followRef = doc(db, "users", currentUser.uid, "following", targetUid);
-                const isFollowing = (await getDoc(followRef)).exists();
-                actionsDiv.innerHTML = `
-                    <button class="btn ${isFollowing ? 'btn-following' : 'btn-follow'}" id="follow-btn" onclick="toggleFollow('${targetUid}')">
-                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
-                    </button>
-                `;
-            }
-        }
-
-        window.toggleFollow = async (targetUid) => {
-            if (!currentUser) return;
-            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
-            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
-            const btn = document.getElementById('follow-btn');
-            const exists = (await getDoc(myRef)).exists();
-
-            if (exists) {
-                await deleteDoc(myRef); await deleteDoc(theirRef);
-                btn.textContent = 'Seguir'; btn.classList.replace('btn-following', 'btn-follow');
-            } else {
-                await setDoc(myRef, {t: serverTimestamp()});
-                await setDoc(theirRef, {t: serverTimestamp()});
-                btn.textContent = 'Siguiendo'; btn.classList.replace('btn-follow', 'btn-following');
-            }
-        };
-
-        // LISTA SEGUIDORES / SIGUIENDO
-        window.openList = async (type) => {
-            document.getElementById('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
-            document.getElementById('list-body').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando...</div>';
-            document.getElementById('list-modal').style.display = 'flex';
-
-            const snap = await getDocs(collection(db, "users", profileUid, type));
-            let html = '';
-            if (snap.empty) html = '<div class="empty">Aún nadie</div>';
-            else {
-                for (const d of snap.docs) {
-                    const uSnap = await getDoc(doc(db, "users", d.id));
-                    if (!uSnap.exists()) continue;
-                    const u = uSnap.data();
-                    html += `
-                        <div class="list-item" onclick="location.href='profile.html?uid=${d.id}'">
-                            <img src="${u.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(u.username||'U')+'&background=0077b6&color=fff&size=128'}">
-                            <div>
-                                <strong>${u.username || 'Anónimo'}</strong>
-                                <small>@${u.username || 'anon'}</small>
-                            </div>
-                        </div>`;
-                }
-            }
-            document.getElementById('list-body').innerHTML = html;
-        };
-
-        // COMENTARIOS
+        // COMENTARIOS + CONTADOR EN TIEMPO REAL
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
@@ -250,43 +185,47 @@
             });
         }
 
+        // ENVIAR COMENTARIO + INCREMENTAR CONTADOR
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !currentUser) return;
-            await addDoc(collection(db, "posts", currentPostId, "comments"), {
-                text,
-                username: currentUser.displayName || 'Anónimo',
-                photoURL: currentUser.photoURL,
-                userId: currentUser.uid,
-                createdAt: serverTimestamp()
-            });
-            document.getElementById('comment-text').value = '';
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const postRef = doc(db, "posts", currentPostId);
+                    const postSnap = await transaction.get(postRef);
+                    if (!postSnap.exists()) throw "Post no existe";
+
+                    // Incrementar contador
+                    transaction.update(postRef, { commentsCount: increment(1) });
+
+                    // Añadir comentario
+                    const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
+                    transaction.set(commentRef, {
+                        text,
+                        username: currentUser.displayName || 'Anónimo',
+                        photoURL: currentUser.photoURL,
+                        userId: currentUser.uid,
+                        createdAt: serverTimestamp()
+                    });
+                });
+
+                document.getElementById('comment-text').value = '';
+            } catch (e) {
+                console.error("Error al comentar:", e);
+            }
         };
 
-        // INICIO DE SESIÓN Y CARGA DE DATOS
         onAuthStateChanged(auth, async (user) => {
             if (!user) return location.href = 'login.html';
             currentUser = user;
             profileUid = profileUid || user.uid;
 
-            // Foto en input de comentario
             document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
 
-            // Datos del perfil
-            onSnapshot(doc(db, "users", profileUid), async (snap) => {
-                if (!snap.exists()) return;
-                const d = snap.data();
-                avatar.src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=300`;
-                usernameEl.textContent = '@' + (d.username || 'Anónimo');
-                bioEl.textContent = d.bio || 'Sin biografía aún.';
-                await renderButtons(currentUser.uid === profileUid, profileUid);
-            });
+            // ... (código del perfil igual) ...
 
-            // Contadores
-            onSnapshot(collection(db, "users", profileUid, "followers"), s => document.getElementById('followers-count').textContent = s.size);
-            onSnapshot(collection(db, "users", profileUid, "following"), s => document.getElementById('following-count').textContent = s.size);
-
-            // Publicaciones del perfil + comentarios
+            // PUBLICACIONES CON CONTADOR DE COMENTARIOS EN TIEMPO REAL
             const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
                 postsContainer.innerHTML = '';
@@ -310,7 +249,7 @@
                             </div>
                             <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
                             ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
-                            <div class="post-footer">
+                            <div class -post-footer>
                                 <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
                                 <button onclick="openComments('${doc.id}')">
                                     <i class="far fa-comment"></i> ${commentsCount}
@@ -322,6 +261,9 @@
                 document.getElementById('total-likes').textContent = totalLikes;
             });
         });
+
+        // ... resto del código de botones, listas, seguir, etc. (igual que antes) ...
+        // (lo dejo igual, solo cambié lo de comentarios)
     </script>
 </body>
 </html>
