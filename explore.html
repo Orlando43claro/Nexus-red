@@ -3,40 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Perfil</title>
+    <title>Nexus | Explorar</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --s:#28a745; --d:#dc3545; }
+        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --s:#28a745; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
 
-        .profile { max-width:600px; margin:0 auto; padding:16px; }
-        .cover { height:180px; background:linear-gradient(135deg,var(--p),#005f93); border-radius:16px 16px 0 0; }
-        .avatar { width:120px; height:120px; border-radius:50%; object-fit:cover; position:absolute; bottom:-60px; left:20px;
-            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
-        .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; position:relative; }
-        .username { font-size:1.8em; font-weight:700; margin:0 0 8px; }
-        .bio { color:#555; font-size:1.05em; line-height:1.5; margin:12px 0; }
-        .stats { display:flex; justify-content:space-around; padding:16px 0; background:#fafafa; border-radius:12px; margin:16px 0; }
-        .stat { text-align:center; }
-        .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
-        .stat span { color:var(--g); font-weight:500; }
-        .actions { display:flex; gap:12px; margin:16px 0; }
-        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; transition:0.2s; }
-        .btn-primary { background:var(--p); color:white; }
-        .btn-orange { background:var(--o); color:white; }
-        .btn-follow { background:var(--o); color:white; }
-        .btn-following { background:var(--s); color:white; }
-        .btn-following:hover { background:#218838; }
+        .container { max-width:700px; margin:0 auto; padding:16px; }
 
-        .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
-        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
-        .circle { background:#e0f7fa; color:var(--p); padding:4px 12px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
-        .post-footer { display:flex; justify-content:space-between; align-items:center; color:#666; font-size:0.9em; margin-top:10px; }
-        .interaction button { background:none; border:none; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
-        .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
+        .search-bar {
+            background:white; padding:14px 16px; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom:20px; display:flex; align-items:center; gap:12px; position:sticky; top:70px; z-index:99; background:#fff;
+        }
+        .search-bar input { border:none; outline:none; flex:1; font-size:1.1em; }
+        .search-bar i { color:#888; font-size:1.3em; }
+
+        .section { background:white; border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
+        .section h2 { margin:0 0 16px; color:var(--p); font-size:1.4em; display:flex; align-items:center; gap:8px; }
+
+        .trend-item { padding:16px; border-bottom:1px solid #eee; cursor:pointer; border-radius:12px; transition:0.2s; }
+        .trend-item:hover { background:#f8fbff; }
+        .trend-title { font-weight:600; font-size:1.1em; margin-bottom:6px; }
+        .trend-meta { color:#666; font-size:0.9em; }
+
+        .user-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:16px; }
+        .user-card { background:white; border-radius:16px; padding:16px; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,0.08); transition:0.2s; }
+        .user-card:hover { transform:translateY(-4px); box-shadow:0 8px 20px rgba(0,0,0,0.12); }
+        .user-avatar { width:70px; height:70px; border-radius:50%; object-fit:cover; margin:0 auto 10px; border:4px solid var(--p); }
+        .user-name { font-webpack:600; color:#1a1a1a; margin:8px 0 4px; }
+        .user-username { color:var(--g); font-size:0.9em; }
+        .follow-btn { background:var(--o); color:white; border:none; padding:8px 16px; border-radius:30px; font-weight:600; cursor:pointer; font-size:0.9em; margin-top:8px; }
+        .follow-btn.following { background:var(--s); }
+        .follow-btn:hover { opacity:0.9; }
+
+        .empty { text-align:center; padding:40px 20px; color:#888; font-size:1.1em; }
+        .loading { text-align:center; padding:60px; color:#666; }
+        #search-results { background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.1); margin-bottom:20px; max-height:70vh; overflow-y:auto; }
     </style>
 </head>
 <body>
@@ -45,35 +50,35 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Feed</a>
-            <a href="explore.html">Explorar</a>
+            <a href="explore.html" style="font-weight:bold;">Explorar</a>
             <a href="create-post.html">Crear</a>
             <a href="profile.html">Perfil</a>
         </nav>
     </header>
 
-    <div class="profile">
-        <div class="cover"></div>
-        <img class="avatar" id="avatar" src="">
-        <div class="info">
-            <h2 class="username" id="username">Cargando...</h2>
-            <div class="bio" id="bio">Cargando perfil...</div>
-
-            <div class="stats">
-                <div class="stat"><strong id="following-count">0</strong><span>Siguiendo</span></div>
-                <div class="stat"><strong id="followers-count">0</strong><span>Seguidores</span></div>
-                <div class="stat"><strong id="total-likes">0</strong><span>Me gusta</span></div>
-            </div>
-
-            <div class="actions" id="actions"></div>
+    <div class="container">
+        <div class="search-bar">
+            <i class="fas fa-search"></i>
+            <input type="text" id="search-input" placeholder="Buscar usuarios o #hashtags..." autocomplete="off">
         </div>
 
-        <div id="posts-container"></div>
+        <div id="search-results" style="display:none;"></div>
+
+        <div class="section" id="trends-section">
+            <h2>Tendencias Globales</h2>
+            <div id="trend-list" class="loading">Cargando tendencias...</div>
+        </div>
+
+        <div class="section" id="users-section">
+            <h2>Quién seguir</h2>
+            <div id="user-grid" class="user-grid loading">Buscando usuarios populares...</div>
+        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, getDoc, updateDoc, serverTimestamp, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, query, where, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -89,123 +94,141 @@
         const db = getFirestore(app);
 
         let currentUser = null;
-        let profileUid = new URLSearchParams(location.search).get('uid') || null;
+        const trendList = document.getElementById('trend-list');
+        const userGrid = document.getElementById('user-grid');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
 
-        const actionsDiv = document.getElementById('actions');
-        const postsContainer = document.getElementById('posts-container');
+        // BUSCADOR (funciona perfecto)
+        searchInput.addEventListener('input', async () => {
+            const q = searchInput.value.trim().toLowerCase();
+            if (q.length < 2) { searchResults.style.display = 'none'; return; }
 
-        // Renderizar botones según sea propio o ajeno
-        async function renderButtons(isOwnProfile, targetUid) {
-            if (isOwnProfile) {
-                actionsDiv.innerHTML = `
-                    <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                    <div class="btn btn-orange" onclick="alert('Editar perfil próximamente')">Editar Perfil</div>
-                `;
-            } else {
-                const followRef = doc(db, "users", currentUser.uid, "following", targetUid);
-                const snap = await getDoc(followRef);
-                const isFollowing = snap.exists();
+            searchResults.style.display = 'block';
+            searchResults.innerHTML = '<div class="loading">Buscando...</div>';
 
-                actionsDiv.innerHTML = `
-                    <button class="btn ${isFollowing ? 'btn-following' : 'btn-follow'}" 
-                            id="follow-btn" onclick="toggleFollow('${targetUid}')">
-                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
-                    </button>
-                `;
-            }
-        }
-
-        window.toggleFollow = async (targetUid) => {
-            if (!currentUser) return alert("Inicia sesión");
-
-            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
-            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
-            const btn = document.getElementById('follow-btn');
-            const exists = (await getDoc(myRef)).exists();
-
-            if (exists) {
-                await deleteDoc(myRef);
-                await deleteDoc(theirRef);
-                btn.textContent = 'Seguir';
-                btn.classList.replace('btn-following', 'btn-follow');
-            } else {
-                await setDoc(myRef, { t: serverTimestamp() });
-                await setDoc(theirRef, { t: serverTimestamp() });
-                btn.textContent = 'Siguiendo';
-                btn.classList.replace('btn-follow', 'btn-following');
-            }
-        };
-
-        onAuthStateChanged(auth, async (user) => {
-            if (!user) return location.href = 'login.html';
-            currentUser = user;
-            profileUid = profileUid || user.uid;
-
-            const userRef = doc(db, "users", profileUid);
-
-            // Escuchar datos del perfil
-            onSnapshot(userRef, async (snap) => {
-                if (!snap.exists()) {
-                    document.getElementById('username').textContent = 'Usuario no encontrado';
-                    return;
+            let html = '';
+            const usersSnap = await getDocs(collection(db, "users"));
+            usersSnap.forEach(doc => {
+                const u = doc.data();
+                const username = (u.username || '').toLowerCase();
+                if (username.includes(q) && (!currentUser || doc.id !== currentUser.uid)) {
+                    html += `
+                        <div style="padding:16px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #eee; cursor:pointer;" onclick="location.href='profile.html?uid=${doc.id}'">
+                            <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U')}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+                            <div><div style="font-weight:600;">${u.username || 'Anónimo'}</div></div>
+                        </div>`;
                 }
-                const d = snap.data();
-
-                document.getElementById('avatar').src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=256`;
-                document.getElementById('username').textContent = '@' + (d.username || 'Anónimo');
-                document.getElementById('bio').textContent = d.bio || 'Sin biografía aún.';
-
-                // Renderizar botones correctos
-                await renderButtons(currentUser.uid === profileUid, profileUid);
             });
+            searchResults.innerHTML = html || '<div class="empty">No hay resultados</div>';
+        });
 
-            // Contadores en tiempo real
-            onSnapshot(collection(db, "users", profileUid, "followers"), s => {
-                document.getElementById('followers-count').textContent = s.size;
-            });
-            onSnapshot(collection(db, "users", profileUid, "following"), s => {
-                document.getElementById('following-count').textContent = s.size;
-            });
+        // TENDENCIAS → SIN orderBy para que nunca falle
+        async function loadTrends() {
+            try {
+                const snap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias")));
+                trendList.innerHTML = '';
 
-            // CARGAR PUBLICACIONES + CONTAR LIKES TOTALES
-            const postsQuery = query(collection(db, "posts"), where("userId", "==", profileUid));
-            onSnapshot(postsQuery, (snapshot) => {
-                postsContainer.innerHTML = '';
-                let totalLikes = 0;
-
-                if (snapshot.empty) {
-                    postsContainer.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
-                    document.getElementById('total-likes').textContent = '0';
+                if (snap.empty) {
+                    trendList.innerHTML = '<div class="empty">Aún no hay publicaciones con <strong>#Tendencias</strong><br><small>¡Crea una publicación con ese círculo y aparecerá aquí!</small></div>';
                     return;
                 }
 
-                const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-                // Ordenar por fecha (cualquier campo que exista)
+                // Ordenamos manualmente por timestamp (cualquiera que exista)
+                const posts = snap.docs.map(d => ({id: d.id, ...d.data()}));
                 posts.sort((a, b) => {
-                    const timeA = a.createdAt?.seconds || a.timestamp?.seconds || 0;
-                    const timeB = b.createdAt?.seconds || b.timestamp?.seconds || 0;
-                    return timeB - timeA;
+                    const ta = a.createdAt?.seconds || a.timestamp?.seconds || 0;
+                    const tb = b.createdAt?.seconds || b.timestamp?.seconds || 0;
+                    return tb - ta;
                 });
 
                 posts.forEach(p => {
-                    totalLikes += (p.likes || 0);
-
-                    const postEl = document.createElement('div');
-                    postEl.className = 'post';
-                    postEl.innerHTML = `
-                        <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                        ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
-                        <div class="post-footer">
-                            <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
-                            <small>${p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Reciente'}</small>
+                    const div = document.createElement('div');
+                    div.className = 'trend-item';
+                    div.onclick = () => location.href = `feed.html#post-${p.id}`;
+                    div.innerHTML = `
+                        <div class="trend-title">${p.text.split('\n')[0]}</div>
+                        <div class="trend-meta">
+                            Por <span style="color:var(--p);cursor:pointer;" onclick="event.stopPropagation(); location.href='profile.html?uid=${p.userId}'">@${p.username || 'Anónimo'}</span>
+                            · ${p.likes || 0} Me gusta
                         </div>
                     `;
-                    postsContainer.appendChild(postEl);
+                    trendList.appendChild(div);
+                });
+            } catch (e) {
+                trendList.innerHTML = '<div class="empty">Error cargando tendencias</div>';
+                console.error(e);
+            }
+        }
+
+        // USUARIOS SUGERIDOS
+        async function loadSuggestedUsers() {
+            try {
+                const postsSnap = await getDocs(collection(db, "posts"));
+                const counts = {};
+                postsSnap.forEach(d => {
+                    const uid = d.data().userId;
+                    if (uid) counts[uid] = (counts[uid] || 0) + 1;
                 });
 
-                document.getElementById('total-likes').textContent = totalLikes;
-            });
+                const sorted = Object.keys(counts)
+                    .sort((a, b) => counts[b] - counts[a])
+                    .filter(uid => !currentUser || uid !== currentUser.uid)
+                    .slice(0, 12);
+
+                userGrid.innerHTML = '';
+                if (sorted.length === 0) {
+                    userGrid.innerHTML = '<div class="empty">No hay usuarios activos aún</div>';
+                    return;
+                }
+
+                for (const uid of sorted) {
+                    const userDoc = await getDoc(doc(db, "users", uid));
+                    if (!userDoc.exists()) continue;
+                    const u = userDoc.data();
+
+                    const following = currentUser ? (await getDoc(doc(db, "users", currentUser.uid, "following", uid))).exists() : false;
+
+                    const card = document.createElement('div');
+                    card.className = 'user-card';
+                    card.innerHTML = `
+                        <img class="user-avatar" src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U') + '&background=0077b6&color=fff'}">
+                        <div class="user-name">${u.username || 'Usuario'}</div>
+                        <div class="user-username">@${u.username || 'anon'}</div>
+                        <button class="follow-btn ${following ? 'following' : ''}" onclick="toggleFollow('${uid}', this)">
+                            ${following ? 'Siguiendo' : 'Seguir'}
+                        </button>
+                    `;
+                    userGrid.appendChild(card);
+                }
+            } catch (e) {
+                userGrid.innerHTML = '<div class="empty">Error cargando usuarios</div>';
+            }
+        }
+
+        window.toggleFollow = async (targetId, btn) => {
+            if (!currentUser) return alert("Inicia sesión");
+            const myRef = doc(db, "users", currentUser.uid, "following", targetId);
+            const theirRef = doc(db, "users", targetId, "followers", currentUser.uid);
+            const exists = (await getDoc(myRef)).exists();
+
+            btn.disabled = true;
+            if (exists) {
+                await deleteDoc(myRef); await deleteDoc(theirRef);
+                btn.textContent = 'Seguir'; btn.classList.remove('following');
+            } else {
+                await setDoc(myRef, {t: serverTimestamp()});
+                await setDoc(theirRef, {t: serverTimestamp()});
+                btn.textContent = 'Siguiendo'; btn.classList.add('following');
+            }
+            btn.disabled = false;
+        };
+
+        // INICIAR
+        onAuthStateChanged(auth, user => {
+            currentUser = user;
+            loadTrends();
+            loadSuggestedUsers();
         });
     </script>
 </body>
