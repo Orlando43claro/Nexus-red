@@ -3,157 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Perfil de Usuario</title>
-    <!-- Incluir Font Awesome para los iconos -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <title>Nexus | @perfil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* Estilos Generales */
-        body { font-family: 'Inter', sans-serif; margin: 0; background-color: #f0f2f5; }
-        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { margin: 0; font-size: 1.5em; }
-        .header nav a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
-        .header nav a:hover { background-color: #005f93; }
-
-        /* Contenedor Principal del Perfil */
-        .profile-container { 
-            background-color: white; margin: 20px auto; padding: 25px; 
-            border-radius: 12px; max-width: 600px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); 
-            text-align: center; 
+        :root {
+            --primary: #0077b6;
+            --success: #28a745;
+            --danger: #dc3545;
+            --orange: #ff9900;
+            --gray: #6c757d;
+            --light: #f8f9fa;
         }
-
-        /* Información del Perfil */
-        .profile-info h2 { color: #333; margin-bottom: 5px; }
-        .profile-info p { color: #555; margin-top: 0; font-size: 0.9em; }
-        
-        /* Indicador de Estado */
-        .status-indicator {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            background-color: #ccc;
-            border: 2px solid white;
-            box-shadow: 0 0 0 1px #888;
-            margin-left: 10px;
+        body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
+        .header {
+            background:var(--primary); color:white; padding:15px 20px;
+            display:flex; justify-content:space-between; align-items:center;
+            position:sticky; top:0; z-index:100;
         }
-        .online {
-            background-color: #28a745; 
-            box-shadow: 0 0 0 1px #28a745;
+        .header h1 { margin:0; font-size:1.7em; font-weight:700; }
+        .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
+
+        .profile {
+            max-width:600px; margin:0 auto; padding:16px;
         }
 
-        /* Botones de Acción */
-        .action-buttons button {
-            background-color: #ff9900; color: white; border: none; padding: 10px 20px;
-            border-radius: 6px; margin: 5px; cursor: pointer; font-size: 1em;
-            transition: background-color 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .cover {
+            height:180px; background:linear-gradient(135deg, var(--primary), #005f93);
+            border-radius:16px 16px 0 0; position:relative;
         }
-        .action-buttons button:hover { background-color: #cc7a00; }
-        .btn-danger { background-color: #dc3545 !important; }
-        .btn-danger:hover { background-color: #c82333 !important; }
-        .btn-secondary { 
-            background-color: #6c757d !important;
-            padding: 8px 15px; margin-left: 10px;
-        }
-        .btn-secondary:hover { background-color: #5a6268 !important; }
-        
-        /* Botón de Seguir/Siguiendo */
-        #follow-btn {
-            background-color: #0077b6;
-        }
-        #follow-btn.following {
-            background-color: #6c757d; /* Gris cuando ya está siguiendo */
-        }
-        #follow-btn:hover.following {
-             background-color: #5a6268;
+        .avatar {
+            width:120px; height:120px; border-radius:50%; background:var(--primary);
+            color:white; font-size:3em; font-weight:bold;
+            display:flex; align-items:center; justify-content:center;
+            position:absolute; bottom:-60px; left:20px;
+            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2);
         }
 
+        .info {
+            padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px;
+            box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px;
+        }
+        .username {
+            font-size:1.8em; font-weight:700; margin:0 0 8px;
+            display:flex; align-items:center; gap:10px;
+        }
+        .online-dot {
+            width:14px; height:14px; background:#28a745; border-radius:50%;
+            border:3px solid white; box-shadow:0 0 0 2px #28a745;
+        }
+        .bio { color:#555; font-size:1.05em; line-height:1.5; margin:12px 0; }
 
-        /* Barra de Estadísticas de Seguimiento */
-        .stats-bar {
-            display: flex; 
-            justify-content: space-around;
-            padding: 15px 0; 
-            margin: 20px 0; 
-            border-top: 1px solid #eee; 
-            border-bottom: 1px solid #eee;
+        .stats {
+            display:flex; justify-content:space-around; padding:16px 0; background:#fafafa;
+            border-radius:12px; margin:16px 0;
         }
-        .stats-bar button, .stat-item { 
-            background: none; 
-            border: none; 
-            color: #0077b6; 
-            font-size: 1.1em; 
-            font-weight: bold;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center;
+        .stat {
+            text-align:center; cursor:pointer;
         }
-        .stats-bar button {
-             cursor: pointer;
-             transition: color 0.2s;
+        .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
+        .stat span { color:var(--gray); font-weight:500; }
+
+        .actions {
+            display:flex; gap:12px; margin:16px 0;
         }
-        .stats-bar button:hover { color: #005f93; }
-        .stats-bar span { 
-            font-size: 1.5em; color: #333; font-weight: 700; 
-            margin-bottom: 4px;
+        .btn {
+            flex:1; padding:12px; border-radius:30px; font-weight:600;
+            text-align:center; cursor:pointer; transition:0.2s;
         }
-        
-        /* Área de Publicaciones */
-        #user-posts { margin-top: 20px; text-align: left; }
-        .post-card { 
-            background-color: #f8f9fa; padding: 15px; margin-bottom: 10px; 
-            border-radius: 8px; border-left: 5px solid #0077b6;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        .btn-primary { background:var(--primary); color:white; }
+        .btn-follow { background:var(--orange); color:white; }
+        .btn-following { background:var(--gray); color:white; }
+        .btn-following:hover { background:var(--danger); }
+
+        .tabs {
+            display:flex; background:white; border-radius:12px; overflow:hidden;
+            margin:20px 0 10px; box-shadow:0 2px 10px rgba(0,0,0,0.08);
         }
-        .post-card p { margin: 0; color: #333; }
+        .tab {
+            flex:1; padding:14px; text-align:center; font-weight:600;
+            color:var(--gray); cursor:pointer;
+        }
+        .tab.active { background:var(--primary); color:white; }
+
+        .post {
+            background:white; border-radius:16px; padding:16px;
+            margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08);
+        }
+        .post-text { font-size:1.05em; line-height:1.6; margin:12px 0; }
         .post-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 5px;
+            display:flex; justify-content:space-between; align-items:center;
+            color:#666; font-size:0.9em;
         }
-        .post-footer small {
-            color: #888;
+        .interaction {
+            display:flex; gap:20px;
         }
-        
-        /* Estilo del botón de Like */
-        .like-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 5px 10px;
-            color: #555;
-            transition: color 0.2s;
-            font-size: 1em;
+        .interaction button {
+            background:none; border:none; font-size:1.4em; cursor:pointer;
+            display:flex; align-items:center; gap:6px;
         }
-        .liked {
-            color: #dc3545; /* Rojo para el like */
-        }
-        .like-btn:hover {
-            color: #dc3545;
-        }
+        .liked { color:#e91e63 !important; }
 
-
-        /* Estilos de Modal (Comunes para todos) */
-        .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
-        }
+        .empty { text-align:center; padding:60px 20px; color:#888; }
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8);
+            justify-content:center; align-items:center; z-index:1000; padding:20px; }
         .modal-content {
-            background-color: white; padding: 30px; border-radius: 10px;
-            text-align: center; max-width: 400px; width: 90%; 
-            box-shadow: 0 8px 16px rgba(0,0,0,0.25);
+            background:white; border-radius:16px; width:100%; max-width:500px;
+            max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
         }
-
-        /* Estilos para la lista de usuarios en el modal */
-        .user-list-item {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 10px 0; border-bottom: 1px solid #eee;
-        }
-        .user-list-item a {
-            color: #0077b6; font-weight: bold; text-decoration: none;
-            transition: color 0.2s;
-        }
-        .user-list-item a:hover { text-decoration: underline; color: #005f93; }
+        .modal-header { padding:16px 20px; border-bottom:1px solid #eee; font-weight:600; }
+        .modal-body { flex:1; overflow-y:auto; padding:0 20px; }
+        .user-item { padding:12px 0; border-bottom:1px solid #eee; display:flex;
+            align-items:center; gap:12px; }
+        .user-item a { color:var(--primary); font-weight:600; text-decoration:none; }
     </style>
 </head>
 <body>
@@ -162,686 +123,224 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Feed</a>
-            <a href="create-post.html">Crear Publicación</a>
+            <a href="create-post.html">Crear</a>
         </nav>
     </header>
 
-    <main>
-        <div id="profile-container" class="profile-container">
-            <div id="profile-info" class="profile-info">
-                <!-- Nombre de usuario con indicador de estado -->
-                <div style="display: flex; align-items: center; justify-content: center;">
-                    <h2 id="profile-username">Cargando Perfil...</h2>
-                    <div id="online-status-indicator" class="status-indicator" title="Estado"></div>
-                </div>
-                <p id="profile-bio">...</p>
+    <div class="profile" id="profile">
+        <div class="cover"></div>
+        <div class="avatar" id="avatar">?</div>
+        <div class="info">
+            <div class="username" id="username">@cargando <div class="online-dot" id="online-dot" style="display:none"></div></div>
+            <div class="bio" id="bio">Cargando perfil...</div>
+            <div class="stats">
+                <div class="stat" onclick="openList('following')"><strong id="following-count">0</strong><span>Siguiendo</span></div>
+                <div class="stat" onclick="openList('followers')"><strong id="followers-count">0</strong><span>Seguidores</span></div>
+                <div class="stat"><strong id="likes-count">0</strong><span>Me gusta</span></div>
             </div>
-            
-            <!-- BARRA DE ESTADÍSTICAS (Actualizada por Listener del Documento de Usuario) -->
-            <div class="stats-bar">
-                <button id="followers-btn" onclick="showFollowListModal('followers')">
-                    <span id="followers-count">0</span> Seguidores
-                </button>
-                <button id="following-btn" onclick="showFollowListModal('following')">
-                    <span id="following-count">0</span> Siguiendo
-                </button>
-                <div class="stat-item">
-                    <span id="total-likes-count">0</span> Me Gusta Totales
-                </div>
-            </div>
-
-            <div id="action-buttons" class="action-buttons">
-                <p>Cargando botones de acción...</p>
-            </div>
-
-            <h3 style="text-align: left; margin-top: 30px;">Publicaciones</h3>
-            <div id="user-posts">
-                <p style="color: #888;">Cargando publicaciones...</p>
-            </div>
+            <div class="actions" id="actions"></div>
         </div>
-    </main>
 
-    <!-- Modal 1: Edición de Perfil -->
-    <div id="edit-modal" class="modal" onclick="closeModal(event, 'edit-modal')">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3>Editar Perfil</h3>
-            <label for="edit-username" style="display: block; text-align: left; margin-bottom: 5px;">Nombre de Usuario:</label>
-            <input type="text" id="edit-username" style="width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px;">
-            <label for="edit-bio" style="display: block; text-align: left; margin-bottom: 5px;">Biografía:</label>
-            <textarea id="edit-bio" rows="4" style="width: 100%; padding: 8px; resize: vertical; border: 1px solid #ccc; border-radius: 4px;"></textarea>
-            <button onclick="saveProfileChanges()" style="background-color: #28a745; color: white; padding: 10px; border-radius: 5px; margin-top: 15px;">Guardar Cambios</button>
-            <button class="btn-secondary" onclick="closeModal(null, 'edit-modal')">Cancelar</button>
+        <div class="tabs">
+            <div class="tab active">Publicaciones</div>
         </div>
+
+        <div id="posts-container"></div>
     </div>
-    
-    <!-- Modal 2: Lista de Seguidores/Siguiendo -->
-    <div id="list-modal" class="modal" onclick="closeModal(event, 'list-modal')">
+
+    <!-- Modal Lista Seguidores/Siguiendo -->
+    <div class="modal" id="list-modal" onclick="this.style.display='none'">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <h3 id="list-modal-title">Lista de Usuarios</h3>
-            <div id="user-list-content" style="text-align: left; max-height: 40vh; overflow-y: auto; padding: 10px 0;">
-                <p style="text-align: center;">Cargando lista...</p>
-            </div>
-            <button style="margin-top: 20px;" class="btn-secondary" onclick="closeModal(null, 'list-modal')">Cerrar</button>
-        </div>
-    </div>
-    
-    <!-- Modal 3: Confirmación de Cierre de Sesión -->
-    <div id="logout-confirm-modal" class="modal" onclick="closeModal(event, 'logout-confirm-modal')">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3>¿Cerrar Sesión?</h3>
-            <p>Estás seguro de que quieres cerrar la sesión actual de Nexus?</p>
-            <button class="btn-danger" onclick="confirmLogout()">Sí, Cerrar Sesión</button>
-            <button class="btn-secondary" onclick="closeModal(null, 'logout-confirm-modal')">Cancelar</button>
+            <div class="modal-header" id="list-title">Seguidores</div>
+            <div class="modal-body" id="list-body">Cargando...</div>
         </div>
     </div>
 
-
-    <!-- ****************************************************** -->
-    <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE PERFIL DINÁMICO -->
-    <!-- ****************************************************** -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { 
-            getFirestore, doc, getDoc, updateDoc, 
-            collection, query, where, getDocs, onSnapshot,
-            setDoc, deleteDoc, serverTimestamp, increment,
-            runTransaction, setLogLevel
-        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        
-        // Habilitar logs de depuración para Firestore
-        setLogLevel('Debug'); 
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, orderBy, updateDoc, serverTimestamp, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Configuración de Firebase (Tus Credenciales)
-        // NOTE: Replace these with the actual global variables if running in a Canvas environment.
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
+        const firebaseConfig = { /* TU CONFIG AQUÍ */ };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let currentUser = null;
-        let profileUserId = null; 
-        let profileUserData = {}; 
+        let profileUid = new URLSearchParams(location.search).get('uid') || null;
 
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        // Elementos UI
-        const profileInfoDiv = document.getElementById('profile-info');
-        const actionButtonsDiv = document.getElementById('action-buttons');
-        const userPostsDiv = document.getElementById('user-posts');
-        const listModal = document.getElementById('list-modal');
-        const listModalTitle = document.getElementById('list-modal-title');
-        const userListContent = document.getElementById('user-list-content');
-        const logoutConfirmModal = document.getElementById('logout-confirm-modal');
-        const followersCountSpan = document.getElementById('followers-count');
-        const followingCountSpan = document.getElementById('following-count');
-        const totalLikesCountSpan = document.getElementById('total-likes-count'); 
-        const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
+        const elements = {
+            avatar: document.getElementById('avatar'),
+            username: document.getElementById('username'),
+            bio: document.getElementById('bio'),
+            onlineDot: document.getElementById('online-dot'),
+            followingCount: document.getElementById('following-count'),
+            followersCount: document.getElementById('followers-count'),
+            likesCount: document.getElementById('likes-count'),
+            actions: document.getElementById('actions'),
+            postsContainer: document.getElementById('posts-container')
+        };
 
-        // Listeners para colecciones de follow (para poder limpiarlos)
-        let followersCollListener = null;
-        let followingCollListener = null;
-
-        // Función para cerrar cualquier modal
-        window.closeModal = function(event, modalId) {
-            const modal = document.getElementById(modalId);
-            if (!event || event.target === modal || (event && event.currentTarget === modal)) {
-                modal.style.display = 'none';
-            }
-        }
-        
-        // ******************************************************
-        // LÓGICA DE LIKES
-        // ******************************************************
-
-        /**
-         * Maneja el evento de dar o quitar "Me Gusta" a una publicación.
-         * Usa una transacción para actualizar el contador de likes de forma segura.
-         * @param {string} postId El ID del documento de la publicación.
-         * @param {string} isCurrentlyLiked Un string 'true' o 'false' para el estado actual.
-         */
-        window.handleLikePost = async function(postId, isCurrentlyLiked) {
-            if (!currentUser) {
-                console.error("Debes iniciar sesión para dar Me Gusta.");
-                return;
-            }
-
-            const isLiked = isCurrentlyLiked === 'true';
-            const postRef = doc(db, "posts", postId);
-            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
-
-            try {
-                // Ejecutar la transacción para garantizar la atomicidad (seguridad)
-                await runTransaction(db, async (transaction) => {
-                    const postDoc = await transaction.get(postRef);
-                    if (!postDoc.exists()) {
-                        throw new Error("La publicación ya no existe.");
-                    }
-
-                    if (isLiked) {
-                        // 1. Quitar like
-                        transaction.delete(likeRef);
-                        // 2. Decrementar el contador
-                        transaction.update(postRef, {
-                            likes: increment(-1)
-                        });
-                        console.log("Like quitado con éxito.");
-                    } else {
-                        // 1. Dar like
-                        transaction.set(likeRef, { 
-                            userId: currentUser.uid, 
-                            timestamp: serverTimestamp() 
-                        });
-                        // 2. Incrementar el contador
-                        transaction.update(postRef, {
-                            likes: increment(1)
-                        });
-                        console.log("Like dado con éxito.");
-                    }
-                });
-            } catch (error) {
-                console.error("Error al manejar el like:", error);
-            }
-        }
-        
-        /**
-         * Verifica si el usuario actual le ha dado like a una publicación.
-         * @param {string} postId 
-         * @returns {Promise<boolean>}
-         */
-        async function checkUserLiked(postId) {
-            if (!currentUser) return false;
-            try {
-                const likeDoc = await getDoc(doc(db, "posts", postId, "likes", currentUser.uid));
-                return likeDoc.exists();
-            } catch (e) {
-                console.error("Error checking like status:", e);
-                return false;
-            }
-        }
-        
-
-        // ******************************************************
-        // LÓGICA DE PRESENCIA Y ESTADO ACTIVO
-        // ******************************************************
         function updatePresence() {
-            if (currentUser) {
-                try {
-                    const userRef = doc(db, "users", currentUser.uid);
-                    updateDoc(userRef, {
-                        lastSeen: serverTimestamp()
-                    }).catch(err => console.error("Error al actualizar lastSeen:", err));
-                } catch (error) {
-                    console.error("Error al actualizar presencia (updatePresence):", error);
-                }
-            }
+            if (currentUser) updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() });
         }
 
-        function checkAndDisplayStatus(userData) {
-            const lastSeen = userData.lastSeen;
-            const now = Date.now();
-            const activeThreshold = 60 * 1000;
-            let isOnline = false;
-
-            if (lastSeen) {
-                // Manejar tanto Firestore Timestamps como objetos Date si ya fueron convertidos
-                const lastSeenTime = lastSeen.toDate ? lastSeen.toDate().getTime() : (lastSeen.seconds * 1000) + (lastSeen.nanoseconds / 1000000); 
-                
-                if (now - lastSeenTime < activeThreshold) {
-                    isOnline = true;
-                }
-            }
-
-            onlineStatusIndicator.classList.remove('online');
-            onlineStatusIndicator.title = "Desconectado";
-
-            if (isOnline) {
-                onlineStatusIndicator.classList.add('online');
-                onlineStatusIndicator.title = "Activo ahora";
-            } else if (lastSeen) {
-                // Usar .toDate() si es un Timestamp, o usar la lógica de arriba
-                const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen.seconds * 1000);
-                onlineStatusIndicator.title = `Últ. vez activo: ${lastSeenDate.toLocaleTimeString()}`;
-            }
-        }
-
-
-        // ******************************************************
-        // LÓGICA DE SEGUIMIENTO Y LISTAS
-        // ******************************************************
-        
-        /**
-         * Obtiene el nombre de usuario de un ID específico.
-         * @param {string} userId - ID del usuario.
-         * @returns {Promise<string>} - Nombre de usuario o 'Usuario Desconocido'.
-         */
-        async function fetchUsername(userId) {
-            try {
-                const userDoc = await getDoc(doc(db, "users", userId));
-                // Si el documento existe, devuelve el username.
-                return userDoc.exists() ? userDoc.data().username : `Usuario Desconocido (${userId.substring(0, 4)}...)`;
-            } catch (e) {
-                console.error("Error fetching username:", e);
-                return 'Error al cargar';
-            }
-        }
-        
-        /**
-         * Muestra el modal de lista de seguidores o seguidos.
-         * @param {string} type - 'followers' o 'following'.
-         */
-        window.showFollowListModal = async function(type) {
-            listModalTitle.textContent = type === 'followers' ? 'Lista de Seguidores' : 'Lista de Siguiendo';
-            userListContent.innerHTML = '<p style="text-align: center;">Cargando...</p>';
-            listModal.style.display = 'flex';
-
-            const collectionName = type === 'followers' ? 'followers' : 'following';
-            const listRef = collection(db, "users", profileUserId, collectionName);
-
-            try {
-                const snapshot = await getDocs(listRef);
-                userListContent.innerHTML = '';
-                
-                if (snapshot.empty) {
-                    userListContent.innerHTML = `<p style="text-align: center; color:#888;">No hay usuarios en esta lista.</p>`;
-                    return;
-                }
-                
-                const userPromises = [];
-
-                snapshot.forEach((docSnap) => {
-                    const targetUserId = docSnap.id;
-                    userPromises.push(fetchUsername(targetUserId).then(username => ({ userId: targetUserId, username: username })));
-                });
-                
-                const userList = await Promise.all(userPromises);
-
-                userList.forEach((user) => {
-                     // Creamos el enlace al perfil del usuario en la lista
-                     userListContent.innerHTML += `
-                        <div class="user-list-item">
-                            <a href="profile.html?uid=${user.userId}" onclick="closeModal(null, 'list-modal')">@${user.username}</a>
-                        </div>
-                    `;
-                });
-                
-            } catch (error) {
-                console.error(`Error al cargar lista de ${type}:`, error);
-                userListContent.innerHTML = `<p style="text-align: center; color:red;">Error al cargar la lista.</p>`;
-            }
-        }
-
-        /**
-         * Maneja el seguimiento/dejar de seguir. Usa una transacción para actualizar 
-         * las subcolecciones Y los contadores del documento principal.
-         */
-        window.handleFollow = async function() {
-            if (!currentUser) return;
-            if (currentUser.uid === profileUserId) return; // No seguirse a uno mismo
-
-            const followBtn = actionButtonsDiv.querySelector('#follow-btn');
-            if (!followBtn) return;
-            
-            const isFollowing = followBtn.textContent.trim() === 'Siguiendo';
-            
-            const currentUserRef = doc(db, "users", currentUser.uid); // Documento de usuario actual
-            const targetUserRef = doc(db, "users", profileUserId);      // Documento del perfil visto
-
-            const currentUserFollowingRef = doc(db, "users", currentUser.uid, "following", profileUserId);
-            const targetUserFollowersRef = doc(db, "users", profileUserId, "followers", currentUser.uid);
-
-            try {
-                // Usar transacción para asegurar que todas las actualizaciones se completen o fallen juntas
-                await runTransaction(db, async (transaction) => {
-                    // 1. Obtener los documentos para verificar existencia
-                    const currentUserDoc = await transaction.get(currentUserRef);
-                    const targetUserDoc = await transaction.get(targetUserRef);
-
-                    if (!currentUserDoc.exists() || !targetUserDoc.exists()) {
-                        // Esto debe ser un error muy raro, pero es un buen chequeo de seguridad
-                        throw new Error("Uno o ambos perfiles principales no existen.");
-                    }
-                    
-                    const currentUsername = currentUserDoc.data().username || 'Usuario Nexus';
-                    const targetUsername = targetUserDoc.data().username || 'Usuario Desconocido';
-                    
-                    if (isFollowing) {
-                        // DEJAR DE SEGUIR
-                        transaction.delete(currentUserFollowingRef); // Borrar de mi lista de "siguiendo"
-                        transaction.delete(targetUserFollowersRef); // Borrar de su lista de "seguidores"
-                        
-                        // Decrementar contadores en los documentos principales
-                        // Nota: Firestore increment() manejará la inicialización a 0 si el campo no existe.
-                        transaction.update(currentUserRef, { followingCount: increment(-1) });
-                        transaction.update(targetUserRef, { followersCount: increment(-1) });
-                        console.log("Dejado de seguir con éxito. Contadores decrementados.");
-                    } else {
-                        // SEGUIR
-                        // 2. Añadir a subcolecciones
-                        transaction.set(currentUserFollowingRef, { 
-                            userId: profileUserId, 
-                            username: targetUsername, 
-                            timestamp: serverTimestamp() 
-                        });
-                        transaction.set(targetUserFollowersRef, { 
-                            userId: currentUser.uid, 
-                            username: currentUsername,
-                            timestamp: serverTimestamp() 
-                        });
-                        
-                        // 3. Incrementar contadores en los documentos principales
-                        // Nota: Si los campos no existen, Firestore los crea con el valor 1 (o -1 si es decremento).
-                        transaction.update(currentUserRef, { followingCount: increment(1) });
-                        transaction.update(targetUserRef, { followersCount: increment(1) });
-                        console.log("Siguiendo con éxito. Contadores incrementados.");
-                    }
-                });
-            } catch (error) {
-                console.error("Error en la transacción al seguir/dejar de seguir:", error);
-            }
-        }
-
-
-        // ******************************************************
-        // LÓGICA DE CIERRE DE SESIÓN
-        // ******************************************************
-        window.showLogoutModal = function() {
-            logoutConfirmModal.style.display = 'flex';
-        }
-
-        window.confirmLogout = async function() {
-            logoutConfirmModal.style.display = 'none';
-            try {
-                await signOut(auth);
-                window.location.href = 'login.html'; 
-            } catch (error) {
-                console.error("Error al cerrar sesión:", error);
-            }
-        }
-
-        // ******************************************************
-        // LÓGICA DE RENDERIZADO PRINCIPAL
-        // ******************************************************
-        
-        let profileDocListener = null;
-        let postSnapshotListener = null;
-        let followStatusListener = null;
-
-        // Función para limpiar todos los listeners
-        function unsubscribeAllListeners() {
-            if (profileDocListener) { profileDocListener(); profileDocListener = null; }
-            if (postSnapshotListener) { postSnapshotListener(); postSnapshotListener = null; }
-            if (followStatusListener) { followStatusListener(); followStatusListener = null; }
-
-            if (followersCollListener) { followersCollListener(); followersCollListener = null; }
-            if (followingCollListener) { followingCollListener(); followingCollListener = null; }
-        }
-
-        /**
-         * Suscribe listeners en tiempo real a las colecciones followers / following
-         * y actualiza los spans correspondientes con .size (número de documentos).
-         * @param {string} userId 
-         */
-        function subscribeFollowCounts(userId) {
-            // limpiar listeners previos
-            if (followersCollListener) { followersCollListener(); followersCollListener = null; }
-            if (followingCollListener) { followingCollListener(); followingCollListener = null; }
-
-            try {
-                const followersRef = collection(db, "users", userId, "followers");
-                followersCollListener = onSnapshot(followersRef, (snap) => {
-                    followersCountSpan.textContent = snap.size;
-                }, (err) => {
-                    console.error("Error listening followers collection:", err);
-                });
-
-                const followingRef = collection(db, "users", userId, "following");
-                followingCollListener = onSnapshot(followingRef, (snap) => {
-                    followingCountSpan.textContent = snap.size;
-                }, (err) => {
-                    console.error("Error listening following collection:", err);
-                });
-            } catch (e) {
-                console.error("subscribeFollowCounts error:", e);
-            }
-        }
-
-
-        function loadProfileData() {
-            if (!profileUserId) {
-                profileInfoDiv.innerHTML = '<h2>Error: ID de usuario no especificado.</h2>';
-                userPostsDiv.innerHTML = '';
-                return;
-            }
-            
-            // Desuscribir todos los listeners antes de cargar nuevos datos
-            unsubscribeAllListeners();
-
-            const userRef = doc(db, "users", profileUserId);
-            
-            // 1. Listener de Datos de Perfil, Estado Activo Y CONTADORES
-            profileDocListener = onSnapshot(userRef, async (userDoc) => {
-                if (!userDoc.exists()) {
-                    profileInfoDiv.innerHTML = '<h2>Usuario no encontrado.</h2>';
-                    return;
-                }
-                
-                profileUserData = userDoc.data();
-                
-                // === LECTURA SEGURA DE CONTADORES (USANDO || 0) ===
-                // Esto asegura que si el campo no existe en el documento, se use 0
-                const followersCount = profileUserData.followersCount || 0;
-                const followingCount = profileUserData.followingCount || 0;
-                
-                // Aseguramos que los números nunca sean negativos
-                const safeFollowersCount = Math.max(0, followersCount);
-                const safeFollowingCount = Math.max(0, followingCount);
-                // =======================================================
-                
-                document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
-                document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
-
-                // MOSTRAR CONTADORES ACTUALIZADOS (fallback: se actualizarán también por subscribeFollowCounts)
-                followersCountSpan.textContent = safeFollowersCount;
-                followingCountSpan.textContent = safeFollowingCount;
-                
-                checkAndDisplayStatus(profileUserData);
-                // NOTA: renderActionButtons() ahora maneja su propio listener de seguimiento si no es el usuario actual.
-                renderActionButtons();
-
-                // Inicializar los campos followersCount / followingCount si no existen (opcional, evita futuros problemas)
-                if (profileUserData.followersCount === undefined || profileUserData.followingCount === undefined) {
-                    try {
-                        await updateDoc(userRef, {
-                            followersCount: profileUserData.followersCount || 0,
-                            followingCount: profileUserData.followingCount || 0
-                        });
-                    } catch (e) {
-                        // No crítico: si falla, los listeners de colecciones seguirán mostrando los tamaños reales.
-                        console.warn("No se pudo inicializar followersCount/followingCount:", e);
-                    }
-                }
-
-                // SUBSCRIBIR a los contadores reales en subcolecciones (recuento por tamaño)
-                subscribeFollowCounts(profileUserId);
-            }, (error) => {
-                console.error("Error al cargar datos del perfil:", error);
-                profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
-            });
-            
-            // 2. Listener en tiempo real para las publicaciones (incluye cálculo de likes)
-            const postsQuery = query(
-                collection(db, "posts"), 
-                where("userId", "==", profileUserId)
-            );
-
-            postSnapshotListener = onSnapshot(postsQuery, (snapshot) => {
-                let posts = [];
-                let totalLikes = 0; 
-                
-                snapshot.forEach(doc => {
-                    const postData = doc.data();
-                    posts.push({ id: doc.id, ...postData });
-                    
-                    totalLikes += (postData.likes || 0);
-                });
-                
-                totalLikesCountSpan.textContent = totalLikes;
-
-                // Ordenar localmente por 'createdAt' (descendente)
-                posts.sort((a, b) => {
-                    const timeA = a.createdAt ? (a.createdAt.seconds * 1000) + (a.createdAt.nanoseconds / 1000000) : 0;
-                    const timeB = b.createdAt ? (b.createdAt.seconds * 1000) + (b.createdAt.nanoseconds / 1000000) : 0;
-                    return timeB - timeA;
-                });
-                
-                renderPosts(posts);
-            }, (error) => {
-                console.error("Error al escuchar publicaciones:", error);
-                userPostsDiv.innerHTML = '<p style="color: red;">Error al cargar las publicaciones del usuario en tiempo real.</p>';
-            });
-        }
-        
-        /**
-         * Renderiza las publicaciones y el botón de like.
-         * @param {Array<Object>} posts - Array de objetos de publicación.
-         */
-        async function renderPosts(posts) {
-            userPostsDiv.innerHTML = '';
-
-            if (posts.length === 0) {
-                userPostsDiv.innerHTML = '<p>Este usuario aún no tiene publicaciones.</p>';
-                return;
-            }
-
-            // Usamos Promise.all para obtener todos los estados de like en paralelo antes de renderizar
-            const postRenderPromises = posts.map(async (post) => {
-                const isLiked = await checkUserLiked(post.id);
-                const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleDateString() : 'Fecha desconocida';
-                
-                const heartClass = isLiked ? 'fa-heart liked' : 'fa-heart-o';
-                const likeStatus = isLiked ? 'true' : 'false';
-                
-                return `
-                    <div class="post-card">
-                        <p>${post.text}</p>
-                        <div class="post-footer">
-                            <small>Publicado: ${formattedDate} | Círculo: ${post.circleTarget || 'Global'}</small>
-                            <button class="like-btn" onclick="handleLikePost('${post.id}', '${likeStatus}')">
-                                <i id="like-icon-${post.id}" class="fa ${heartClass}"></i> 
-                                <span id="like-count-${post.id}">${post.likes || 0}</span>
-                            </button>
-                        </div>
+        function renderPost(post) {
+            const el = document.createElement('div');
+            el.className = 'post';
+            el.innerHTML = `
+                <div class="post-text">${post.text.replace(/\n/g, '<br>')}</div>
+                ${post.circleTarget ? `<div style="margin:8px 0"><span style="background:#e0f7fa;padding:4px 12px;border-radius:20px;color:var(--primary);font-size:0.9em;">${post.circleTarget}</span></div>` : ''}
+                <div class="post-footer">
+                    <div class="interaction">
+                        <button onclick="toggleLike('${post.id}', this)">
+                            <i class="far fa-heart"></i> <span>${post.likes || 0}</span>
+                        </button>
+                        <button><i class="far fa-comment"></i> <span>${post.commentsCount || 0}</span></button>
                     </div>
-                `;
-            });
+                    <small>${new Date(post.createdAt?.seconds * 1000).toLocaleDateString()}</small>
+                </div>
+            `;
 
-            const postHTML = await Promise.all(postRenderPromises);
-            userPostsDiv.innerHTML = postHTML.join('');
-        }
-        
-
-        // 3. Renderiza los botones de acción
-        function renderActionButtons() {
-            actionButtonsDiv.innerHTML = '';
-            
-            if (!currentUser) {
-                 actionButtonsDiv.innerHTML = '<p style="color:#888;">Inicia sesión para interactuar.</p>';
-                 return;
+            if (currentUser) {
+                const likeRef = doc(db, "posts", post.id, "likes", currentUser.uid);
+                onSnapshot(likeRef, snap => {
+                    const icon = el.querySelector('i');
+                    if (snap.exists()) {
+                        icon.className = 'fas fa-heart liked';
+                        icon.style.color = '#e91e63';
+                    } else {
+                        icon.className = 'far fa-heart';
+                    }
+                });
             }
+            return el;
+        }
 
-            if (currentUser.uid === profileUserId) {
-                // Usuario mirando su propio perfil
-                actionButtonsDiv.innerHTML = `
-                    <button onclick="showEditModal()">Editar Perfil</button>
-                    <button class="btn-danger" onclick="showLogoutModal()">Cerrar Sesión</button>
-                `;
+        window.toggleLike = async (postId, btn) => {
+            if (!currentUser) return location.href = 'login.html';
+            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
+            const postRef = doc(db, "posts", postId);
+            const snap = await getDocs(collection(postRef, "likes")).then(s => s.docs.some(d => d.id === currentUser.uid));
+            if (snap) {
+                await deleteDoc(likeRef);
+                await updateDoc(postRef, { likes: increment(-1) });
             } else {
-                // Usuario mirando otro perfil, configurar listener de seguimiento
-                
-                // Limpiar listener de seguimiento anterior si existe
-                if (followStatusListener) { followStatusListener(); followStatusListener = null; }
-                
-                const followerRef = doc(db, "users", currentUser.uid, "following", profileUserId);
-                
-                // Listener para detectar si el usuario actual sigue al perfil que está viendo
-                followStatusListener = onSnapshot(followerRef, (docSnapshot) => {
-                    const isFollowing = docSnapshot.exists();
-                    const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
-                    const buttonClass = isFollowing ? 'following' : '';
-                    
-                    // Renderiza el botón de seguimiento con el estado actual
-                    actionButtonsDiv.innerHTML = `
-                        <button id="follow-btn" class="${buttonClass}" onclick="handleFollow()">${buttonText}</button>
+                await setDoc(likeRef, { timestamp: serverTimestamp() });
+                await updateDoc(postRef, { likes: increment(1) });
+            }
+        };
+
+        window.openList = (type) => {
+            const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
+            document.getElementById('list-title').textContent = title;
+            const body = document.getElementById('list-body');
+            body.innerHTML = 'Cargando...';
+            document.getElementById('list-modal').style.display = 'flex';
+
+            const col = collection(db, "users", profileUid, type);
+            onSnapshot(col, snap => {
+                if (snap.empty) {
+                    body.innerHTML = '<div class="empty">Aún no hay nadie aquí</div>';
+                    return;
+                }
+                body.innerHTML = '';
+                snap.forEach(d => {
+                    const uid = d.id;
+                    getDoc(doc(db, "users", uid)).then(userDoc => {
+                        const data = userDoc.data();
+                        body.innerHTML += `
+                            <div class="user-item">
+                                <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                                    ${data?.username?.[0] || '?'}
+                                </div>
+                                <a href="profile.html?uid=${uid}">@${data?.username || 'Anónimo'}</a>
+                            </div>
+                        `;
+                    });
+                });
+            });
+        };
+
+        onAuthStateChanged(auth, user => {
+            if (!user) return location.href = 'login.html';
+            currentUser = user;
+            profileUid = profileUid || user.uid;
+
+            updatePresence();
+            setInterval(updatePresence, 30000);
+
+            // Perfil
+            const userRef = doc(db, "users", profileUid);
+            onSnapshot(userRef, doc => {
+                if (!doc.exists()) return elements.bio.textContent = 'Usuario no encontrado';
+                const data = doc.data();
+                elements.avatar.textContent = (data.username?.[0] || '?').toUpperCase();
+                elements.username.firstChild.textContent = '@' + (data.username || 'Anónimo');
+                elements.bio.textContent = data.bio || 'Sin biografía.';
+                const now = Date.now();
+                const last = data.lastSeen?.toDate?.() || 0;
+                if (now - last < 60000) elements.onlineDot.style.display = 'block';
+                else elements.onlineDot.style.display = 'none';
+
+                // Acciones
+                if (user.uid === profileUid) {
+                    elements.actions.innerHTML = `
+                        <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
+                        <div class="btn" style="background:#eee;color:#333;" onclick="alert('Editar perfil próximamente')">Editar Perfil</div>
                     `;
-                }, (error) => {
-                    console.error("Error al escuchar estado de seguimiento:", error);
-                    actionButtonsDiv.innerHTML = `<p style="color:red;">Error de carga de seguimiento.</p>`;
-                });
-            }
-        }
-
-        // 4. Lógica de edición de perfil
-        window.showEditModal = function() {
-            document.getElementById('edit-username').value = profileUserData.username || '';
-            document.getElementById('edit-bio').value = profileUserData.bio || '';
-            document.getElementById('edit-modal').style.display = 'flex';
-        }
-
-        window.saveProfileChanges = async function() {
-            const newUsername = document.getElementById('edit-username').value.trim();
-            const newBio = document.getElementById('edit-bio').value.trim();
-            
-            if (!newUsername) {
-                console.error("El nombre de usuario no puede estar vacío."); 
-                return;
-            }
-
-            try {
-                // Actualizar el documento del usuario
-                await updateDoc(doc(db, "users", currentUser.uid), {
-                    username: newUsername,
-                    bio: newBio
-                });
-                
-                closeModal(null, 'edit-modal');
-            } catch (error) {
-                console.error("Error al guardar cambios:", error);
-            }
-        }
-
-        // ******************************************************
-        // INICIO DE LA APLICACIÓN
-        // ******************************************************
-        document.addEventListener('DOMContentLoaded', () => {
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    // Determinar el perfil a mostrar: si hay 'uid' en la URL, se muestra ese; si no, el propio.
-                    profileUserId = urlParams.get('uid') || currentUser.uid;
-                    
-                    updatePresence(); 
-                    // Actualizar presencia cada 30 segundos
-                    setInterval(updatePresence, 30000); 
-
-                    loadProfileData();
-
                 } else {
-                    // Si no hay usuario, redirigir al login
-                    window.location.href = 'login.html';
+                    const followRef = doc(db, "users", user.uid, "following", profileUid);
+                    onSnapshot(followRef, snap => {
+                        const following = snap.exists();
+                        elements.actions.innerHTML = `
+                            <div class="btn ${following ? 'btn-following' : 'btn-follow'}" 
+                                 onclick="toggleFollow('${profileUid}', this)">
+                                ${following ? 'Siguiendo' : 'Seguir'}
+                            </div>
+                        `;
+                    });
                 }
             });
-            
-            // Asegúrate de limpiar los listeners al salir de la página
-            window.addEventListener('beforeunload', unsubscribeAllListeners);
+
+            // Contadores
+            ['followers', 'following'].forEach(type => {
+                onSnapshot(collection(db, "users", profileUid, type), snap => {
+                    elements[type + 'Count'].textContent = snap.size;
+                });
+            });
+
+            // Posts
+            const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
+            onSnapshot(q, snap => {
+                elements.postsContainer.innerHTML = '';
+                if (snap.empty) {
+                    elements.postsContainer.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+                    return;
+                }
+                let totalLikes = 0;
+                snap.forEach(doc => {
+                    const post = { id: doc.id, ...doc.data() };
+                    totalLikes += post.likes || 0;
+                    elements.postsContainer.appendChild(renderPost(post));
+                });
+                elements.likesCount.textContent = totalLikes;
+            });
         });
+
+        window.toggleFollow = async (targetUid, btn) => {
+            if (!currentUser) return;
+            const myFollowing = doc(db, "users", currentUser.uid, "following", targetUid);
+            const theirFollowers = doc(db, "users", targetUid, "followers", currentUser.uid);
+            const snap = await getDoc(myFollowing);
+            if (snap.exists()) {
+                await deleteDoc(myFollowing);
+                await deleteDoc(theirFollowers);
+            } else {
+                await setDoc(myFollowing, { timestamp: serverTimestamp() });
+                await setDoc(theirFollowers, { timestamp: serverTimestamp() });
+            }
+        };
     </script>
 </body>
 </html>
