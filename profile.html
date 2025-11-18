@@ -285,6 +285,9 @@
         const totalLikesCountSpan = document.getElementById('total-likes-count'); 
         const onlineStatusIndicator = document.getElementById('online-status-indicator'); 
 
+        // Listeners para colecciones de follow (para poder limpiarlos)
+        let followersCollListener = null;
+        let followingCollListener = null;
 
         // Función para cerrar cualquier modal
         window.closeModal = function(event, modalId) {
@@ -576,6 +579,38 @@
             if (profileDocListener) { profileDocListener(); profileDocListener = null; }
             if (postSnapshotListener) { postSnapshotListener(); postSnapshotListener = null; }
             if (followStatusListener) { followStatusListener(); followStatusListener = null; }
+
+            if (followersCollListener) { followersCollListener(); followersCollListener = null; }
+            if (followingCollListener) { followingCollListener(); followingCollListener = null; }
+        }
+
+        /**
+         * Suscribe listeners en tiempo real a las colecciones followers / following
+         * y actualiza los spans correspondientes con .size (número de documentos).
+         * @param {string} userId 
+         */
+        function subscribeFollowCounts(userId) {
+            // limpiar listeners previos
+            if (followersCollListener) { followersCollListener(); followersCollListener = null; }
+            if (followingCollListener) { followingCollListener(); followingCollListener = null; }
+
+            try {
+                const followersRef = collection(db, "users", userId, "followers");
+                followersCollListener = onSnapshot(followersRef, (snap) => {
+                    followersCountSpan.textContent = snap.size;
+                }, (err) => {
+                    console.error("Error listening followers collection:", err);
+                });
+
+                const followingRef = collection(db, "users", userId, "following");
+                followingCollListener = onSnapshot(followingRef, (snap) => {
+                    followingCountSpan.textContent = snap.size;
+                }, (err) => {
+                    console.error("Error listening following collection:", err);
+                });
+            } catch (e) {
+                console.error("subscribeFollowCounts error:", e);
+            }
         }
 
 
@@ -613,13 +648,29 @@
                 document.getElementById('profile-username').textContent = profileUserData.username || `Usuario Nexus`;
                 document.getElementById('profile-bio').textContent = profileUserData.bio || 'Sin biografía.';
 
-                // MOSTRAR CONTADORES ACTUALIZADOS
+                // MOSTRAR CONTADORES ACTUALIZADOS (fallback: se actualizarán también por subscribeFollowCounts)
                 followersCountSpan.textContent = safeFollowersCount;
                 followingCountSpan.textContent = safeFollowingCount;
                 
                 checkAndDisplayStatus(profileUserData);
                 // NOTA: renderActionButtons() ahora maneja su propio listener de seguimiento si no es el usuario actual.
-                renderActionButtons(); 
+                renderActionButtons();
+
+                // Inicializar los campos followersCount / followingCount si no existen (opcional, evita futuros problemas)
+                if (profileUserData.followersCount === undefined || profileUserData.followingCount === undefined) {
+                    try {
+                        await updateDoc(userRef, {
+                            followersCount: profileUserData.followersCount || 0,
+                            followingCount: profileUserData.followingCount || 0
+                        });
+                    } catch (e) {
+                        // No crítico: si falla, los listeners de colecciones seguirán mostrando los tamaños reales.
+                        console.warn("No se pudo inicializar followersCount/followingCount:", e);
+                    }
+                }
+
+                // SUBSCRIBIR a los contadores reales en subcolecciones (recuento por tamaño)
+                subscribeFollowCounts(profileUserId);
             }, (error) => {
                 console.error("Error al cargar datos del perfil:", error);
                 profileInfoDiv.innerHTML = '<h2>Error al cargar el perfil.</h2>';
@@ -794,4 +845,3 @@
     </script>
 </body>
 </html>
-
