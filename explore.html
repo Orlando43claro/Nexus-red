@@ -16,7 +16,7 @@
 
         .search-bar {
             background:white; padding:14px 16px; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom:20px; display:flex; align-items:center; gap:12px;
+            margin-bottom:20px; display:flex; align-items:center; gap:12px; position:sticky; top:70px; z-index:99;
         }
         .search-bar input {
             border:none; outline:none; flex:1; font-size:1.1em;
@@ -53,7 +53,7 @@
         .follow-btn.following { background:var(--s); }
         .follow-btn:hover { opacity:0.9; }
 
-        .empty { text-align:center; padding:40px 20px; color:#888; }
+        .empty { text-align:center; padding:40px 20px; color:#888; font-size:1.1em; }
         .loading { text-align:center; padding:60px; color:#666; }
         #search-results { background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.1); margin-bottom:20px; max-height:70vh; overflow-y:auto; }
     </style>
@@ -75,7 +75,7 @@
         <!-- Barra de búsqueda -->
         <div class="search-bar">
             <i class="fas fa-search"></i>
-            <input type="text" id="search-input" placeholder="Buscar usuarios o #hashtags..." autocomplete="off">
+            <input type="text" id="search-input" placeholder="Buscar usuarios, #hashtags o texto..." autocomplete="off">
         </div>
 
         <!-- Resultados de búsqueda -->
@@ -98,7 +98,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, where, orderBy, limit, getDocs, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, query, where, orderBy, limit, doc, getDoc, setDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -120,66 +120,65 @@
         const trendList = document.getElementById('trend-list');
         const userGrid = document.getElementById('user-grid');
 
-        // === Búsqueda en tiempo real ===
+        // BÚSQUEDA QUE SÍ FUNCIONA (sin depender de índices)
         searchInput.addEventListener('input', async () => {
-            const q = searchInput.value.trim();
+            const q = searchInput.value.trim().toLowerCase();
             if (q.length < 2) {
                 searchResults.style.display = 'none';
                 return;
             }
 
             searchResults.style.display = 'block';
-            searchResults.innerHTML = '<div class="loading">Buscando...</div>';
+            searchResults.innerHTML = '<div class="loading">Buscando en toda la red...</div>';
 
             let html = '';
 
-            // Buscar usuarios por username
-            const usersQuery = query(collection(db, "users"), where("username", ">=", q.toLowerCase()), where("username", "<=", q.toLowerCase() + '\uf8ff'));
-            const usersSnap = await getDocs(usersQuery);
-
+            // 1. BUSCAR USUARIOS (cargamos todos y filtramos en cliente)
+            const usersSnap = await getDocs(collection(db, "users"));
             usersSnap.forEach(doc => {
                 const u = doc.data();
-                if (currentUser && doc.id === currentUser.uid) return;
-                html += `
-                    <div style="padding:16px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #eee;">
-                        <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U')}" 
-                             style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
-                        <div style="flex:1;">
-                            <div style="font-weight:600;">${u.username || 'Usuario'}</div>
-                            <div style="color:#666;font-size:0.9em;">${u.bio ? u.bio.substring(0,50)+'...' : 'Sin bio'}</div>
+                const username = (u.username || '').toLowerCase();
+                if (username.includes(q) && (!currentUser || doc.id !== currentUser.uid)) {
+                    html += `
+                        <div style="padding:16px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #eee; cursor:pointer;" onclick="location.href='profile.html?uid=${doc.id}'">
+                            <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U')}" 
+                                 style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+                            <div>
+                                <div style="font-weight:600;">${u.username || 'Anónimo'}</div>
+                                <div style="color:#666;font-size:0.9em;">${u.bio ? u.bio.substring(0,60)+'...' : 'Sin biografía'}</div>
+                            </div>
                         </div>
-                        <a href="profile.html?uid=${doc.id}" style="color:var(--p);font-weight:600;">Ver →</a>
-                    </div>
-                `;
+                    `;
+                }
             });
 
-            // Buscar hashtags
+            // 2. BUSCAR POR HASHTAG
             if (q.startsWith('#')) {
-                const tag = q.slice(1).toLowerCase();
-                const postsSnap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", q), limit(5)));
+                const tag = q;
+                const postsSnap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", tag)));
                 postsSnap.forEach(p => {
                     const post = p.data();
                     html += `
-                        <div style="padding:16px; background:#f0f8ff; border-radius:12px; margin:12px 0;">
-                            <strong style="color:var(--p);">${q}</strong><br>
-                            "${post.text.substring(0,100)}..."
+                        <div style="padding:16px; background:#f0f8ff; border-radius:12px; margin:12px 0; cursor:pointer;" onclick="location.href='feed.html#post-${p.id}'">
+                            <strong style="color:var(--p);">${tag}</strong><br>
+                            "${post.text.substring(0,120)}..."
                             <br><small>Por @${post.username || 'Anónimo'} · ${post.likes || 0} likes</small>
                         </div>
                     `;
                 });
             }
 
-            searchResults.innerHTML = html || '<div class="empty">No hay resultados</div>';
+            searchResults.innerHTML = html || '<div class="empty">No se encontraron resultados para "' + searchInput.value + '"</div>';
         });
 
-        // === Cargar tendencias (#Tendencias) ===
+        // CARGAR TENDENCIAS (#Tendencias)
         async function loadTrends() {
-            const q = query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias"), orderBy("createdAt", "desc"), limit(15));
+            const q = query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias"), orderBy("createdAt", "desc"));
             const snap = await getDocs(q);
 
             trendList.innerHTML = '';
             if (snap.empty) {
-                trendList.innerHTML = '<div class="empty">Aún no hay publicaciones con #Tendencias</div>';
+                trendList.innerHTML = '<div class="empty">Aún no hay publicaciones con #Tendencias<br><small>¡Sé el primero en usar este círculo!</small></div>';
                 return;
             }
 
@@ -191,7 +190,7 @@
                 div.innerHTML = `
                     <div class="trend-title">${p.text.split('\n')[0]}</div>
                     <div class="trend-meta">
-                        Por <a href="profile.html?uid=${p.userId}" style="color:var(--p);">@${p.username || 'Anónimo'}</a> · 
+                        Por <span style="color:var(--p); cursor:pointer;" onclick="event.stopPropagation(); location.href='profile.html?uid=${p.userId}'">@${p.username || 'Anónimo'}</span> · 
                         ${p.likes || 0} Me gusta · ${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}
                     </div>
                 `;
@@ -199,19 +198,19 @@
             });
         }
 
-        // === Usuarios sugeridos (más publicaciones) ===
+        // USUARIOS SUGERIDOS (los que más publican)
         async function loadSuggestedUsers() {
             const postsSnap = await getDocs(collection(db, "posts"));
             const counts = {};
 
             postsSnap.forEach(d => {
                 const uid = d.data().userId;
-                counts[uid] = (counts[uid] || 0) + 1;
+                if (uid) counts[uid] = (counts[uid] || 0) + 1;
             });
 
             const sorted = Object.keys(counts)
                 .sort((a, b) => counts[b] - counts[a])
-                .filter(uid => uid !== currentUser?.uid)
+                .filter(uid => !currentUser || uid !== currentUser.uid)
                 .slice(0, 12);
 
             userGrid.innerHTML = '';
@@ -242,7 +241,7 @@
             }
         }
 
-        // === Seguir / Dejar de seguir ===
+        // SEGUIR / DEJAR DE SEGUIR
         window.toggleFollow = async (targetId, btn) => {
             if (!currentUser) {
                 alert("Inicia sesión para seguir usuarios");
@@ -254,6 +253,7 @@
             const exists = (await getDoc(myRef)).exists();
 
             btn.disabled = true;
+            btn.textContent = exists ? 'Siguiendo...' : 'Siguiendo';
 
             if (exists) {
                 await deleteDoc(myRef);
@@ -270,7 +270,7 @@
             btn.disabled = false;
         };
 
-        // === INICIO ===
+        // INICIAR
         onAuthStateChanged(auth, user => {
             currentUser = user;
             loadTrends();
