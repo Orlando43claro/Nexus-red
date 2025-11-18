@@ -16,7 +16,7 @@
         .cover { height:180px; background:linear-gradient(135deg,var(--p),#005f93); border-radius:16px 16px 0 0; position:relative; }
         .avatar { width:120px; height:120px; border-radius:50%; background:var(--p); color:white; font-size:3em; font-weight:bold;
             display:flex; align-items:center; justify-content:center; position:absolute; bottom:-60px; left:20px;
-            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); object-fit:cover; }
         .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; }
         .username { font-size:1.8em; font-weight:700; margin:0 0 8px; display:flex; align-items:center; gap:10px; }
         .online { width:14px; height:14px; background:#28a745; border-radius:50%; border:3px solid white; box-shadow:0 0 0 2px #28a745; }
@@ -41,12 +41,8 @@
         .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
 
         .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000; padding:20px; }
-        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; }
-        .modal-header { padding:16px 20px; border-bottom:1px solid #eee; font-weight:600; font-size:1.2em; }
-        .modal-body { flex:1; overflow-y:auto; padding:20px; }
-        .user-item { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #eee; }
-        .user-item a { color:var(--p); font-weight:600; text-decoration:none; }
-        .user-avatar { width:44px; height:44px; border-radius:50%; background:var(--p); color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; }
+        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; padding:20px; }
+        .avatar-preview { width:100px; height:100px; border-radius:50%; object-fit:cover; margin:10px 0; border:4px solid var(--p); }
     </style>
 </head>
 <body>
@@ -61,7 +57,7 @@
 
     <div class="profile">
         <div class="cover"></div>
-        <div class="avatar" id="avatar">?</div>
+        <img class="avatar" id="avatar" src="https://via.placeholder.com/120?text=?">
         <div class="info">
             <h2 class="username" id="username">Cargando...</h2>
             <div class="bio" id="bio">Cargando perfil...</div>
@@ -78,26 +74,32 @@
         <div id="posts-container"></div>
     </div>
 
-    <!-- Modal Lista -->
-    <div class="modal" id="list-modal" onclick="this.style.display='none'">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header" id="list-title">Seguidores</div>
-            <div class="modal-body" id="list-body">Cargando...</div>
-        </div>
-    </div>
-
     <!-- Modal Editar Perfil -->
     <div class="modal" id="edit-modal" onclick="this.style.display='none'">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="modal-header">Editar Perfil</div>
-            <div class="modal-body">
-                <input type="text" id="edit-username" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
-                <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
-                <div style="display:flex;gap:10px;margin-top:20px;">
-                    <button class="btn btn-primary" onclick="saveProfile()">Guardar</button>
-                    <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
-                </div>
+            <h3>Editar Perfil</h3>
+            
+            <div style="text-align:center;">
+                <img id="avatar-preview" class="avatar-preview" src="https://via.placeholder.com/100?text=?">
+                <br>
+                <input type="file" id="photo-input" accept="image/*" style="margin:10px 0;">
             </div>
+
+            <input type="text" id="edit-username" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
+            <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button class="btn btn-primary" onclick="saveProfile()">Guardar Cambios</button>
+                <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Lista -->
+    <div class="modal" id="list-modal" onclick="this.style.display='none'">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div style="padding:16px 20px; border-bottom:17px solid #eee; font-weight:600; font-size:1.2em;" id="list-title">Seguidores</div>
+            <div style="padding:20px; max-height:70vh; overflow-y:auto;" id="list-body">Cargando...</div>
         </div>
     </div>
 
@@ -105,6 +107,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp, increment, deleteDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -118,6 +121,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        const storage = getStorage(app);
 
         let currentUser = null;
         let profileUid = new URLSearchParams(location.search).get('uid');
@@ -136,24 +140,19 @@
             currentUser = user;
             profileUid = profileUid || user.uid;
 
-            // === PERFIL ===
             const userRef = doc(db, "users", profileUid);
             onSnapshot(userRef, snap => {
-                if (!snap.exists()) {
-                    usernameEl.textContent = "Usuario no encontrado";
-                    return;
-                }
+                if (!snap.exists()) { usernameEl.textContent = "Usuario no encontrado"; return; }
                 const d = snap.data();
-                avatar.textContent = (d.username?.[0] || '?').toUpperCase();
+                avatar.src = d.photoURL || `https://ui-avatars.com/api/?name=${d.username || 'User'}&background=0077b6&color=fff&size=120`;
                 usernameEl.firstChild.textContent = '@' + (d.username || 'Anónimo');
                 bioEl.textContent = d.bio || 'Sin biografía aún.';
                 onlineDot.style.display = (Date.now() - (d.lastSeen?.toDate?.() || 0) < 60000) ? 'block' : 'none';
 
-                // Botones
                 if (user.uid === profileUid) {
                     $('actions').innerHTML = `
                         <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                        <div class="btn btn-orange" onclick="openEditModal('${d.username||''}', '${d.bio||''}')">Editar Perfil</div>
+                        <div class="btn btn-orange" onclick="openEditModal('${d.username||''}', '${d.bio||''}', '${d.photoURL||''}')">Editar Perfil</div>
                     `;
                 } else {
                     const followRef = doc(db, "users", user.uid, "following", profileUid);
@@ -166,11 +165,9 @@
                 }
             });
 
-            // === CONTADORES ===
             onSnapshot(collection(db, "users", profileUid, "followers"), s => $('followers').textContent = s.size);
             onSnapshot(collection(db, "users", profileUid, "following"), s => $('following').textContent = s.size);
 
-            // === PUBLICACIONES + TOTAL LIKES ===
             const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
                 const container = $('posts-container');
@@ -209,40 +206,63 @@
             });
         });
 
-        window.openEditModal = (name, bio) => {
+        window.openEditModal = (name, bio, photo) => {
             $('edit-username').value = name;
             $('edit-bio').value = bio;
+            $('avatar-preview').src = photo || `https://ui-avatars.com/api/?name=${name}&background=0077b6&color=fff`;
+            $('photo-input').value = '';
             $('edit-modal').style.display = 'flex';
         };
+
+        $('photo-input').addEventListener('change', e => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = ev => $('avatar-preview').src = ev.target.result;
+                reader.readAsDataURL(file);
+            }
+        });
 
         window.saveProfile = async () => {
             const name = $('edit-username').value.trim();
             const bio = $('edit-bio').value.trim();
+            const file = $('photo-input').files[0];
+
             if (!name) return alert("El nombre no puede estar vacío");
-            await updateDoc(doc(db, "users", currentUser.uid), { username: name, bio });
+
+            let photoURL = null;
+            if (file) {
+                const refi = ref(storage, `avatars/${currentUser.uid}`);
+                await uploadBytes(refi, file);
+                photoURL = await getDownloadURL(refi);
+            }
+
+            await updateDoc(doc(db, "users", currentUser.uid), {
+                username: name,
+                bio: bio,
+                ...(photoURL && { photoURL })
+            });
+
             $('edit-modal').style.display = 'none';
         };
 
         window.showList = (type) => {
-            const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
-            $('list-title').textContent = title;
+            $('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
             const body = $('list-body');
             body.innerHTML = 'Cargando...';
             $('list-modal').style.display = 'flex';
 
             onSnapshot(collection(db, "users", profileUid, type), snap => {
-                if (snap.empty) {
-                    body.innerHTML = '<div class="empty">Aún no hay nadie</div>';
-                    return;
-                }
+                if (snap.empty) { body.innerHTML = '<div class="empty">Aún no hay nadie</div>'; return; }
                 body.innerHTML = '';
                 snap.forEach(d => {
                     getDoc(doc(db, "users", d.id)).then(u => {
                         const data = u.data() || {};
                         body.innerHTML += `
-                            <div class="user-item">
-                                <div class="user-avatar">${data.username?.[0] || '?'}</div>
-                                <a href="profile.html?uid=${d.id}">@${data.username || 'Anónimo'}</a>
+                            <div style="display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid #eee;">
+                                <img src="${data.photoURL || `https://ui-avatars.com/api/?name=${data.username || '?'}&background=0077b6&color=fff`}" 
+                                     style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
+                                <a href="profile.html?uid=${d.id}" style="color:var(--p);font-weight:600;text-decoration:none;">@${data.username || 'Anónimo'}</a>
                             </div>
                         `;
                     });
