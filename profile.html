@@ -6,43 +6,37 @@
     <title>Nexus | Perfil</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --d:#dc3545; }
+        :root { --p:#0077b6; --o:#ff9900; --g:#6c757d; --s:#28a745; --d:#dc3545; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
-        .header h1 { margin:0; font-size:1.7em; font-weight:700; }
+        .header h1 { margin:0; font-size:1.8em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
 
         .profile { max-width:600px; margin:0 auto; padding:16px; }
-        .cover { height:180px; background:linear-gradient(135deg,var(--p),#005f93); border-radius:16px 16px 0 0; position:relative; }
+        .cover { height:180px; background:linear-gradient(135deg,var(--p),#005f93); border-radius:16px 16px 0 0; }
         .avatar { width:120px; height:120px; border-radius:50%; object-fit:cover; position:absolute; bottom:-60px; left:20px;
             border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
-        .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; }
-        .username { font-size:1.8em; font-weight:700; margin:0 0 8px; display:flex; align-items:center; gap:10px; }
-        .online { width:14px; height:14px; background:#28a745; border-radius:50%; border:3px solid white; box-shadow:0 0 0 2px #28a745; }
+        .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; position:relative; }
+        .username { font-size:1.8em; font-weight:700; margin:0 0 8px; }
         .bio { color:#555; font-size:1.05em; line-height:1.5; margin:12px 0; }
         .stats { display:flex; justify-content:space-around; padding:16px 0; background:#fafafa; border-radius:12px; margin:16px 0; }
-        .stat { text-align:center; cursor:pointer; }
+        .stat { text-align:center; }
         .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
         .stat span { color:var(--g); font-weight:500; }
         .actions { display:flex; gap:12px; margin:16px 0; }
-        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; }
+        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; transition:0.2s; }
         .btn-primary { background:var(--p); color:white; }
         .btn-orange { background:var(--o); color:white; }
-        .btn-gray { background:var(--g); color:white; }
+        .btn-follow { background:var(--o); color:white; }
+        .btn-following { background:var(--s); color:white; }
+        .btn-following:hover { background:#218838; }
 
         .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
         .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
         .circle { background:#e0f7fa; color:var(--p); padding:4px 12px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
         .post-footer { display:flex; justify-content:space-between; align-items:center; color:#666; font-size:0.9em; margin-top:10px; }
         .interaction button { background:none; border:none; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
-        .liked { color:#e91e63 !important; }
         .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
-
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000; padding:20px; }
-        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; padding:20px; }
-        .avatar-preview { width:100px; height:100px; border-radius:50%; object-fit:cover; margin:15px auto; display:block; border:4px solid var(--p); }
-        .file-label { background:var(--p); color:white; padding:12px 24px; border-radius:30px; cursor:pointer; display:inline-block; margin:10px 0; font-weight:600; }
-        .file-label:hover { background:#005f93; }
     </style>
 </head>
 <body>
@@ -51,20 +45,22 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Feed</a>
+            <a href="explore.html">Explorar</a>
             <a href="create-post.html">Crear</a>
+            <a href="profile.html">Perfil</a>
         </nav>
     </header>
 
     <div class="profile">
         <div class="cover"></div>
-        <img class="avatar" id="avatar" src="https://via.placeholder.com/120/0077b6/ffffff?text=?">
+        <img class="avatar" id="avatar" src="">
         <div class="info">
             <h2 class="username" id="username">Cargando...</h2>
             <div class="bio" id="bio">Cargando perfil...</div>
 
             <div class="stats">
-                <div class="stat" onclick="showList('following')"><strong id="following">0</strong><span>Siguiendo</span></div>
-                <div class="stat" onclick="showList('followers')"><strong id="followers">0</strong><span>Seguidores</span></div>
+                <div class="stat"><strong id="following-count">0</strong><span>Siguiendo</span></div>
+                <div class="stat"><strong id="followers-count">0</strong><span>Seguidores</span></div>
                 <div class="stat"><strong id="total-likes">0</strong><span>Me gusta</span></div>
             </div>
 
@@ -74,43 +70,10 @@
         <div id="posts-container"></div>
     </div>
 
-    <!-- Modal Editar Perfil -->
-    <div class="modal" id="edit-modal">
-        <div class="modal-content">
-            <h3 style="margin-top:0;text-align:center;">Editar Perfil</h3>
-            
-            <div style="text-align:center;">
-                <img id="avatar-preview" class="avatar-preview" src="">
-                <br>
-                <label class="file-label">
-                    Cambiar foto
-                    <input type="file" id="photo-input" accept="image/*" style="display:none">
-                </label>
-            </div>
-
-            <input type="text" id="edit-username" placeholder="Nombre de usuario" style="width:100%;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;">
-            <textarea id="edit-bio" placeholder="Biografía" style="width:100%;height:100px;padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:8px;resize:vertical;"></textarea>
-            
-            <div style="display:flex;gap:10px;margin-top:20px;">
-                <button class="btn btn-primary" id="save-btn">Guardar Cambios</button>
-                <button class="btn" style="background:#eee;color:#333" onclick="document.getElementById('edit-modal').style.display='none'">Cancelar</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal Listas -->
-    <div class="modal" id="list-modal">
-        <div class="modal-content">
-            <div style="padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;font-size:1.2em;" id="list-title">Seguidores</div>
-            <div style="padding:20px;max-height:70vh;overflow-y:auto;" id="list-body">Cargando...</div>
-        </div>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, updateDoc, serverTimestamp, increment, deleteDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, getDoc, updateDoc, serverTimestamp, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
@@ -124,137 +87,124 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const storage = getStorage(app);
 
         let currentUser = null;
-        let profileUid = new URLSearchParams(location.search).get('uid');
+        let profileUid = new URLSearchParams(location.search).get('uid') || null;
 
-        const avatar = document.getElementById('avatar');
-        const usernameEl = document.getElementById('username');
-        const bioEl = document.getElementById('bio');
-        const onlineDot = document.createElement('div');
-        onlineDot.className = 'online';
-        onlineDot.style.display = 'none';
-        usernameEl.appendChild(onlineDot);
+        const actionsDiv = document.getElementById('actions');
+        const postsContainer = document.getElementById('posts-container');
 
-        // === FUNCIONES GLOBALES (fuera del onAuth para que el botón las vea) ===
-        window.openEditModal = async () => {
-            const snap = await getDoc(doc(db, "users", currentUser.uid));
-            const d = snap.data();
-            document.getElementById('edit-username').value = d.username || '';
-            document.getElementById('edit-bio').value = d.bio || '';
-            document.getElementById('avatar-preview').src = d.photoURL || `https://ui-avatars.com/api/?name=${d.username || 'U'}&background=0077b6&color=fff`;
-            document.getElementById('edit-modal').style.display = 'flex';
+        // Renderizar botones según sea propio o ajeno
+        async function renderButtons(isOwnProfile, targetUid) {
+            if (isOwnProfile) {
+                actionsDiv.innerHTML = `
+                    <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
+                    <div class="btn btn-orange" onclick="alert('Editar perfil próximamente')">Editar Perfil</div>
+                `;
+            } else {
+                const followRef = doc(db, "users", currentUser.uid, "following", targetUid);
+                const snap = await getDoc(followRef);
+                const isFollowing = snap.exists();
+
+                actionsDiv.innerHTML = `
+                    <button class="btn ${isFollowing ? 'btn-following' : 'btn-follow'}" 
+                            id="follow-btn" onclick="toggleFollow('${targetUid}')">
+                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
+                    </button>
+                `;
+            }
+        }
+
+        window.toggleFollow = async (targetUid) => {
+            if (!currentUser) return alert("Inicia sesión");
+
+            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
+            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
+            const btn = document.getElementById('follow-btn');
+            const exists = (await getDoc(myRef)).exists();
+
+            if (exists) {
+                await deleteDoc(myRef);
+                await deleteDoc(theirRef);
+                btn.textContent = 'Seguir';
+                btn.classList.replace('btn-following', 'btn-follow');
+            } else {
+                await setDoc(myRef, { t: serverTimestamp() });
+                await setDoc(theirRef, { t: serverTimestamp() });
+                btn.textContent = 'Siguiendo';
+                btn.classList.replace('btn-follow', 'btn-following');
+            }
         };
 
-        document.getElementById('photo-input').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => document.getElementById('avatar-preview').src = ev.target.result;
-                reader.readAsDataURL(file);
-            }
-        });
-
-        document.getElementById('save-btn').addEventListener('click', async () => {
-            const name = document.getElementById('edit-username').value.trim();
-            const bio = document.getElementById('edit-bio').value.trim();
-            const file = document.getElementById('photo-input').files[0];
-
-            if (!name) {
-                alert("El nombre es obligatorio");
-                return;
-            }
-
-            const updates = { username: name, bio: bio };
-
-            if (file) {
-                const storageRef = ref(storage, `avatars/${currentUser.uid}`);
-                await uploadBytes(storageRef, file);
-                const photoURL = await getDownloadURL(storageRef);
-                updates.photoURL = photoURL;
-            }
-
-            await updateDoc(doc(db, "users", currentUser.uid), updates);
-            document.getElementById('edit-modal').style.display = 'none';
-            alert("¡Perfil actualizado con éxito!");
-        });
-
-        window.showList = (type) => {
-            document.getElementById('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
-            const body = document.getElementById('list-body');
-            body.innerHTML = 'Cargando...';
-            document.getElementById('list-modal').style.display = 'flex';
-
-            onSnapshot(collection(db, "users", profileUid, type), snap => {
-                if (snap.empty) { body.innerHTML = '<div class="empty">Aún nadie</div>'; return; }
-                body.innerHTML = '';
-                snap.forEach(d => {
-                    getDoc(doc(db, "users", d.id)).then(u => {
-                        const data = u.data() || {};
-                        body.innerHTML += `
-                            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eee;">
-                                <img src="${data.photoURL || 'https://ui-avatars.com/api/?name=' + (data.username||'?')}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
-                                <a href="profile.html?uid=${d.id}" style="color:var(--p);font-weight:600;text-decoration:none;">@${data.username || 'Anónimo'}</a>
-                            </div>`;
-                    });
-                });
-            });
-        };
-
-        // === CARGA DEL PERFIL ===
-        onAuthStateChanged(auth, user => {
+        onAuthStateChanged(auth, async (user) => {
             if (!user) return location.href = 'login.html';
             currentUser = user;
             profileUid = profileUid || user.uid;
 
             const userRef = doc(db, "users", profileUid);
-            onSnapshot(userRef, snap => {
-                if (!snap.exists()) { usernameEl.textContent = "Usuario no encontrado"; return; }
-                const d = snap.data();
-                avatar.src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=120`;
-                usernameEl.firstChild.textContent = '@' + (d.username || 'Anónimo');
-                bioEl.textContent = d.bio || 'Sin biografía aún.';
-                onlineDot.style.display = (Date.now() - (d.lastSeen?.toDate?.() || 0) < 60000) ? 'block' : 'none';
 
-                if (user.uid === profileUid) {
-                    document.getElementById('actions').innerHTML = `
-                        <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                        <div class="btn btn-orange" onclick="openEditModal()">Editar Perfil</div>
-                    `;
+            // Escuchar datos del perfil
+            onSnapshot(userRef, async (snap) => {
+                if (!snap.exists()) {
+                    document.getElementById('username').textContent = 'Usuario no encontrado';
+                    return;
                 }
+                const d = snap.data();
+
+                document.getElementById('avatar').src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=256`;
+                document.getElementById('username').textContent = '@' + (d.username || 'Anónimo');
+                document.getElementById('bio').textContent = d.bio || 'Sin biografía aún.';
+
+                // Renderizar botones correctos
+                await renderButtons(currentUser.uid === profileUid, profileUid);
             });
 
-            // Contadores y publicaciones (igual que antes)
-            onSnapshot(collection(db, "users", profileUid, "followers"), s => document.getElementById('followers').textContent = s.size);
-            onSnapshot(collection(db, "users", profileUid, "following"), s => document.getElementById('following').textContent = s.size);
+            // Contadores en tiempo real
+            onSnapshot(collection(db, "users", profileUid, "followers"), s => {
+                document.getElementById('followers-count').textContent = s.size;
+            });
+            onSnapshot(collection(db, "users", profileUid, "following"), s => {
+                document.getElementById('following-count').textContent = s.size;
+            });
 
-            const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
-            onSnapshot(q, snap => {
-                const container = document.getElementById('posts-container');
-                container.innerHTML = '';
-                let total = 0;
-                if (snap.empty) {
-                    container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+            // CARGAR PUBLICACIONES + CONTAR LIKES TOTALES
+            const postsQuery = query(collection(db, "posts"), where("userId", "==", profileUid));
+            onSnapshot(postsQuery, (snapshot) => {
+                postsContainer.innerHTML = '';
+                let totalLikes = 0;
+
+                if (snapshot.empty) {
+                    postsContainer.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
                     document.getElementById('total-likes').textContent = '0';
                     return;
                 }
-                snap.forEach(doc => {
-                    const p = doc.data();
-                    total += p.likes || 0;
-                    const post = document.createElement('div');
-                    post.className = 'post';
-                    post.innerHTML = `
+
+                const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+                // Ordenar por fecha (cualquier campo que exista)
+                posts.sort((a, b) => {
+                    const timeA = a.createdAt?.seconds || a.timestamp?.seconds || 0;
+                    const timeB = b.createdAt?.seconds || b.timestamp?.seconds || 0;
+                    return timeB - timeA;
+                });
+
+                posts.forEach(p => {
+                    totalLikes += (p.likes || 0);
+
+                    const postEl = document.createElement('div');
+                    postEl.className = 'post';
+                    postEl.innerHTML = `
                         <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
                         ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
                         <div class="post-footer">
-                            <button onclick="alert('Like funciona en feed')"><i class="far fa-heart"></i> <span>${p.likes||0}</span></button>
-                            <small>${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}</small>
+                            <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
+                            <small>${p.createdAt ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Reciente'}</small>
                         </div>
                     `;
-                    container.appendChild(post);
+                    postsContainer.appendChild(postEl);
                 });
-                document.getElementById('total-likes').textContent = total;
+
+                document.getElementById('total-likes').textContent = totalLikes;
             });
         });
     </script>
