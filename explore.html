@@ -24,7 +24,7 @@
         .search-bar i { color:#888; font-size:1.3em; }
 
         .section { background:white; border-radius:16px; padding:20px; margin-bottom:20px; box-shadow:0 2px 12px rgba(0,0,0,0.08); }
-        .section h2 { margin:0 0 16px; color:var(--p; font-size:1.4em; display:flex; align-items:center; gap:8px; }
+        .section h2 { margin:0 0 16px; color:var(--p); font-size:1.4em; display:flex; align-items:center; gap:8px; }
 
         .trend-item {
             padding:16px; border-bottom:1px solid #eee; cursor:pointer; border-radius:12px; transition:0.2s;
@@ -55,6 +55,7 @@
 
         .empty { text-align:center; padding:40px 20px; color:#888; }
         .loading { text-align:center; padding:60px; color:#666; }
+        #search-results { background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.1); margin-bottom:20px; max-height:70vh; overflow-y:auto; }
     </style>
 </head>
 <body>
@@ -63,7 +64,7 @@
         <h1>NEXUS</h1>
         <nav>
             <a href="feed.html">Feed</a>
-            <a href="explore.html" style="font-weight:bold;>Explorar</a>
+            <a href="explore.html" style="font-weight:bold;">Explorar</a>
             <a href="create-post.html">Crear</a>
             <a href="profile.html">Perfil</a>
         </nav>
@@ -89,7 +90,7 @@
         <!-- Usuarios sugeridos -->
         <div class="section" id="users-section">
             <h2>Quién seguir</h2>
-            <div id="user-grid" class="user-grid loading">Calculando usuarios populares...</div>
+            <div id="user-grid" class="user-grid loading">Buscando usuarios populares...</div>
         </div>
 
     </div>
@@ -119,63 +120,69 @@
         const trendList = document.getElementById('trend-list');
         const userGrid = document.getElementById('user-grid');
 
-        // Búsqueda en tiempo real
+        // === Búsqueda en tiempo real ===
         searchInput.addEventListener('input', async () => {
-            const q = searchInput.value.trim().toLowerCase();
+            const q = searchInput.value.trim();
             if (q.length < 2) {
                 searchResults.style.display = 'none';
-                searchResults.innerHTML = '';
                 return;
             }
 
             searchResults.style.display = 'block';
             searchResults.innerHTML = '<div class="loading">Buscando...</div>';
 
-            const usersSnap = await getDocs(query(collection(db, "users"), where("username", ">=", q), where("username", "<=", q + '\uf8ff')));
             let html = '';
+
+            // Buscar usuarios por username
+            const usersQuery = query(collection(db, "users"), where("username", ">=", q.toLowerCase()), where("username", "<=", q.toLowerCase() + '\uf8ff'));
+            const usersSnap = await getDocs(usersQuery);
 
             usersSnap.forEach(doc => {
                 const u = doc.data();
-                if (u.uid === currentUser?.uid) return;
+                if (currentUser && doc.id === currentUser.uid) return;
                 html += `
-                    <div style="padding:12px 16px; display:flex; align-items:center; gap:12px; border-bottom:1px solid #eee;">
-                        <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + u.username}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
-                        <div>
+                    <div style="padding:16px; display:flex; align-items:center; gap:14px; border-bottom:1px solid #eee;">
+                        <img src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U')}" 
+                             style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+                        <div style="flex:1;">
                             <div style="font-weight:600;">${u.username || 'Usuario'}</div>
-                            <div style="color:#666; font-size:0.9em;">@${u.username}</div>
+                            <div style="color:#666;font-size:0.9em;">${u.bio ? u.bio.substring(0,50)+'...' : 'Sin bio'}</div>
                         </div>
-                        <a href="profile.html?uid=${doc.id}" style="margin-left:auto; color:var(--p);">Ver perfil →</a>
+                        <a href="profile.html?uid=${doc.id}" style="color:var(--p);font-weight:600;">Ver →</a>
                     </div>
                 `;
             });
 
+            // Buscar hashtags
             if (q.startsWith('#')) {
-                const tag = q.slice(1);
-                const postsSnap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", `#${tag}`), orderBy("createdAt", "desc"), limit(5)));
+                const tag = q.slice(1).toLowerCase();
+                const postsSnap = await getDocs(query(collection(db, "posts"), where("circleTarget", "==", q), limit(5)));
                 postsSnap.forEach(p => {
                     const post = p.data();
                     html += `
-                        <div style="padding:16px; background:#f8fbff; border-radius:12px; margin:8px 0;">
-                            <strong>${post.circleTarget}</strong><br>
-                            "${post.text.substring(0,80)}..."
-                            <br><small>Por @${post.username || 'Anónimo'}</small>
+                        <div style="padding:16px; background:#f0f8ff; border-radius:12px; margin:12px 0;">
+                            <strong style="color:var(--p);">${q}</strong><br>
+                            "${post.text.substring(0,100)}..."
+                            <br><small>Por @${post.username || 'Anónimo'} · ${post.likes || 0} likes</small>
                         </div>
                     `;
                 });
             }
 
-            searchResults.innerHTML = html || '<div class="empty">No se encontraron resultados</div>';
+            searchResults.innerHTML = html || '<div class="empty">No hay resultados</div>';
         });
 
-        // Cargar tendencias
+        // === Cargar tendencias (#Tendencias) ===
         async function loadTrends() {
-            const q = query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias"), orderBy("createdAt", "desc"), limit(10));
+            const q = query(collection(db, "posts"), where("circleTarget", "==", "#Tendencias"), orderBy("createdAt", "desc"), limit(15));
             const snap = await getDocs(q);
+
             trendList.innerHTML = '';
             if (snap.empty) {
-                trendList.innerHTML = '<div class="empty">Aún no hay tendencias. ¡Sé el primero en usar #Tendencias!</div>';
+                trendList.innerHTML = '<div class="empty">Aún no hay publicaciones con #Tendencias</div>';
                 return;
             }
+
             snap.forEach(doc => {
                 const p = doc.data();
                 const div = document.createElement('div');
@@ -184,60 +191,69 @@
                 div.innerHTML = `
                     <div class="trend-title">${p.text.split('\n')[0]}</div>
                     <div class="trend-meta">
-                        Por <a href="profile.html?uid=${p.userId}">@${p.username || 'Anónimo'}</a> · 
-                        ${p.likes || 0} likes · ${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}
+                        Por <a href="profile.html?uid=${p.userId}" style="color:var(--p);">@${p.username || 'Anónimo'}</a> · 
+                        ${p.likes || 0} Me gusta · ${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}
                     </div>
                 `;
                 trendList.appendChild(div);
             });
         }
 
-        // Cargar usuarios sugeridos
+        // === Usuarios sugeridos (más publicaciones) ===
         async function loadSuggestedUsers() {
             const postsSnap = await getDocs(collection(db, "posts"));
             const counts = {};
 
             postsSnap.forEach(d => {
-                const u = d.data().userId;
-                counts[u] = (counts[u] || 0) + 1;
+                const uid = d.data().userId;
+                counts[uid] = (counts[uid] || 0) + 1;
             });
 
-            const userIds = Object.keys(counts).sort((a,b) => counts[b] - counts[a]).slice(0, 12);
-            if (currentUser) userIds = userIds.filter(id => id !== currentUser.uid);
+            const sorted = Object.keys(counts)
+                .sort((a, b) => counts[b] - counts[a])
+                .filter(uid => uid !== currentUser?.uid)
+                .slice(0, 12);
 
             userGrid.innerHTML = '';
 
-            for (const uid of userIds) {
+            for (const uid of sorted) {
                 const userDoc = await getDoc(doc(db, "users", uid));
                 if (!userDoc.exists()) continue;
                 const u = userDoc.data();
 
-                const isFollowing = currentUser ? (await getDoc(doc(db, "users", currentUser.uid, "following", uid))).exists() => true : false;
+                const following = currentUser ? (await getDoc(doc(db, "users", currentUser.uid, "following", uid))).exists() : false;
 
                 const card = document.createElement('div');
                 card.className = 'user-card';
                 card.innerHTML = `
-                    <img class="user-avatar" src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + (u.username||'U') + '&background=0077b6&color=fff'}">
+                    <img class="user-avatar" src="${u.photoURL || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.username || 'U') + '&background=0077b6&color=fff'}">
                     <div class="user-name">${u.username || 'Usuario'}</div>
                     <div class="user-username">@${u.username || 'anon'}</div>
-                    <button class="follow-btn ${isFollowing ? 'following' : ''}" 
+                    <button class="follow-btn ${following ? 'following' : ''}" 
                             onclick="toggleFollow('${uid}', this)">
-                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
+                        ${following ? 'Siguiendo' : 'Seguir'}
                     </button>
                 `;
                 userGrid.appendChild(card);
             }
 
-            if (userIds.length === 0) {
+            if (sorted.length === 0) {
                 userGrid.innerHTML = '<div class="empty">No hay usuarios activos aún</div>';
             }
         }
 
+        // === Seguir / Dejar de seguir ===
         window.toggleFollow = async (targetId, btn) => {
-            if (!currentUser) return alert("Inicia sesión para seguir");
+            if (!currentUser) {
+                alert("Inicia sesión para seguir usuarios");
+                return;
+            }
+
             const myRef = doc(db, "users", currentUser.uid, "following", targetId);
             const theirRef = doc(db, "users", targetId, "followers", currentUser.uid);
             const exists = (await getDoc(myRef)).exists();
+
+            btn.disabled = true;
 
             if (exists) {
                 await deleteDoc(myRef);
@@ -245,14 +261,16 @@
                 btn.textContent = 'Seguir';
                 btn.classList.remove('following');
             } else {
-                await setDoc(myRef, {t:serverTimestamp()});
-                await setDoc(theirRef, {t:serverTimestamp()});
+                await setDoc(myRef, { t: serverTimestamp() });
+                await setDoc(theirRef, { t: serverTimestamp() });
                 btn.textContent = 'Siguiendo';
                 btn.classList.add('following');
             }
+
+            btn.disabled = false;
         };
 
-        // Inicializar
+        // === INICIO ===
         onAuthStateChanged(auth, user => {
             currentUser = user;
             loadTrends();
