@@ -4,47 +4,81 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nexus | Configurar Perfil</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Estilos Mínimos y Responsivos */
         body { 
-            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
-            display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; padding: 20px;
+            font-family: 'Inter', sans-serif; margin: 0; background: linear-gradient(135deg, #0077b6, #00b4d8); 
+            display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px;
         }
         .container { 
-            background-color: white; padding: 30px; border-radius: 12px; 
-            max-width: 500px; width: 100%; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1); 
-            text-align: center;
+            background: white; padding: 40px; border-radius: 16px; max-width: 500px; width: 100%; 
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2); text-align: center; position: relative;
         }
-        h2 { color: #0077b6; margin-bottom: 5px; }
-        p { color: #555; margin-bottom: 30px; }
-        label { display: block; text-align: left; margin-top: 15px; font-weight: bold; color: #333; }
-        textarea, input[type="text"] { 
-            width: 100%; padding: 12px; margin-top: 5px; 
-            border: 1px solid #ddd; border-radius: 8px; 
-            box-sizing: border-box; font-size: 16px;
+        h2 { color: #0077b6; margin-bottom: 8px; font-size: 2em; }
+        p.subtitle { color: #555; margin-bottom: 30px; font-size: 1.1em; }
+        label { display: block; text-align: left; margin-top: 20px; font-weight: 600; color: #333; }
+        input, textarea { 
+            width: 100%; padding: 14px; margin-top: 8px; border: 1px solid #ddd; border-radius: 10px; 
+            box-sizing: border-box; font-size: 16px; transition: border 0.3s;
         }
-        textarea { resize: vertical; min-height: 100px; }
+        input:focus, textarea:focus { outline: none; border-color: #0077b6; box-shadow: 0 0 0 3px rgba(0,119,182,0.1); }
+        textarea { resize: vertical; min-height: 110px; }
+        small { color: #777; font-size: 0.9em; }
         button { 
-            background-color: #28a745; /* Verde para acción de guardar/finalizar */
-            color: white; padding: 14px 20px; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            width: 100%; margin-top: 25px; font-weight: bold; 
-            transition: background-color 0.3s;
+            background-color: #0077b6; color: white; padding: 16px; border: none; border-radius: 10px; 
+            cursor: pointer; width: 100%; margin-top: 30px; font-weight: bold; font-size: 1.1em;
+            transition: background-color 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;
         }
-        button:hover { background-color: #1e7e34; }
-        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; }
-        .info-message { color: #0077b6; margin-bottom: 20px; }
+        button:hover { background-color: #005f93; }
+        button:disabled { background-color: #aaa; cursor: not-allowed; }
+        .success-message, .error-message { 
+            margin-top: 20px; padding: 12px; border-radius: 8px; font-weight: 500; display: none;
+        }
+        .success-message { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error-message { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .preview { margin-top: 10px; font-size: 1.4em; color: #0077b6; font-weight: bold; }
     </style>
+</head>
+<body>
 
-    <!-- 1. Carga de SDKs de Firebase (Auth y Firestore) -->
+    <div class="container">
+        <h2>¡Bienvenido a Nexus!</h2>
+        <p class="subtitle">Completa tu perfil para empezar a conectar</p>
+
+        <form id="setupForm">
+            <label for="username">Nombre de usuario</label>
+            <input type="text" id="username" placeholder="ejemplo123" maxlength="20" required autocomplete="off">
+            <small>Solo letras minúsculas, números y guiones bajos. No se puede cambiar fácilmente.</small>
+            <div class="preview">@<span id="usernamePreview">elige tu usuario</span></div>
+
+            <label for="bio">Biografía</label>
+            <textarea id="bio" placeholder="Ej: Amante del café ☕ | Creador de #ViajesEnSolitario | Siempre aprendiendo" maxlength="200"></textarea>
+            <small><span id="bioChars">0</span>/200 caracteres</small>
+
+            <label for="firstCircleName">Tu primer Círculo de Influencia</label>
+            <input type="text" id="firstCircleName" placeholder="Ej: Amigos Cercanos, Familia, Equipo de Trabajo" required>
+            <small>Este será tu espacio privado por defecto</small>
+
+            <button type="submit" id="submitBtn">
+                <span id="btnText">Finalizar y Entrar a Nexus</span>
+                <i class="fas fa-arrow-right" id="btnIcon"></i>
+            </button>
+        </form>
+
+        <div id="successMessage" class="success-message">
+            ¡Perfil creado con éxito! Redirigiendo al feed...
+        </div>
+        <div id="errorMessage" class="error-message"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
-        
-        // 2. Configuración de Firebase (Tus Credenciales)
+        import { 
+            getFirestore, doc, setDoc, getDoc, collection, serverTimestamp 
+        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
             authDomain: "nexus-2c445.firebaseapp.com",
@@ -54,93 +88,132 @@
             appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
         };
 
-        // 3. Inicializar Firebase y Servicios
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let currentUser = null; // Variable para almacenar el usuario autenticado
+        let currentUser = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            const setupForm = document.getElementById('setupForm');
-            const errorDisplay = document.getElementById('errorMessage');
+            const form = document.getElementById('setupForm');
+            const usernameInput = document.getElementById('username');
+            const usernamePreview = document.getElementById('usernamePreview');
+            const bioInput = document.getElementById('bio');
+            const bioChars = document.getElementById('bioChars');
+            const errorDiv = document.getElementById('errorMessage');
+            const successDiv = document.getElementById('successMessage');
+            const submitBtn = document.getElementById('submitBtn');
+            const btnText = document.getElementById('btnText');
+            const btnIcon = document.getElementById('btnIcon');
 
-            // 4. Verificar el estado de Autenticación
+            // Preview del username en tiempo real
+            usernameInput.addEventListener('input', () => {
+                const val = usernameInput.value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+                usernameInput.value = val;
+                usernamePreview.textContent = val || 'elige tu usuario';
+            });
+
+            // Contador de caracteres de bio
+            bioInput.addEventListener('input', () => {
+                bioChars.textContent = bioInput.value.length;
+            });
+
             onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    currentUser = user;
-                    console.log("Usuario autenticado. UID:", user.uid);
-                    // Mostrar el nombre de usuario que viene de la etapa de registro
-                    document.getElementById('welcome-message').textContent = `Bienvenido, @${user.displayName || 'nuevo usuario'}!`;
+                if (!user) {
+                    window.location.href = 'login.html';
                 } else {
-                    // Si el usuario no está logueado, lo enviamos de vuelta al inicio de sesión
-                    alert("Debes iniciar sesión para configurar tu perfil.");
-                    window.location.href = 'login.html'; 
+                    currentUser = user;
                 }
             });
 
-            // 5. Manejar el envío del formulario para guardar datos en Firestore
-            setupForm.addEventListener('submit', async (e) => {
+            form.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                errorDisplay.textContent = '';
-                
-                if (!currentUser) {
-                    errorDisplay.textContent = 'Error: Sesión no encontrada. Por favor, reinicia la página.';
+                errorDiv.style.display = 'none';
+                successDiv.style.display = 'none';
+                errorDiv.textContent = '';
+
+                submitBtn.disabled = true;
+                btnText.textContent = 'Creando tu perfil...';
+                btnIcon.className = 'fas fa-spinner fa-spin';
+
+                const username = usernameInput.value.trim();
+                const bio = bioInput.value.trim();
+                const circleName = document.getElementById('firstCircleName').value.trim() || "Mi Círculo Cercano";
+
+                // Validaciones
+                if (!username || username.length < 3) {
+                    showError('El usuario debe tener al menos 3 caracteres');
+                    resetButton();
+                    return;
+                }
+                if (!/^[a-z0-9_]+$/.test(username)) {
+                    showError('Solo letras minúsculas, números y guiones bajos');
+                    resetButton();
                     return;
                 }
 
-                const bio = document.getElementById('bio').value;
-                const firstCircleName = document.getElementById('firstCircleName').value;
-
                 try {
-                    // Crear el documento de perfil en la colección 'users' usando el UID como ID del documento
-                    await setDoc(doc(db, "users", currentUser.uid), {
-                        username: currentUser.displayName, // Nombre de usuario guardado de Authentication
-                        email: currentUser.email,
-                        bio: bio,
-                        // El primer Círculo de Influencia es crucial para la experiencia Nexus
-                        circles: [
-                            { name: firstCircleName, isPrivate: true, membersCount: 1 }
-                        ],
-                        profilePictureUrl: 'https://placehold.co/100x100/CCCCCC/fff?text=N', // Placeholder por ahora
+                    // 1. Verificar si el username ya existe
+                    const usernameDoc = await getDoc(doc(db, "usernames", username));
+                    if (usernameDoc.exists()) {
+                        showError('Este nombre de usuario ya está en uso');
+                        resetButton();
+                        return;
+                    }
+
+                    // 2. Crear el primer círculo
+                    const circleRef = doc(collection(db, "circles"));
+                    await setDoc(circleRef, {
+                        name: circleName,
+                        creatorId: currentUser.uid,
+                        isPrivate: true,
+                        memberIds: [currentUser.uid],
                         createdAt: serverTimestamp()
                     });
 
-                    // Éxito: Redirigir al Feed, ahora con el usuario logueado
-                    alert("¡Perfil configurado! Ya puedes empezar a conectar en Nexus.");
-                    window.location.href = 'feed.html';
+                    // 3. Crear perfil del usuario
+                    await setDoc(doc(db, "users", currentUser.uid), {
+                        username,
+                        usernameLower: username.toLowerCase(),
+                        email: currentUser.email || null,
+                        bio: bio || "Nuevo en Nexus",
+                        circleIds: [circleRef.id],
+                        profilePictureUrl: `https://placehold.co/100x100/0077b6/white?text=${username[0].toUpperCase()}`,
+                        followersCount: 0,
+                        followingCount: 0,
+                        createdAt: serverTimestamp(),
+                        lastSeen: serverTimestamp()
+                    });
+
+                    // 4. Reservar el username
+                    await setDoc(doc(db, "usernames", username), {
+                        uid: currentUser.uid
+                    });
+
+                    // ¡ÉXITO!
+                    successDiv.style.display = 'block';
+                    setTimeout(() => {
+                        window.location.href = 'feed.html';
+                    }, 1800);
 
                 } catch (error) {
-                    errorDisplay.textContent = 'Error al guardar el perfil. Revisa la consola para más detalles.';
-                    console.error("Error al guardar en Firestore:", error);
+                    console.error("Error al crear perfil:", error);
+                    showError('Error inesperado. Inténtalo más tarde.');
+                    resetButton();
                 }
             });
+
+            function showError(msg) {
+                errorDiv.textContent = msg;
+                errorDiv.style.display = 'block';
+            }
+
+            function resetButton() {
+                submitBtn.disabled = false;
+                btnText.textContent = 'Finalizar y Entrar a Nexus';
+                btnIcon.className = 'fas fa-arrow-right';
+            }
         });
     </script>
-</head>
-<body>
-
-    <div class="container">
-        <h2 id="welcome-message">Configuración de Perfil</h2>
-        <p class="info-message">¡Es el último paso! Crea tu biografía y define tu primer Círculo de Influencia para empezar a usar Nexus.</p>
-
-        <form id="setupForm">
-            
-            <label for="bio">Biografía (Cuéntale al mundo quién eres):</label>
-            <textarea id="bio" placeholder="Ej: Viajero digital, amante del café y creador del Círculo #ViajesEnSolitario." maxlength="200" required></textarea>
-
-            <label for="firstCircleName">Nombre de tu Primer Círculo de Influencia:</label>
-            <input type="text" id="firstCircleName" placeholder="Ej: Amigos Cercanos, Familia, Proyectos de Trabajo" required>
-            <small style="display: block; text-align: left; color: #888;">Este es el grupo donde compartirás tu contenido más privado o específico.</small>
-            
-            <!-- Nota: La carga de fotos a Firebase Storage es omitida por simplicidad en un solo archivo -->
-            <!-- <label for="profilePic">Foto de Perfil (Opcional):</label>
-            <input type="file" id="profilePic" accept="image/*"> -->
-
-            <button type="submit">Finalizar y Entrar a Nexus</button>
-        </form>
-
-        <p id="errorMessage" class="error-message"></p>
-    </div>
 </body>
 </html>
