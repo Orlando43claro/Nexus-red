@@ -3,75 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | El Flujo (Feed)</title>
+    <title>Nexus | Feed</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        /* Estilos Base */
-        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; }
-        .header { background-color: #0077b6; color: white; padding: 10px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { margin: 0; font-size: 1.5em; }
-        .header nav { display: flex; gap: 10px; }
-        .header a { color: white; text-decoration: none; padding: 5px 10px; border-radius: 5px; transition: background-color 0.3s; }
-        .header a:hover { background-color: #005f93; }
-        .filter-bar { padding: 10px; background-color: white; border-bottom: 1px solid #ddd; text-align: center; }
-        
-        /* Estilos del Post Dinámico */
-        .post { background-color: white; margin: 20px auto; padding: 15px; border-radius: 8px; max-width: 500px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-        .author-info { display: flex; align-items: center; gap: 10px; }
-        .post-author { 
-            font-weight: bold; color: #0077b6; cursor: pointer; text-decoration: none;
-            transition: color 0.2s; 
+        :root {
+            --primary: #0077b6;
+            --success: #28a745;
+            --danger: #dc3545;
+            --orange: #ff9900;
+            --gray: #6c757d;
         }
-        .post-author:hover { text-decoration: underline; color: #004d7a; }
-        .follow-button {
-            background-color: #ff9900; color: white; border: none; padding: 5px 10px;
-            border-radius: 5px; font-size: 0.8em; cursor: pointer; transition: background-color 0.2s;
+        body { font-family: 'Inter', sans-serif; margin: 0; background: #f0f2f5; }
+        .header {
+            background: var(--primary); color: white; padding: 12px 20px;
+            display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100;
         }
-        .follow-button:hover { background-color: #cc7a00; }
-        .following { background-color: #28a745; }
-        .following:hover { background-color: #1e7e34; }
+        .header h1 { margin: 0; font-size: 1.6em; font-weight: 700; }
+        .header nav { display: flex; gap: 15px; }
+        .header a { color: white; text-decoration: none; padding: 8px 14px; border-radius: 8px; font-weight: 500; transition: 0.2s; }
+        .header a:hover { background: rgba(255,255,255,0.2); }
 
+        main { max-width: 560px; margin: 0 auto; padding: 10px; }
 
-        .post-target { font-size: 0.75em; color: #555; background-color: #e0f7fa; padding: 4px 8px; border-radius: 12px; }
-        .post-content { margin: 10px 0; line-height: 1.5; color: #333; }
-        .interaction-bar { display: flex; justify-content: space-around; border-top: 1px solid #eee; padding-top: 10px; margin-top: 10px;}
-        .interaction-bar button { background: none; border: none; cursor: pointer; color: #555; padding: 5px 10px; font-weight: 600; }
-        .interaction-bar button:hover { color: #0077b6; }
-        .post-meta { font-size: 0.8em; color: #888; text-align: left; margin-top: 5px;}
-        .likes-info { cursor: pointer; text-decoration: underline; }
-        
-        /* Estilos de Modal (General) */
+        .post {
+            background: white; margin-bottom: 16px; border-radius: 16px;
+            overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            animation: fadeIn 0.4s ease-out;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: none; } }
+
+        .post-header {
+            padding: 14px 16px 8px; display: flex; justify-content: space-between; align-items: flex-start;
+        }
+        .author-info { display: flex; align-items: center; gap: 12px; flex: 1; }
+        .author-avatar {
+            width: 44px; height: 44px; border-radius: 50%; background: var(--primary); color: white;
+            display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.1em;
+        }
+        .author-name { font-weight: 600; color: #1a1a1a; }
+        .author-username { color: var(--primary); font-weight: 500; }
+        .post-meta { font-size: 0.85em; color: #666; margin-top: 2px; }
+
+        .follow-btn {
+            padding: 6px 14px; border: none; border-radius: 20px; font-size: 0.85em;
+            font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        .follow-btn.follow { background: var(--orange); color: white; }
+        .follow-btn.following { background: var(--gray); color: white; }
+        .follow-btn.following:hover { background: var(--danger); }
+
+        .post-content {
+            padding: 0 16px; font-size: 1.05em; line-height: 1.55; color: #1a1a1a; word-break: break-word;
+        }
+        .circle-badge {
+            font-size: 0.75em; background: #e0f7fa; color: var(--primary); padding: 4px 10px;
+            border-radius: 20px; font-weight: 500; margin-top: 8px; display: inline-block;
+        }
+
+        .interaction-bar {
+            display: flex; justify-content: space-between; padding: 10px 16px;
+            border-top: 1px solid #eee; margin-top: 12px;
+        }
+        .interaction-btn {
+            background: none; border: none; font-size: 1.4em; cursor: pointer;
+            padding: 8px 12px; border-radius: 8px; transition: 0.2s;
+            display: flex; align-items: center; gap: 6px; font-weight: 500; color: #555;
+        }
+        .interaction-btn:hover { background: #f0f2f5; }
+        .interaction-btn.liked { color: #e91e63; }
+        .interaction-btn .count { font-size: 0.9em; color: #555; }
+
+        .stats-bar {
+            padding: 8px 16px; font-size: 0.85em; color: #666;
+            display: flex; justify-content: space-between; border-top: 1px solid #eee;
+        }
+        .stats-bar span { cursor: pointer; }
+        .stats-bar span:hover { text-decoration: underline; }
+
         .modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0, 0, 0, 0.7); justify-content: center; align-items: center; z-index: 1000;
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+            justify-content: center; align-items: center; z-index: 1000; padding: 20px;
         }
         .modal-content {
-            background-color: white; padding: 30px; border-radius: 10px;
-            text-align: center; max-width: 400px; width: 90%; 
-            max-height: 80vh; overflow-y: auto; /* Para modales de comentarios */
+            background: white; border-radius: 16px; width: 100%; max-width: 480px;
+            max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;
         }
-        .btn-register {
-            background-color: #0077b6; color: white; padding: 10px 20px;
-            border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;
+        .modal-header {
+            padding: 16px 20px; border-bottom: 1px solid #eee; font-weight: 600; font-size: 1.1em;
         }
-        
-        /* Estilos del Modal de Comentarios y Likes */
-        .comment-item { 
-            display: flex; flex-direction: column; text-align: left;
-            padding: 10px 0; border-bottom: 1px solid #eee;
+        .modal-body {
+            padding: 0 20px; flex: 1; overflow-y: auto;
         }
-        .comment-author { font-weight: bold; color: #333; margin-right: 5px; }
-        .comment-text { font-size: 0.9em; color: #555; }
-        .comment-input-area { margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd; }
-        .comment-input-area textarea { 
-            width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 5px;
-            margin-bottom: 10px; box-sizing: border-box; resize: none;
+        .comment-item, .like-item {
+            padding: 12px 0; border-bottom: 1px solid #eee; display: flex; align-items: flex-start; gap: 10px;
         }
-        .comment-input-area button { width: 100%; padding: 10px; background-color: #28a745; color: white; border-radius: 5px; }
+        .comment-author { font-weight: 600; color: var(--primary); }
+        .comment-text { margin-top: 2px; }
 
-        .like-user-item { text-align: left; padding: 8px 0; border-bottom: 1px solid #eee; }
-        .like-user-item a { color: #0077b6; font-weight: bold; text-decoration: none; }
-        .like-user-item a:hover { text-decoration: underline; }
+        .comment-input {
+            position: sticky; bottom: 0; background: white; padding: 16px 20px;
+            border-top: 1px solid #eee; display: flex; gap: 10px;
+        }
+        .comment-input textarea {
+            flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 20px; resize: none; font-size: 0.95em;
+        }
+        .comment-input button {
+            background: var(--primary); color: white; border: none; width: 44px; height: 44px;
+            border-radius: 50%; cursor: pointer; font-size: 1.2em;
+        }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: #888; }
     </style>
 </head>
 <body>
@@ -79,486 +120,260 @@
     <header class="header">
         <h1>NEXUS</h1>
         <nav>
-            <a href="#" onclick="checkAuthAndNavigate('create-post.html')">Crear</a>
-            <!-- Botón Explorar -->
-            <a href="#" onclick="checkAuthAndNavigate('explore.html')">Explorar</a>
-            <a href="#" onclick="checkAuthAndNavigate('profile.html')">Perfil</a>
+            <a href="#" onclick="goTo('create-post.html')"><i class="fas fa-pen"></i> Crear</a>
+            <a href="#" onclick="goTo('explore.html')"><i class="fas fa-search"></i> Explorar</a>
+            <a href="#" onclick="goTo('profile.html')"><i class="fas fa-user"></i> Perfil</a>
         </nav>
     </header>
 
-    <main id="feed-container">
-        <div id="loading-posts" style="text-align: center; padding: 50px; color: #555;">
-            Cargando publicaciones...
-        </div>
-    </main>
+    <main id="feed"></main>
 
-    <!-- Modal 1: Registro/Login -->
-    <div id="registration-modal" class="modal" onclick="closeModal(event, 'registration-modal')">
+    <!-- Modal Comentarios / Likes -->
+    <div id="interaction-modal" class="modal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <h2>¡Únete a la Conversación!</h2>
-            <p>Para interactuar, dar 'Me Gusta', comentar o crear contenido, necesitas unirte a Nexus.</p>
-            <a href="register.html" class="btn-register">👉 Crear Perfil Ahora</a>
-            <p style="margin-top: 15px;">¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a></p>
+            <div class="modal-header" id="modal-title">Comentarios</div>
+            <div class="modal-body" id="modal-body"></div>
+            <div class="comment-input" id="comment-section" style="display:none;">
+                <textarea id="comment-text" placeholder="Escribe un comentario..."></textarea>
+                <button onclick="sendComment()"><i class="fas fa-paper-plane"></i></button>
+            </div>
         </div>
     </div>
 
-    <!-- Modal 2: Comentarios / Ver Likes / Mensajes de Confirmación -->
-    <div id="comments-likes-modal" class="modal" onclick="closeModal(event, 'comments-likes-modal')">
-        <div class="modal-content" onclick="event.stopPropagation()">
-            <h3 id="modal-title">Comentarios</h3>
-            <div id="modal-content-area">
-                <!-- Contenido de comentarios o likes -->
-            </div>
-            
-            <div id="comment-input-area" class="comment-input-area" style="display: none;">
-                <p style="font-weight: bold; margin-bottom: 5px; text-align: left;">Añadir Comentario:</p>
-                <textarea id="modal-comment-text" placeholder="Tu comentario..."></textarea>
-                <button onclick="submitCommentFromModal()">Comentar</button>
-            </div>
-            
-            <button style="margin-top: 20px; background-color: #888; padding: 8px 15px;" onclick="closeModal(null, 'comments-likes-modal')">Cerrar</button>
-        </div>
-    </div>
-
-
-    <!-- ****************************************************** -->
-    <!-- INTEGRACIÓN CON FIREBASE Y LÓGICA DE FEED DINÁMICO -->
-    <!-- ****************************************************** -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { 
-            getFirestore, collection, doc, query, onSnapshot, 
-            updateDoc, increment, setDoc, deleteDoc, getDoc, 
-            addDoc, serverTimestamp, orderBy 
+            getFirestore, collection, query, orderBy, onSnapshot, doc, getDoc,
+            setDoc, deleteDoc, increment, updateDoc, serverTimestamp, addDoc
         } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
-
+        const firebaseConfig = { /* TU CONFIG */ };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        let isUserLoggedIn = false;
-        let currentUser = null; 
-        let currentPostIdForModal = null; // Para saber qué post estamos comentando/viendo
 
-        const feedContainer = document.getElementById('feed-container');
-        const loadingMessage = document.getElementById('loading-posts');
-        const registrationModal = document.getElementById('registration-modal');
-        const commentsLikesModal = document.getElementById('comments-likes-modal');
+        let currentUser = null;
+        let currentModalPostId = null;
+
+        const feed = document.getElementById('feed');
+        const modal = document.getElementById('interaction-modal');
         const modalTitle = document.getElementById('modal-title');
-        const modalContentArea = document.getElementById('modal-content-area');
-        const commentInputArea = document.getElementById('comment-input-area');
-        const modalCommentText = document.getElementById('modal-comment-text');
+        const modalBody = document.getElementById('modal-body');
+        const commentSection = document.getElementById('comment-section');
 
+        window.goTo = (url) => currentUser ? location.href = url : showAuthModal();
 
-        // Lógica de protección de navegación global
-        window.checkAuthAndNavigate = function(url, userId = null) {
-            if (isUserLoggedIn) {
-                // Si está logueado, navega. Si hay userId, lo adjunta.
-                const finalUrl = userId ? `${url}?uid=${userId}` : url;
-                window.location.href = finalUrl;
-            } else {
-                // Si no está logueado, muestra el modal de registro/login
-                showRegistrationModal();
-            }
-        }
-        
-        // 4. Lógica de SEGUIR/DEJAR DE SEGUIR 
-        window.handleFollow = async function(authorId) {
-            if (!isUserLoggedIn) {
-                showRegistrationModal();
-                return;
-            }
-            if (authorId === currentUser.uid) return; // No seguirte a ti mismo
-
-            const followerRef = doc(db, "users", currentUser.uid, "following", authorId);
-            const followingRef = doc(db, "users", authorId, "followers", currentUser.uid);
-
-            try {
-                const followDoc = await getDoc(followerRef);
-
-                if (followDoc.exists()) {
-                    // YA SIGUE -> DEJAR DE SEGUIR
-                    await deleteDoc(followerRef);
-                    await deleteDoc(followingRef);
-                    console.log(`Dejó de seguir a ${authorId}`);
-                    updateFollowButton(authorId, false);
-                } else {
-                    // NO SIGUE -> SEGUIR
-                    const followData = {
-                        userId: authorId, 
-                        username: currentUser.displayName || 'Usuario Nexus',
-                        timestamp: serverTimestamp()
-                    };
-                    await setDoc(followerRef, followData);
-                    await setDoc(followingRef, {
-                         userId: currentUser.uid, 
-                         timestamp: serverTimestamp()
-                    });
-                    console.log(`Siguiendo a ${authorId}`);
-                    updateFollowButton(authorId, true);
-                }
-            } catch (error) {
-                console.error("Error al seguir/dejar de seguir:", error);
-            }
+        function showAuthModal() {
+            alert("Necesitas iniciar sesión para hacer eso.");
+            location.href = 'login.html';
         }
 
-        function updateFollowButton(targetId, isFollowing) {
-             const buttons = document.querySelectorAll(`[data-author-id="${targetId}"]`);
-             buttons.forEach(button => {
-                 if (isFollowing) {
-                     button.textContent = 'Siguiendo';
-                     button.classList.add('following');
-                 } else {
-                     button.textContent = 'Seguir';
-                     button.classList.remove('following');
-                 }
-             });
+        function formatTime(timestamp) {
+            if (!timestamp) return "Ahora";
+            const date = timestamp.toDate();
+            const now = new Date();
+            const diff = now - date;
+            if (diff < 60000) return "Ahora";
+            if (diff < 3600000) return Math.floor(diff/60000) + "m";
+            if (diff < 86400000) return Math.floor(diff/3600000) + "h";
+            return date.toLocaleDateString();
         }
 
-
-        // Función para renderizar una publicación
         function renderPost(post) {
-            const postElement = document.createElement('article');
-            postElement.className = 'post';
-            postElement.setAttribute('data-post-id', post.id);
+            const isOwn = currentUser?.uid === post.userId;
+            const isFollowing = false; // se actualizará con listener
 
-            const formattedDate = post.createdAt ? new Date(post.createdAt.seconds * 1000).toLocaleString() : 'Recién publicado';
-            
-            // Contadores
-            const sharesCount = post.shares || 0; // Agregado contador de compartidos
-            
-            // Determinar si el usuario ya le dio like para cambiar el icono
-            const isLiked = post.likedBy && post.likedBy[currentUser ? currentUser.uid : ''] === true;
-            const likeIcon = isLiked ? '💖' : '❤️';
-            const likeButtonText = isLiked ? 'Quitar Me Gusta' : 'Me Gusta';
-
-            // Determinar el estado de seguimiento 
-            const isAuthor = currentUser && post.userId === currentUser.uid;
-            let followButtonHTML = '';
-            
-            if (isUserLoggedIn && !isAuthor) {
-                // Configuración de Listener de Seguir/Dejar de Seguir
-                 const followerRef = doc(db, "users", currentUser.uid, "following", post.userId);
-                 onSnapshot(followerRef, (docSnapshot) => {
-                     const isFollowing = docSnapshot.exists();
-                     const buttonText = isFollowing ? 'Siguiendo' : 'Seguir';
-                     const buttonClass = isFollowing ? 'follow-button following' : 'follow-button';
-                     
-                     const existingButton = postElement.querySelector(`#follow-btn-${post.id}`);
-                     if (existingButton) {
-                        existingButton.textContent = buttonText;
-                        existingButton.className = buttonClass;
-                     }
-                 });
-
-                // Botón inicial
-                followButtonHTML = `
-                    <button 
-                        id="follow-btn-${post.id}"
-                        data-author-id="${post.userId}"
-                        class="follow-button"
-                        onclick="handleFollow('${post.userId}')"
-                    >Seguir</button>
-                `;
-            }
-            
-            postElement.innerHTML = `
+            const el = document.createElement('article');
+            el.className = 'post';
+            el.innerHTML = `
                 <div class="post-header">
                     <div class="author-info">
-                        <!-- Enlace del autor protegido -->
-                        <a href="#" onclick="checkAuthAndNavigate('profile.html', '${post.userId}')" class="post-author">@${post.username || 'Usuario Desconocido'}</a>
-                        ${followButtonHTML}
+                        <div class="author-avatar">${(post.username?.[0] || '?').toUpperCase()}</div>
+                        <div>
+                            <div class="author-name">${post.username || 'Anónimo'}</div>
+                            <div class="post-meta">@${post.username} · ${formatTime(post.createdAt)}</div>
+                        </div>
                     </div>
-                    <span class="post-target">${post.circleTarget}</span>
+                    ${!isOwn ? `<button class="follow-btn follow" data-uid="${post.userId}" onclick="toggleFollow('${post.userId}', this)">Seguir</button>` : ''}
                 </div>
-                <p class="post-content">${post.text}</p>
+                <div class="post-content">${post.text.replace(/\n/g, '<br>')}</div>
+                ${post.circleTarget ? `<div style="padding:0 16px"><span class="circle-badge">${post.circleTarget}</span></div>` : ''}
                 <div class="interaction-bar">
-                    <button onclick="handleInteraction('like', '${post.id}')" id="like-btn-${post.id}">
-                        <span id="like-icon-${post.id}">${likeIcon}</span> ${likeButtonText}
+                    <button class="interaction-btn" onclick="toggleLike('${post.id}', this)">
+                        <i class="far fa-heart"></i> <span class="count">${post.likes || 0}</span>
                     </button>
-                    <!-- ABRE EL MODAL DE COMENTARIOS -->
-                    <button onclick="showCommentsModal('${post.id}')">
-                        💬 Comentar
+                    <button class="interaction-btn" onclick="openComments('${post.id}')">
+                        <i class="far fa-comment"></i> <span class="count">${post.commentsCount || 0}</span>
                     </button>
-                    <!-- BOTÓN COMPARTIR PROTEGIDO (AHORA SUMA UN CONTADOR) -->
-                    <button onclick="sharePost('${post.id}')">🔗 Compartir</button> 
+                    <button class="interaction-btn" onclick="sharePost('${post.id}')">
+                        <i class="fas fa-share"></i>
+                    </button>
                 </div>
-                <p class="post-meta">
-                    <span id="likes-count-${post.id}" class="likes-info" onclick="showLikesModal('${post.id}')">${post.likes || 0}</span> Me Gusta · 
-                    <span id="comments-count-${post.id}">${post.commentsCount || 0}</span> Comentarios ·
-                    <span id="shares-count-${post.id}">${sharesCount}</span> Compartidos - ${formattedDate}
-                </p>
+                <div class="stats-bar">
+                    <span onclick="openLikes('${post.id}')">${post.likes || 0} Me gusta</span>
+                    <span>${post.commentsCount || 0} comentarios</span>
+                    <span>${post.shares || 0} compartidos</span>
+                </div>
             `;
-            return postElement;
-        }
 
-        // 7. Lógica del Botón "Me Gusta"
-        window.handleInteraction = async function(action, postId) {
-            if (!isUserLoggedIn) {
-                showRegistrationModal();
-                return;
+            // Estado inicial de follow
+            if (!isOwn && currentUser) {
+                const followRef = doc(db, "users", currentUser.uid, "following", post.userId);
+                onSnapshot(followRef, snap => {
+                    const btn = el.querySelector(`[data-uid="${post.userId}"]`);
+                    if (btn) {
+                        btn.textContent = snap.exists() ? 'Siguiendo' : 'Seguir';
+                        btn.className = snap.exists() ? 'follow-btn following' : 'follow-btn follow';
+                    }
+                });
             }
 
-            const postRef = doc(db, "posts", postId);
-            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
-
-            try {
-                if (action === 'like') {
-                    // 1. Verificar si el usuario ya le dio like
-                    const likeDoc = await getDoc(likeRef);
-
-                    if (likeDoc.exists()) {
-                        // YA DIO LIKE -> QUITAR LIKE
-                        await deleteDoc(likeRef);
-                        await updateDoc(postRef, {
-                            likes: increment(-1)
-                        });
-                        console.log(`Like quitado al post: ${postId}`);
+            // Estado inicial de like
+            if (currentUser) {
+                const likeRef = doc(db, "posts", post.id, "likes", currentUser.uid);
+                onSnapshot(likeRef, snap => {
+                    const btn = el.querySelector('.interaction-btn');
+                    const icon = btn.querySelector('i');
+                    if (snap.exists()) {
+                        icon.className = 'fas fa-heart liked';
+                        icon.style.color = '#e91e63';
                     } else {
-                        // NO DIO LIKE -> DAR LIKE
-                        await setDoc(likeRef, {
-                            userId: currentUser.uid,
-                            username: currentUser.displayName || 'Usuario Nexus',
-                            timestamp: serverTimestamp()
-                        });
-                        await updateDoc(postRef, {
-                            likes: increment(1)
-                        });
-                        console.log(`Like añadido al post: ${postId}`);
+                        icon.className = 'far fa-heart';
+                        icon.style.color = '';
                     }
-                } 
-            } catch (error) {
-                console.error(`Error al procesar ${action} en el post ${postId}:`, error);
-                // NOTA: Reemplazado alert() por un console log para errores.
-            }
-        }
-
-        // 8. FUNCIONES DEL MODAL 
-        window.closeModal = function(event, modalId) {
-            const modal = document.getElementById(modalId);
-            if (!event || event.target === modal) {
-                modal.style.display = 'none';
-                currentPostIdForModal = null;
-            }
-        }
-        
-        function showRegistrationModal() {
-            registrationModal.style.display = 'flex';
-        }
-
-        window.showCommentsModal = function(postId) {
-            if (!isUserLoggedIn) {
-                showRegistrationModal();
-                return;
-            }
-            currentPostIdForModal = postId;
-            modalTitle.textContent = 'Comentarios de la Publicación';
-            commentInputArea.style.display = 'block';
-            commentsLikesModal.style.display = 'flex';
-            setupCommentsListener(postId);
-        }
-
-        window.showLikesModal = function(postId) {
-            currentPostIdForModal = postId;
-            modalTitle.textContent = 'Usuarios que dieron Me Gusta';
-            commentInputArea.style.display = 'none';
-            commentsLikesModal.style.display = 'flex';
-            setupLikesListener(postId);
-        }
-
-        function setupCommentsListener(postId) {
-            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando comentarios...</p>';
-            const commentsQuery = query(collection(db, "posts", postId, "comments"), orderBy("timestamp", "asc"));
-
-            // onSnapshot se encarga de mantener la lista de comentarios actualizada
-            onSnapshot(commentsQuery, (querySnapshot) => {
-                modalContentArea.innerHTML = '';
-                if (querySnapshot.empty) {
-                    modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Sé el primero en comentar.</p>';
-                    return;
-                }
-                querySnapshot.forEach((doc) => {
-                    const comment = doc.data();
-                    modalContentArea.innerHTML += `
-                        <div class="comment-item">
-                            <!-- Enlace del autor en comentario protegido también -->
-                            <a href="#" class="comment-author" onclick="checkAuthAndNavigate('profile.html', '${comment.userId}'); closeModal(null, 'comments-likes-modal');">@${comment.username || 'Desconocido'}</a>
-                            <span class="comment-text">${comment.text}</span>
-                        </div>
-                    `;
                 });
-            }, (error) => {
-                modalContentArea.innerHTML = '<p style="color:red;">Error al cargar comentarios.</p>';
-                console.error("Error loading comments:", error);
-            });
-        }
-        
-        function setupLikesListener(postId) {
-            modalContentArea.innerHTML = '<p style="text-align:center;">Cargando lista de likes...</p>';
-            const likesQuery = collection(db, "posts", postId, "likes");
-
-            onSnapshot(likesQuery, (querySnapshot) => {
-                modalContentArea.innerHTML = '';
-                if (querySnapshot.empty) {
-                    modalContentArea.innerHTML = '<p style="text-align:center; color:#888;">Aún no hay Me Gusta.</p>';
-                    return;
-                }
-                querySnapshot.forEach((doc) => {
-                    const like = doc.data();
-                    modalContentArea.innerHTML += `
-                        <div class="like-user-item">
-                            <!-- Enlace del autor en likes protegido también -->
-                            <a href="#" onclick="checkAuthAndNavigate('profile.html', '${like.userId}'); closeModal(null, 'comments-likes-modal');">@${like.username || 'Desconocido'}</a>
-                        </div>
-                    `;
-                });
-            }, (error) => {
-                modalContentArea.innerHTML = '<p style="color:red;">Error al cargar likes.</p>';
-                console.error("Error loading likes:", error);
-            });
-        }
-
-        window.submitCommentFromModal = async function() {
-            const text = modalCommentText.value.trim();
-            if (!text) {
-                console.error('El comentario no puede estar vacío.');
-                // Pequeña notificación visual en el modal
-                modalContentArea.insertAdjacentHTML('afterbegin', '<p style="color:red;">¡El comentario está vacío!</p>');
-                setTimeout(() => {
-                    // Remover el error después de 2 segundos
-                    const errorMsg = modalContentArea.querySelector('p[style*="color:red;"]');
-                    if(errorMsg) errorMsg.remove();
-                    }, 2000);
-                return;
             }
 
-            const postId = currentPostIdForModal;
-            if (!postId) return;
+            return el;
+        }
 
-            try {
-                // 1. Agregar el comentario
-                await addDoc(collection(db, "posts", postId, "comments"), {
-                    userId: currentUser.uid,
-                    username: currentUser.displayName || 'Usuario Nexus',
-                    text: text,
-                    timestamp: serverTimestamp()
-                });
-                
-                // 2. Incrementar el contador de comentarios en el post principal
-                await updateDoc(doc(db, "posts", postId), {
-                    commentsCount: increment(1)
-                });
-
-                modalCommentText.value = ''; 
-                
-                // IMPORTANTE: Se elimina la llamada explícita a setupCommentsListener(postId).
-                // La función onSnapshot ya actualizará el modal automáticamente, evitando el parpadeo.
-                
-            } catch (error) {
-                console.error("Error submitting comment:", error);
+        window.toggleFollow = async (targetId, btn) => {
+            if (!currentUser) return showAuthModal();
+            const myRef = doc(db, "users", currentUser.uid, "following", targetId);
+            const theirRef = doc(db, "users", targetId, "followers", currentUser.uid);
+            const snap = await getDoc(myRef);
+            if (snap.exists()) {
+                await deleteDoc(myRef);
+                await deleteDoc(theirRef);
+            } else {
+                await setDoc(myRef, { timestamp: serverTimestamp() });
+                await setDoc(theirRef, { timestamp: serverTimestamp() });
             }
         }
-        
-        // ******************************************************
-        // LÓGICA DE COMPARTIR (CORREGIDA PARA SUMAR)
-        // ******************************************************
-        window.sharePost = function(postId) {
-            if (!isUserLoggedIn) {
-                showRegistrationModal();
-                return;
-            }
-            
-            // 1. INCREMENTAR EL CONTADOR DE COMPARTIDOS
+
+        window.toggleLike = async (postId, btn) => {
+            if (!currentUser) return showAuthModal();
+            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
             const postRef = doc(db, "posts", postId);
-            updateDoc(postRef, {
-                shares: increment(1)
-            }).then(() => {
-                console.log(`Contador de compartidos incrementado para el post: ${postId}.`);
-            }).catch(error => {
-                console.error("Error al incrementar el contador de compartidos:", error);
-            });
-            
-            // 2. Lógica de compartir (simulada y muestra modal)
-            console.log(`Compartiendo enlace externo del post ID: ${postId}.`);
-
-            currentPostIdForModal = null; // Limpiar el ID si estaba viendo comentarios
-            modalTitle.textContent = '¡Enlace Copiado!';
-            modalContentArea.innerHTML = `
-                <p>El enlace a la publicación ha sido copiado al portapapeles (simulado).</p>
-                <p style="font-size:0.8em; color:#888;">(ID: ${postId})</p>
-            `;
-            commentInputArea.style.display = 'none'; // Ocultar el área de comentarios
-            commentsLikesModal.style.display = 'flex';
+            const snap = await getDoc(likeRef);
+            if (snap.exists()) {
+                await deleteDoc(likeRef);
+                await updateDoc(postRef, { likes: increment(-1) });
+            } else {
+                await setDoc(likeRef, { timestamp: serverTimestamp() });
+                await updateDoc(postRef, { likes: increment(1) });
+            }
         }
-        
-        // 9. Configurar el Listener del Feed de Firestore 
-        function setupFeedListener() {
-            const postsQuery = query(collection(db, "posts"), orderBy("createdAt", "desc")); 
 
-            onSnapshot(postsQuery, (querySnapshot) => {
-                loadingMessage.style.display = 'none';
-                feedContainer.innerHTML = ''; 
+        window.openComments = (postId) => {
+            currentModalPostId = postId;
+            modalTitle.textContent = 'Comentarios';
+            commentSection.style.display = 'flex';
+            modal.style.display = 'flex';
+            loadComments(postId);
+        }
 
-                querySnapshot.forEach((docSnapshot) => {
-                    const postData = { id: docSnapshot.id, ...docSnapshot.data() };
-                    
-                    const postElement = renderPost(postData);
-                    feedContainer.appendChild(postElement);
-                    
-                    // Listener para actualizar el botón de like en tiempo real
-                    if (currentUser) {
-                        const likeRef = doc(db, "posts", postData.id, "likes", currentUser.uid);
-                        onSnapshot(likeRef, (likeDoc) => {
-                            const likeIcon = postElement.querySelector(`#like-icon-${postData.id}`);
-                            const likeBtn = postElement.querySelector(`#like-btn-${postData.id}`);
-                            
-                            if (likeIcon && likeBtn) {
-                                if (likeDoc.exists()) {
-                                    likeIcon.textContent = '💖';
-                                    likeBtn.lastChild.textContent = ' Quitar Me Gusta';
-                                } else {
-                                    likeIcon.textContent = '❤️';
-                                    likeBtn.lastChild.textContent = ' Me Gusta';
-                                }
-                            }
-                        });
-                    }
+        window.openLikes = (postId) => {
+            currentModalPostId = postId;
+            modalTitle.textContent = 'Personas que dieron Me Gusta';
+            commentSection.style.display = 'none';
+            modal.style.display = 'flex';
+            loadLikes(postId);
+        }
+
+        function loadComments(postId) {
+            modalBody.innerHTML = '<div class="empty-state">Cargando...</div>';
+            const q = query(collection(db, "posts", postId, "comments"), orderBy("timestamp"));
+            onSnapshot(q, snap => {
+                if (snap.empty) {
+                    modalBody.innerHTML = '<div class="empty-state">Sé el primero en comentar</div>';
+                    return;
+                }
+                modalBody.innerHTML = '';
+                snap.forEach(doc => {
+                    const c = doc.data();
+                    modalBody.innerHTML += `
+                        <div class="comment-item">
+                            <div class="author-avatar">${(c.username?.[0] || '?').toUpperCase()}</div>
+                            <div>
+                                <div class="comment-author">@${c.username || 'Anónimo'}</div>
+                                <div class="comment-text">${c.text}</div>
+                            </div>
+                        </div>
+                    `;
                 });
-
-                if (querySnapshot.empty) {
-                    feedContainer.innerHTML = '<p style="text-align:center; padding: 20px;">No hay publicaciones aún. Sé el primero en compartir en create-post.html!</p>';
-                }
-                
-            }, (error) => {
-                console.error("Error al obtener publicaciones:", error);
-                feedContainer.innerHTML = `<p style="text-align:center; padding: 20px; color: red;">Error al cargar el feed: ${error.message}</p>`;
             });
         }
 
-        // 10. Observar el estado de autenticación al cargar
-        document.addEventListener('DOMContentLoaded', () => {
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    isUserLoggedIn = true;
-                    currentUser = user;
-                    console.log("Usuario logueado:", user.uid);
-                } else {
-                    isUserLoggedIn = false;
-                    currentUser = null;
-                    console.log("Usuario no logueado.");
+        function loadLikes(postId) {
+            modalBody.innerHTML = '<div class="empty-state">Cargando...</div>';
+            const col = collection(db, "posts", postId, "likes");
+            onSnapshot(col, snap => {
+                if (snap.empty) {
+                    modalBody.innerHTML = '<div class="empty-state">Aún no hay likes</div>';
+                    return;
                 }
-                setupFeedListener(); 
+                modalBody.innerHTML = '';
+                snap.forEach(doc => {
+                    const l = doc.data();
+                    modalBody.innerHTML += `
+                        <div class="like-item">
+                            <div class="author-avatar">${(l.username?.[0] || '?').toUpperCase()}</div>
+                            <div>@${l.username || 'Anónimo'}</div>
+                        </div>
+                    `;
+                });
+            });
+        }
+
+        window.sendComment = async () => {
+            const text = document.getElementById('comment-text').value.trim();
+            if (!text || !currentModalPostId) return;
+            await addDoc(collection(db, "posts", currentModalPostId, "comments"), {
+                userId: currentUser.uid,
+                username: currentUser.displayName || currentUser.email.split('@')[0],
+                text,
+                timestamp: serverTimestamp()
+            });
+            await updateDoc(doc(db, "posts", currentModalPostId), { commentsCount: increment(1) });
+            document.getElementById('comment-text').value = '';
+        }
+
+        window.closeModal = (e) => { if (!e || e.target === modal) modal.style.display = 'none'; }
+
+        window.sharePost = async (postId) => {
+            if (!currentUser) return showAuthModal();
+            await updateDoc(doc(db, "posts", postId), { shares: increment(1) });
+            navigator.clipboard.writeText(location.origin + location.pathname + '?post=' + postId);
+            alert("Enlace copiado al portapapeles");
+        }
+
+        // Feed principal
+        onAuthStateChanged(auth, user => {
+            currentUser = user;
+            const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+            onSnapshot(q, snap => {
+                feed.innerHTML = '';
+                if (snap.empty) {
+                    feed.innerHTML = '<div class="empty-state">No hay publicaciones aún.<br><a href="create-post.html">¡Sé el primero!</a></div>';
+                    return;
+                }
+                snap.forEach(doc => {
+                    const post = { id: doc.id, ...doc.data() };
+                    if (post.createdAt) post.createdAt = post.createdAt;
+                    feed.appendChild(renderPost(post));
+                });
             });
         });
     </script>
