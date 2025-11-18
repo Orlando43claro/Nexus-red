@@ -25,12 +25,14 @@
         .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
         .stat span { color:var(--g); font-weight:500; }
         .actions { display:flex; gap:12px; margin:16px 0; }
-        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; }
+        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; transition:0.2s; }
         .btn-primary { background:var(--p); color:white; }
         .btn-orange { background:var(--o); color:white; }
         .btn-follow { background:var(--o); color:white; }
         .btn-following { background:var(--g); color:white; }
-        .btn-following:hover { background:var(--d); }
+        .btn-following:hover { background:#218838; }
+        .btn-unfollow { background:#dc3545; color:white; }
+        .btn-unfollow:hover { background:#c82333; }
 
         .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
         .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
@@ -72,7 +74,9 @@
                 <div class="stat"><strong id="total-likes">0</strong><span>Me gusta</span></div>
             </div>
 
-            <div class="actions" id="actions"></div>
+            <div class="actions" id="actions">
+                <!-- Aquí se inyecta el botón Seguir o los botones propios -->
+            </div>
         </div>
 
         <div id="posts-container"></div>
@@ -99,18 +103,10 @@
         </div>
     </div>
 
-    <!-- Modal Listas -->
-    <div class="modal" id="list-modal">
-        <div class="modal-content">
-            <div style="padding:16px 20px;border-bottom:1px solid #eee;font-weight:600;font-size:1.2em;" id="list-title">Seguidores</div>
-            <div style="padding:20px;max-height:70vh;overflow-y:auto;" id="list-body">Cargando...</div>
-        </div>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, orderBy, getDocs, getDoc, updateDoc, serverTimestamp, increment, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, getDoc, updateDoc, serverTimestamp, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-storage.js";
 
         const firebaseConfig = {
@@ -128,18 +124,56 @@
         const storage = getStorage(app);
 
         let currentUser = null;
-        let profileUid = new URLSearchParams(location.search).get('uid');
+        let profileUid = new URLSearchParams(location.search).get('uid') || null;
 
-        const avatar = document.getElementById('avatar');
-        const usernameEl = document.getElementById('username');
-        const bioEl = document.getElementById('bio');
         const actionsDiv = document.getElementById('actions');
-        const onlineDot = document.createElement('div');
-        onlineDot.className = 'online';
-        onlineDot.style.display = 'none';
-        usernameEl.appendChild(onlineDot);
 
-        // ABRIR MODAL EDITAR
+        // FUNCIÓN PARA PINTAR BOTONES (se llama cada vez que cambia el perfil)
+        async function renderActionButtons(isOwnProfile, targetUid) {
+            if (isOwnProfile) {
+                actionsDiv.innerHTML = `
+                    <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
+                    <div class="btn btn-orange" onclick="openEditModal()">Editar Perfil</div>
+                `;
+            } else {
+                const followRef = doc(db, "users", currentUser.uid, "following", targetUid);
+                const snap = await getDoc(followRef);
+                const isFollowing = snap.exists();
+
+                actionsDiv.innerHTML = `
+                    <button class="btn ${isFollowing ? 'btn-following' : 'btn-follow'}" 
+                            id="follow-btn" 
+                            onclick="toggleFollow('${targetUid}')">
+                        ${isFollowing ? 'Siguiendo' : 'Seguir'}
+                    </button>
+                `;
+            }
+        }
+
+        window.toggleFollow = async (targetUid) => {
+            if (!currentUser) return alert("Inicia sesión");
+
+            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
+            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
+            const btn = document.getElementById('follow-btn');
+
+            const exists = (await getDoc(myRef)).exists();
+
+            if (exists) {
+                await deleteDoc(myRef);
+                await deleteDoc(theirRef);
+                btn.textContent = 'Seguir';
+                btn.classList.remove('btn-following');
+                btn.classList.add('btn-follow');
+            } else {
+                await setDoc(myRef, { t: serverTimestamp() });
+                await setDoc(theirRef, { t: serverTimestamp() });
+                btn.textContent = 'Siguiendo';
+                btn.classList.remove('btn-follow');
+                btn.classList.add('btn-following');
+            }
+        };
+
         window.openEditModal = async () => {
             const snap = await getDoc(doc(db, "users", currentUser.uid));
             const d = snap.data();
@@ -149,7 +183,6 @@
             document.getElementById('edit-modal').style.display = 'flex';
         };
 
-        // GUARDAR PERFIL
         document.getElementById('save-btn').addEventListener('click', async () => {
             const name = document.getElementById('edit-username').value.trim();
             const bio = document.getElementById('edit-bio').value.trim();
@@ -163,87 +196,51 @@
                 await uploadBytes(storageRef, file);
                 updates.photoURL = await getDownloadURL(storageRef);
             }
-
             await updateDoc(doc(db, "users", currentUser.uid), updates);
             document.getElementById('edit-modal').style.display = 'none';
-            alert("¡Perfil actualizado!");
         });
 
         document.getElementById('photo-input').addEventListener('change', e => {
-            const file = e.target.files[0];
-            if (file) {
+            if (e.target.files[0]) {
                 const reader = new FileReader();
                 reader.onload = ev => document.getElementById('avatar-preview').src = ev.target.result;
-                reader.readAsDataURL(file);
+                reader.readAsDataURL(e.target.files[0]);
             }
         });
 
-        // TOGGLE FOLLOW (para perfiles ajenos)
-        window.toggleFollow = async (targetUid) => {
-            if (!currentUser) return alert("Inicia sesión");
-            const myRef = doc(db, "users", currentUser.uid, "following", targetUid);
-            const theirRef = doc(db, "users", targetUid, "followers", currentUser.uid);
-            const exists = (await getDoc(myRef)).exists();
-
-            if (exists) {
-                await deleteDoc(myRef);
-                await deleteDoc(theirRef);
-                document.getElementById('follow-btn').textContent = 'Seguir';
-                document.getElementById('follow-btn').classList.remove('btn-following');
-                document.getElementById('follow-btn').classList.add('btn-follow');
-            } else {
-                await setDoc(myRef, { t: serverTimestamp() });
-                await setDoc(theirRef, { t: serverTimestamp() });
-                document.getElementById('follow-btn').textContent = 'Siguiendo';
-                document.getElementById('follow-btn').classList.remove('btn-follow');
-                document.getElementById('follow-btn').classList.add('btn-following');
-            }
-        };
-
-        onAuthStateChanged(auth, async user => {
+        onAuthStateChanged(auth, user => {
             if (!user) return location.href = 'login.html';
             currentUser = user;
             profileUid = profileUid || user.uid;
 
             const userRef = doc(db, "users", profileUid);
-            onSnapshot(userRef, async snap => {
-                if (!snap.exists()) { usernameEl.textContent = "Usuario no encontrado"; return; }
-                const d = snap.data();
 
-                avatar.src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=120`;
-                usernameEl.firstChild.textContent = '@' + (d.username || 'Anónimo');
-                bioEl.textContent = d.bio || 'Sin biografía aún.';
-                onlineDot.style.display = (Date.now() - (d.lastSeen?.toDate?.() || 0) < 60000) ? 'block' : 'none';
-
-                // BOTONES SEGÚN SEA TU PERFIL O NO
-                if (user.uid === profileUid) {
-                    actionsDiv.innerHTML = `
-                        <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
-                        <div class="btn btn-orange" onclick="openEditModal()">Editar Perfil</div>
-                    `;
-                } else {
-                    const followRef = doc(db, "users", user.uid, "following", profileUid);
-                    const following = (await getDoc(followRef)).exists();
-                    actionsDiv.innerHTML = `
-                        <div class="btn ${following ? 'btn-following' : 'btn-follow'}" 
-                             id="follow-btn" 
-                             onclick="toggleFollow('${profileUid}')">
-                             ${following ? 'Siguiendo' : 'Seguir'}
-                        </div>
-                    `;
+            // Escuchar cambios en el perfil mostrado
+            onSnapshot(userRef, async (snap) => {
+                if (!snap.exists()) {
+                    document.getElementById('username').textContent = 'Usuario no encontrado';
+                    return;
                 }
+
+                const d = snap.data();
+                document.getElementById('avatar').src = d.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(d.username || 'U')}&background=0077b6&color=fff&size=120`;
+                document.getElementById('username').firstChild.textContent = '@' + (d.username || 'Anónimo');
+                document.getElementById('bio').textContent = d.bio || 'Sin biografía aún.';
+
+                // PINTAR BOTONES CORRECTOS
+                await renderActionButtons(currentUser.uid === profileUid, profileUid);
             });
 
-            // CONTADORES
+            // Contadores en tiempo real
             onSnapshot(collection(db, "users", profileUid, "followers"), s => document.getElementById('followers').textContent = s.size);
             onSnapshot(collection(db, "users", profileUid, "following"), s => document.getElementById('following').textContent = s.size);
 
-            // PUBLICACIONES
-            const postsQuery = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
-            onSnapshot(postsQuery, snap => {
+            // Publicaciones
+            const q = query(collection(db, "posts"), where("userId", "==", profileUid));
+            onSnapshot(q, snap => {
                 const container = document.getElementById('posts-container');
                 container.innerHTML = '';
-                let totalLikes = 0;
+                let total = 0;
                 if (snap.empty) {
                     container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
                     document.getElementById('total-likes').textContent = '0';
@@ -251,44 +248,21 @@
                 }
                 snap.forEach(doc => {
                     const p = doc.data();
-                    totalLikes += p.likes || 0;
-                    const post = document.createElement('div');
-                    post.className = 'post';
-                    post.innerHTML = `
-                        <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                        ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
-                        <div class="post-footer">
-                            <button><i class="far fa-heart"></i> <span>${p.likes||0}</span></button>
-                            <small>${new Date(p.createdAt?.seconds*1000).toLocaleDateString()}</small>
+                    total += p.likes || 0;
+                    container.innerHTML += `
+                        <div class="post">
+                            <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
+                            ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''}
+                            <div class="post-footer">
+                                <button><i class="far fa-heart"></i> ${p.likes||0}</button>
+                                <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
+                            </div>
                         </div>
                     `;
-                    container.appendChild(post);
                 });
-                document.getElementById('total-likes').textContent = totalLikes;
+                document.getElementById('total-likes').textContent = total;
             });
         });
-
-        // LISTAS DE SEGUIDORES/SEGUINDO
-        window.showList = (type) => {
-            document.getElementById('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
-            const body = document.getElementById('list-body');
-            body.innerHTML = 'Cargando...';
-            document.getElementById('list-modal').style.display = 'flex';
-
-            onSnapshot(collection(db, "users", profileUid, type), snap => {
-                body.innerHTML = snap.empty ? '<div class="empty">Aún nadie</div>' : '';
-                snap.forEach(d => {
-                    getDoc(doc(db, "users", d.id)).then(u => {
-                        const data = u.data() || {};
-                        body.innerHTML += `
-                            <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #eee;">
-                                <img src="${data.photoURL || 'https://ui-avatars.com/api/?name=' + (data.username||'?')}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;">
-                                <a href="profile.html?uid=${d.id}" style="color:var(--p);font-weight:600;text-decoration:none;">@${data.username || 'Anónimo'}</a>
-                            </div>`;
-                    });
-                });
-            });
-        };
     </script>
 </body>
 </html>
