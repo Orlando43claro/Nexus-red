@@ -23,97 +23,39 @@
         .header h1 { margin:0; font-size:1.7em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
 
-        .profile {
-            max-width:600px; margin:0 auto; padding:16px;
-        }
-
-        .cover {
-            height:180px; background:linear-gradient(135deg, var(--primary), #005f93);
-            border-radius:16px 16px 0 0; position:relative;
-        }
-        .avatar {
-            width:120px; height:120px; border-radius:50%; background:var(--primary);
-            color:white; font-size:3em; font-weight:bold;
-            display:flex; align-items:center; justify-content:center;
-            position:absolute; bottom:-60px; left:20px;
-            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2);
-        }
-
-        .info {
-            padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px;
-            box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px;
-        }
-        .username {
-            font-size:1.8em; font-weight:700; margin:0 0 8px;
-            display:flex; align-items:center; gap:10px;
-        }
-        .online-dot {
-            width:14px; height:14px; background:#28a745; border-radius:50%;
-            border:3px solid white; box-shadow:0 0 0 2px #28a745;
-        }
+        .profile { max-width:600px; margin:0 auto; padding:16px; }
+        .cover { height:180px; background:linear-gradient(135deg, var(--primary), #005f93); border-radius:16px 16px 0 0; position:relative; }
+        .avatar { width:120px; height:120px; border-radius:50%; background:var(--primary); color:white; font-size:3em; font-weight:bold;
+            display:flex; align-items:center; justify-content:center; position:absolute; bottom:-60px; left:20px;
+            border:6px solid white; box-shadow:0 4px 20px rgba(0,0,0,0.2); }
+        .info { padding:70px 20px 20px; background:white; border-radius:0 0 16px 16px; box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px; }
+        .username { font-size:1.8em; font-weight:700; margin:0 0 8px; display:flex; align-items:center; gap:10px; }
+        .online-dot { width:14px; height:14px; background:#28a745; border-radius:50%; border:3px solid white; box-shadow:0 0 0 2px #28a745; }
         .bio { color:#555; font-size:1.05em; line-height:1.5; margin:12px 0; }
-
-        .stats {
-            display:flex; justify-content:space-around; padding:16px 0; background:#fafafa;
-            border-radius:12px; margin:16px 0;
-        }
-        .stat {
-            text-align:center; cursor:pointer;
-        }
+        .stats { display:flex; justify-content:space-around; padding:16px 0; background:#fafafa; border-radius:12px; margin:16px 0; }
+        .stat { text-align:center; cursor:pointer; }
         .stat strong { font-size:1.6em; display:block; color:#1a1a1a; }
         .stat span { color:var(--gray); font-weight:500; }
-
-        .actions {
-            display:flex; gap:12px; margin:16px 0;
-        }
-        .btn {
-            flex:1; padding:12px; border-radius:30px; font-weight:600;
-            text-align:center; cursor:pointer; transition:0.2s;
-        }
+        .actions { display:flex; gap:12px; margin:16px 0; }
+        .btn { flex:1; padding:14px; border-radius:30px; font-weight:600; text-align:center; cursor:pointer; transition:0.2s; }
         .btn-primary { background:var(--primary); color:white; }
         .btn-follow { background:var(--orange); color:white; }
         .btn-following { background:var(--gray); color:white; }
         .btn-following:hover { background:var(--danger); }
-
-        .tabs {
-            display:flex; background:white; border-radius:12px; overflow:hidden;
-            margin:20px 0 10px; box-shadow:0 2px 10px rgba(0,0,0,0.08);
-        }
-        .tab {
-            flex:1; padding:14px; text-align:center; font-weight:600;
-            color:var(--gray); cursor:pointer;
-        }
+        .tabs { display:flex; background:white; border-radius:12px; overflow:hidden; margin:20px 0 10px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+        .tab { flex:1; padding:14px; text-align:center; font-weight:600; color:var(--gray); cursor:pointer; }
         .tab.active { background:var(--primary); color:white; }
-
-        .post {
-            background:white; border-radius:16px; padding:16px;
-            margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08);
-        }
-        .post-text { font-size:1.05em; line-height:1.6; margin:12px 0; }
-        .post-footer {
-            display:flex; justify-content:space-between; align-items:center;
-            color:#666; font-size:0.9em;
-        }
-        .interaction {
-            display:flex; gap:20px;
-        }
-        .interaction button {
-            background:none; border:none; font-size:1.4em; cursor:pointer;
-            display:flex; align-items:center; gap:6px;
-        }
+        .post { background:white; border-radius:16px; padding:16px; margin-bottom:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+        .post-text { font-size:1.05em; line-height:1.6; margin:12px 0; white-space:pre-wrap; }
+        .post-footer { display:flex; justify-content:space-between; align-items:center; color:#666; font-size:0.9em; }
+        .interaction button { background:none; border:none; font-size:1.4rem; cursor:pointer; display:flex; align-items:center; gap:6px; }
         .liked { color:#e91e63 !important; }
-
-        .empty { text-align:center; padding:60px 20px; color:#888; }
-        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8);
-            justify-content:center; align-items:center; z-index:1000; padding:20px; }
-        .modal-content {
-            background:white; border-radius:16px; width:100%; max-width:500px;
-            max-height:90vh; overflow:hidden; display:flex; flex-direction:column;
-        }
-        .modal-header { padding:16px 20px; border-bottom:1px solid #eee; font-weight:600; }
+        .empty { text-align:center; padding:60px 20px; color:#888; font-size:1.1em; }
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); justify-content:center; align-items:center; z-index:1000; padding:20px; }
+        .modal-content { background:white; border-radius:16px; width:100%; max-width:500px; max-height:90vh; overflow:hidden; display:flex; flex-direction:column; }
+        .modal-header { padding:16px 20px; border-bottom:1px solid #eee; font-weight:600; font-size:1.2em; }
         .modal-body { flex:1; overflow-y:auto; padding:0 20px; }
-        .user-item { padding:12px 0; border-bottom:1px solid #eee; display:flex;
-            align-items:center; gap:12px; }
+        .user-item { padding:12px 0; border-bottom:1px solid #eee; display:flex; align-items:center; gap:12px; }
         .user-item a { color:var(--primary); font-weight:600; text-decoration:none; }
     </style>
 </head>
@@ -131,24 +73,23 @@
         <div class="cover"></div>
         <div class="avatar" id="avatar">?</div>
         <div class="info">
-            <div class="username" id="username">@cargando <div class="online-dot" id="online-dot" style="display:none"></div></div>
+            <div class="username" id="username">
+                <div>@cargando</div>
+                <div class="online-dot" id="online-dot" style="display:none"></div>
+            </div>
             <div class="bio" id="bio">Cargando perfil...</div>
             <div class="stats">
                 <div class="stat" onclick="openList('following')"><strong id="following-count">0</strong><span>Siguiendo</span></div>
                 <div class="stat" onclick="openList('followers')"><strong id="followers-count">0</strong><span>Seguidores</span></div>
                 <div class="stat"><strong id="likes-count">0</strong><span>Me gusta</span></div>
             </div>
-            <div class="actions" id="actions"></div>
+            <div class="actions" id="actions">Cargando...</div>
         </div>
 
-        <div class="tabs">
-            <div class="tab active">Publicaciones</div>
-        </div>
-
+        <div class="tabs"><div class="tab active">Publicaciones</div></div>
         <div id="posts-container"></div>
     </div>
 
-    <!-- Modal Lista Seguidores/Siguiendo -->
     <div class="modal" id="list-modal" onclick="this.style.display='none'">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header" id="list-title">Seguidores</div>
@@ -159,104 +100,58 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, orderBy, updateDoc, serverTimestamp, increment, runTransaction } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, doc, onSnapshot, collection, query, where, getDocs, orderBy, updateDoc, serverTimestamp, increment, deleteDoc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        const firebaseConfig = { /* TU CONFIG AQUÍ */ };
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
 
         let currentUser = null;
-        let profileUid = new URLSearchParams(location.search).get('uid') || null;
+        let profileUid = new URLSearchParams(location.search).get('uid');
 
-        const elements = {
+        const el = {
             avatar: document.getElementById('avatar'),
-            username: document.getElementById('username'),
-            bio: document.getElementById('bio'),
+            username: document.getElementById('username').firstElementChild,
             onlineDot: document.getElementById('online-dot'),
-            followingCount: document.getElementById('following-count'),
-            followersCount: document.getElementById('followers-count'),
-            likesCount: document.getElementById('likes-count'),
+            bio: document.getElementById('bio'),
+            following: document.getElementById('following-count'),
+            followers: document.getElementById('followers-count'),
+            likes: document.getElementById('likes-count'),
             actions: document.getElementById('actions'),
-            postsContainer: document.getElementById('posts-container')
+            posts: document.getElementById('posts-container')
         };
 
         function updatePresence() {
             if (currentUser) updateDoc(doc(db, "users", currentUser.uid), { lastSeen: serverTimestamp() });
         }
 
-        function renderPost(post) {
-            const el = document.createElement('div');
-            el.className = 'post';
-            el.innerHTML = `
-                <div class="post-text">${post.text.replace(/\n/g, '<br>')}</div>
-                ${post.circleTarget ? `<div style="margin:8px 0"><span style="background:#e0f7fa;padding:4px 12px;border-radius:20px;color:var(--primary);font-size:0.9em;">${post.circleTarget}</span></div>` : ''}
-                <div class="post-footer">
-                    <div class="interaction">
-                        <button onclick="toggleLike('${post.id}', this)">
-                            <i class="far fa-heart"></i> <span>${post.likes || 0}</span>
-                        </button>
-                        <button><i class="far fa-comment"></i> <span>${post.commentsCount || 0}</span></button>
-                    </div>
-                    <small>${new Date(post.createdAt?.seconds * 1000).toLocaleDateString()}</small>
-                </div>
-            `;
-
-            if (currentUser) {
-                const likeRef = doc(db, "posts", post.id, "likes", currentUser.uid);
-                onSnapshot(likeRef, snap => {
-                    const icon = el.querySelector('i');
-                    if (snap.exists()) {
-                        icon.className = 'fas fa-heart liked';
-                        icon.style.color = '#e91e63';
-                    } else {
-                        icon.className = 'far fa-heart';
-                    }
-                });
-            }
-            return el;
-        }
-
-        window.toggleLike = async (postId, btn) => {
-            if (!currentUser) return location.href = 'login.html';
-            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
-            const postRef = doc(db, "posts", postId);
-            const snap = await getDocs(collection(postRef, "likes")).then(s => s.docs.some(d => d.id === currentUser.uid));
-            if (snap) {
-                await deleteDoc(likeRef);
-                await updateDoc(postRef, { likes: increment(-1) });
-            } else {
-                await setDoc(likeRef, { timestamp: serverTimestamp() });
-                await updateDoc(postRef, { likes: increment(1) });
-            }
-        };
-
         window.openList = (type) => {
-            const title = type === 'followers' ? 'Seguidores' : 'Siguiendo';
-            document.getElementById('list-title').textContent = title;
+            document.getElementById('list-title').textContent = type === 'followers' ? 'Seguidores' : 'Siguiendo';
             const body = document.getElementById('list-body');
             body.innerHTML = 'Cargando...';
             document.getElementById('list-modal').style.display = 'flex';
 
-            const col = collection(db, "users", profileUid, type);
-            onSnapshot(col, snap => {
-                if (snap.empty) {
-                    body.innerHTML = '<div class="empty">Aún no hay nadie aquí</div>';
-                    return;
-                }
+            onSnapshot(collection(db, "users", profileUid, type), snap => {
+                if (snap.empty) { body.innerHTML = '<div class="empty">Aún nadie</div>'; return; }
                 body.innerHTML = '';
                 snap.forEach(d => {
-                    const uid = d.id;
-                    getDoc(doc(db, "users", uid)).then(userDoc => {
-                        const data = userDoc.data();
-                        body.innerHTML += `
-                            <div class="user-item">
-                                <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;">
-                                    ${data?.username?.[0] || '?'}
-                                </div>
-                                <a href="profile.html?uid=${uid}">@${data?.username || 'Anónimo'}</a>
+                    getDoc(doc(db, "users", d.id)).then(u => {
+                        const data = u.data();
+                        body.innerHTML += `<div class="user-item">
+                            <div style="width:44px;height:44px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:bold;">
+                                ${data?.username?.[0] || '?'}
                             </div>
-                        `;
+                            <a href="profile.html?uid=${d.id}">@${data?.username || 'Anónimo'}</a>
+                        </div>`;
                     });
                 });
             });
@@ -270,22 +165,18 @@
             updatePresence();
             setInterval(updatePresence, 30000);
 
-            // Perfil
             const userRef = doc(db, "users", profileUid);
             onSnapshot(userRef, doc => {
-                if (!doc.exists()) return elements.bio.textContent = 'Usuario no encontrado';
-                const data = doc.data();
-                elements.avatar.textContent = (data.username?.[0] || '?').toUpperCase();
-                elements.username.firstChild.textContent = '@' + (data.username || 'Anónimo');
-                elements.bio.textContent = data.bio || 'Sin biografía.';
-                const now = Date.now();
-                const last = data.lastSeen?.toDate?.() || 0;
-                if (now - last < 60000) elements.onlineDot.style.display = 'block';
-                else elements.onlineDot.style.display = 'none';
+                if (!doc.exists()) { el.bio.textContent = 'Usuario no encontrado'; return; }
+                const d = doc.data();
+                el.avatar.textContent = (d.username?.[0] || '?').toUpperCase();
+                el.username.textContent = '@' + (d.username || 'Anónimo');
+                el.bio.textContent = d.bio || 'Sin biografía aún.';
+                const last = d.lastSeen?.toDate?.() || 0;
+                el.onlineDot.style.display = (Date.now() - last < 60000) ? 'block' : 'none';
 
-                // Acciones
                 if (user.uid === profileUid) {
-                    elements.actions.innerHTML = `
+                    el.actions.innerHTML = `
                         <div class="btn btn-primary" onclick="location.href='create-post.html'">Nueva Publicación</div>
                         <div class="btn" style="background:#eee;color:#333;" onclick="alert('Editar perfil próximamente')">Editar Perfil</div>
                     `;
@@ -293,53 +184,63 @@
                     const followRef = doc(db, "users", user.uid, "following", profileUid);
                     onSnapshot(followRef, snap => {
                         const following = snap.exists();
-                        elements.actions.innerHTML = `
-                            <div class="btn ${following ? 'btn-following' : 'btn-follow'}" 
-                                 onclick="toggleFollow('${profileUid}', this)">
-                                ${following ? 'Siguiendo' : 'Seguir'}
-                            </div>
-                        `;
+                        el.actions.innerHTML = `<div class="btn ${following ? 'btn-following' : 'btn-follow'}" onclick="toggleFollow('${profileUid}', this)">
+                            ${following ? 'Siguiendo' : 'Seguir'}
+                        </div>`;
                     });
                 }
             });
 
             // Contadores
-            ['followers', 'following'].forEach(type => {
-                onSnapshot(collection(db, "users", profileUid, type), snap => {
-                    elements[type + 'Count'].textContent = snap.size;
-                });
-            });
+            ['followers', 'following'].forEach(t => onSnapshot(collection(db, "users", profileUid, t), s => el[t].textContent = s.size));
 
-            // Posts
+            // Posts + likes totales
             const q = query(collection(db, "posts"), where("userId", "==", profileUid), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
-                elements.postsContainer.innerHTML = '';
-                if (snap.empty) {
-                    elements.postsContainer.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
-                    return;
-                }
+                el.posts.innerHTML = '';
                 let totalLikes = 0;
-                snap.forEach(doc => {
-                    const post = { id: doc.id, ...doc.data() };
-                    totalLikes += post.likes || 0;
-                    elements.postsContainer.appendChild(renderPost(post));
+                if (snap.empty) el.posts.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
+                snap.forEach(d => {
+                    const p = { id: d.id, ...d.data() };
+                    totalLikes += p.likes || 0;
+                    const postEl = document.createElement('div');
+                    postEl.className = 'post';
+                    postEl.innerHTML = `
+                        <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
+                        ${p.circleTarget ? `<div style="margin:8px 0"><span style="background:#e0f7fa;padding:4px 12px;border-radius:20px;color:var(--primary);font-size:0.9em;">${p.circleTarget}</span></div>` : ''}
+                        <div class="post-footer">
+                            <div class="interaction">
+                                <button onclick="toggleLike('${p.id}', this)"><i class="far fa-heart"></i> <span>${p.likes || 0}</span></button>
+                            </div>
+                            <small>${new Date(p.createdAt?.seconds * 1000).toLocaleDateString()}</small>
+                        </div>
+                    `;
+                    if (currentUser) {
+                        onSnapshot(doc(db, "posts", p.id, "likes", currentUser.uid), s => {
+                            postEl.querySelector('i').className = s.exists() ? 'fas fa-heart liked' : 'far fa-heart';
+                        });
+                    }
+                    el.posts.appendChild(postEl);
                 });
-                elements.likesCount.textContent = totalLikes;
+                el.likes.textContent = totalLikes;
             });
         });
 
-        window.toggleFollow = async (targetUid, btn) => {
+        window.toggleFollow = async (uid, btn) => {
+            const my = doc(db, "users", currentUser.uid, "following", uid);
+            const their = doc(db, "users", uid, "followers", currentUser.uid);
+            const exists = (await getDoc(my)).exists();
+            if (exists) { await deleteDoc(my); await deleteDoc(their); }
+            else { await setDoc(my, {t:serverTimestamp()}); await setDoc(their, {t:serverTimestamp()}); }
+        };
+
+        window.toggleLike = async (postId, btn) => {
             if (!currentUser) return;
-            const myFollowing = doc(db, "users", currentUser.uid, "following", targetUid);
-            const theirFollowers = doc(db, "users", targetUid, "followers", currentUser.uid);
-            const snap = await getDoc(myFollowing);
-            if (snap.exists()) {
-                await deleteDoc(myFollowing);
-                await deleteDoc(theirFollowers);
-            } else {
-                await setDoc(myFollowing, { timestamp: serverTimestamp() });
-                await setDoc(theirFollowers, { timestamp: serverTimestamp() });
-            }
+            const ref = doc(db, "posts", postId, "likes", currentUser.uid);
+            const postRef = doc(db, "posts", postId);
+            const exists = (await getDoc(ref)).exists();
+            if (exists) { await deleteDoc(ref); await updateDoc(postRef, {likes: increment(-1)}); }
+            else { await setDoc(ref, {t:serverTimestamp()}); await updateDoc(postRef, {likes: increment(1)}); }
         };
     </script>
 </body>
