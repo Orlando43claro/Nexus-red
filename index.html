@@ -72,28 +72,42 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
+        // === CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         let currentPostId = null;
 
+        // Función de autenticación inicial
+        async function authenticate() {
+            try {
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Error during authentication:", error);
+            }
+        }
+        // ====================================================
+
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
             document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
-            const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
+            
+            // Usamos la ruta completa para la subcolección de comentarios
+            const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", postId, "comments");
+            const q = query(commentsCollectionRef, orderBy("createdAt", "asc"));
+            
             onSnapshot(q, snap => {
                 const list = document.getElementById('comments-list');
                 list.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
@@ -116,56 +130,76 @@
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !auth.currentUser) return;
 
-            await runTransaction(db, async (transaction) => {
-                const postRef = doc(db, "posts", currentPostId);
-                transaction.update(postRef, { commentsCount: increment(1) });
+            try {
+                await runTransaction(db, async (transaction) => {
+                    // Referencia al post principal
+                    const postRef = doc(db, "artifacts", appId, "public", "data", "posts", currentPostId);
+                    
+                    transaction.update(postRef, { commentsCount: increment(1) });
 
-                const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
-                transaction.set(commentRef, {
-                    text,
-                    username: auth.currentUser.displayName || 'Anónimo',
-                    photoURL: auth.currentUser.photoURL,
-                    userId: auth.currentUser.uid,
-                    createdAt: serverTimestamp()
+                    // Referencia a la nueva subcolección de comentarios
+                    const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", currentPostId, "comments");
+                    const commentRef = doc(commentsCollectionRef);
+                    
+                    transaction.set(commentRef, {
+                        text,
+                        username: auth.currentUser.displayName || 'Anónimo',
+                        photoURL: auth.currentUser.photoURL,
+                        userId: auth.currentUser.uid,
+                        createdAt: serverTimestamp()
+                    });
                 });
-            });
-            document.getElementById('comment-text').value = '';
+                document.getElementById('comment-text').value = '';
+            } catch (error) {
+                console.error("Error al enviar comentario:", error);
+            }
         };
 
-        onAuthStateChanged(auth, user => {
-            if (!user) return location.href = 'login.html';
+        // 1. Llamar a authenticate antes de configurar el listener
+        authenticate().then(() => {
+            onAuthStateChanged(auth, user => {
+                if (!user) return location.href = 'login.html';
 
-            document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
+                document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
+                
+                // === RUTA DE CONSULTA CORREGIDA ===
+                const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
+                const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
+                // ==================================
 
-            const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-            onSnapshot(q, snap => {
-                const container = document.getElementById('posts-container');
-                container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones</div>' : '';
+                onSnapshot(q, snap => {
+                    const container = document.getElementById('posts-container');
+                    container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones</div>' : '';
 
-                snap.forEach(doc => {
-                    const p = doc.data();
-                    const postId = doc.id;
-                    const commentsCount = p.commentsCount || 0;
+                    let postHTML = '';
+                    snap.forEach(doc => {
+                        const p = doc.data();
+                        const postId = doc.id;
+                        const commentsCount = p.commentsCount || 0;
 
-                    container.innerHTML += `
-                        <div class="post">
-                            <div class="post-header">
-                                <img class="post-avatar" src="${p.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(p.username||'U')+'&background=0077b6&color=fff'}">
-                                <div class="post-username">@${p.username || 'Anónimo'}</div>
-                            </div>
-                            <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                            \( {p.circleTarget ? `<div class="circle"> \){p.circleTarget}</div>` : ''}
-                            <div class="post-footer">
-                                <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
-                                <button onclick="openComments('${postId}')">
-                                    <i class="far fa-comment"></i> ${commentsCount}
-                                </button>
-                                <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
-                            </div>
-                        </div>`;
+                        // === ERROR DE SINTAXIS CORREGIDO AQUÍ ===
+                        postHTML += `
+                            <div class="post">
+                                <div class="post-header">
+                                    <img class="post-avatar" src="${p.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(p.username||'U')+'&background=0077b6&color=fff'}">
+                                    <div class="post-username">@${p.username || 'Anónimo'}</div>
+                                </div>
+                                <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
+                                ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''} 
+                                <div class="post-footer">
+                                    <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
+                                    <button onclick="openComments('${postId}')">
+                                        <i class="far fa-comment"></i> ${commentsCount}
+                                    </button>
+                                    <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
+                                </div>
+                            </div>`;
+                    });
+                    container.innerHTML = postHTML;
                 });
             });
         });
     </script>
 </body>
 </html>
+
