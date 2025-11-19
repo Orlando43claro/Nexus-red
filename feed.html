@@ -6,7 +6,7 @@
     <title>Nexus | Feed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; }
+        :root { --p:#0077b6; --danger: #dc3545; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
@@ -21,6 +21,12 @@
         .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:20px; color:#666; }
         .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#444; }
         .empty { text-align:center; padding:60px 20px; color:#888; }
+        .mig-msg { 
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%); 
+            background: var(--p); color: white; padding: 10px 20px; border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; display: none;
+            font-size: 0.9em;
+        }
 
         .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
         .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
@@ -50,11 +56,14 @@
         </nav>
     </header>
 
+    <div class="mig-msg" id="migration-message"></div>
     <div class="feed" id="posts-container">
         <div class="empty">Cargando feed...</div>
     </div>
 
-    <!-- MODAL COMENTARIOS --><div class="comment-modal" id="comment-modal">
+    
+
+<div class="comment-modal" id="comment-modal">
         <div class="comment-content">
             <div class="comment-header">
                 <button class="close-btn" onclick="document.getElementById('comment-modal').style.display='none'">×</button>
@@ -62,7 +71,7 @@
             </div>
             <div class="comments-list" id="comments-list"></div>
             <div class="comment-input">
-                <img id="my-avatar-comment" src="" class="mini-avatar">
+                <img id="my-avatar-comment" src="" class="mini-avatar" alt="Avatar">
                 <input type="text" id="comment-text" placeholder="Escribe un comentario..." maxlength="280">
                 <button id="send-comment">Enviar</button>
             </div>
@@ -72,7 +81,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // === 1. CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -83,6 +92,8 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         let currentPostId = null;
+        let unsubscribeFeed = null;
+        const migrationMsgEl = document.getElementById('migration-message');
 
         // Función de autenticación inicial y manejo de errores
         async function authenticate() {
@@ -97,45 +108,150 @@
                 location.href = 'login.html'; 
             }
         }
+        
+        // Función para mostrar mensajes temporales
+        function showMessage(text, isError = false) {
+            migrationMsgEl.textContent = text;
+            migrationMsgEl.style.backgroundColor = isError ? 'var(--danger)' : 'var(--p)';
+            migrationMsgEl.style.display = 'block';
+            setTimeout(() => {
+                migrationMsgEl.style.display = 'none';
+            }, 3000);
+        }
 
         // ====================================================
+        // FUNCIÓN DE MIGRACIÓN DE DATOS
+        // ====================================================
+        async function migrateOldPosts() {
+            if (!auth.currentUser) return 0;
 
+            const oldPostsRef = collection(db, "posts");
+            const newPostsRef = collection(db, "artifacts", appId, "public", "data", "posts");
+            
+            try {
+                // 1. Obtener todas las publicaciones de la colección antigua
+                const snapshot = await getDocs(oldPostsRef);
+                const oldPostsCount = snapshot.size;
+
+                if (oldPostsCount === 0) return 0;
+
+                showMessage(`Migrando ${oldPostsCount} publicaciones antiguas...`);
+                let migratedCount = 0;
+
+                for (const oldDoc of snapshot.docs) {
+                    const oldData = oldDoc.data();
+                    const oldId = oldDoc.id;
+
+                    // 2. Crear una referencia a la nueva ubicación usando el mismo ID
+                    const newDocRef = doc(newPostsRef, oldId);
+                    
+                    // 3. Copiar los datos (usando setDoc para mantener el ID)
+                    // serverTimestamp no es necesario aquí, ya que usamos el createdAt original.
+                    await setDoc(newDocRef, { 
+                        ...oldData, 
+                        // Asegurar la consistencia de los campos
+                        userId: oldData.userId || auth.currentUser.uid,
+                        username: oldData.username || 'Usuario Migrado',
+                        photoURL: oldData.photoURL || null,
+                        circleTarget: oldData.circleTarget === "Público" ? "Público" : null,
+                        circleId: oldData.circleId || null,
+                        likes: oldData.likes || 0,
+                        commentsCount: oldData.commentsCount || 0,
+                        shares: oldData.shares || 0,
+                    });
+                    
+                    // 4. Eliminar la publicación antigua
+                    await deleteDoc(oldDoc.ref);
+                    migratedCount++;
+                }
+
+                if (migratedCount > 0) {
+                    showMessage(`¡Migración exitosa! Se movieron ${migratedCount} publicaciones.`);
+                }
+                return migratedCount;
+
+            } catch (error) {
+                console.error("Error durante la migración de publicaciones:", error);
+                showMessage("ERROR: Falló la migración de posts. Revisa la consola.", true);
+                return -1;
+            }
+        }
+        // ====================================================
+
+
+        // ====================================================
+        // RENDERIZADO DEL FEED (AHORA SOLO EN LA RUTA NUEVA)
+        // ====================================================
+
+        function startFeedListener() {
+            // Detener el listener anterior si existe
+            if (unsubscribeFeed) {
+                unsubscribeFeed();
+            }
+
+            // AHORA SOLO CONSULTAMOS LA RUTA CORRECTA
+            const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
+            const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
+
+            unsubscribeFeed = onSnapshot(q, snap => {
+                const posts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+                
+                const container = document.getElementById('posts-container');
+                container.innerHTML = posts.length === 0 ? '<div class="empty">Aún no hay publicaciones</div>' : '';
+
+                let postHTML = '';
+                posts.forEach(post => {
+                    const p = post.data;
+                    const postId = post.id;
+                    const commentsCount = p.commentsCount || 0;
+                    
+                    // Uso de ui-avatars.com como fallback
+                    const avatarSrc = p.photoURL 
+                        ? p.photoURL 
+                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=0077b6&color=fff`;
+                    
+                    postHTML += `
+                        <div class="post">
+                            <div class="post-header">
+                                <img class="post-avatar" src="${avatarSrc}" alt="${p.username}'s avatar">
+                                <div class="post-username">@${p.username || 'Anónimo'}</div>
+                            </div>
+                            <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
+                            ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''} 
+                            <div class="post-footer">
+                                <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
+                                <button onclick="openComments('${postId}')">
+                                    <i class="far fa-comment"></i> ${commentsCount}
+                                </button>
+                                <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : 'Fecha desconocida'}</small>
+                            </div>
+                        </div>`;
+                });
+                container.innerHTML = postHTML;
+            }, error => {
+                console.error("Error al cargar el feed:", error);
+                document.getElementById('posts-container').innerHTML = '<div class="empty" style="color:var(--danger)">Error al cargar el feed. Revisa las reglas de seguridad.</div>';
+            });
+        }
+
+        // ====================================================
+        // LÓGICA DE COMENTARIOS (Solo para la ruta nueva)
+        // ====================================================
+        
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
             document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
             
-            // Intentar leer comentarios de la nueva ruta
+            // Consultar comentarios solo de la ruta nueva (ya que los posts antiguos se migraron)
             const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", postId, "comments");
             const q = query(commentsCollectionRef, orderBy("createdAt", "asc"));
             
             onSnapshot(q, snap => {
-                // Si la nueva ruta no tiene comentarios, intenta la antigua
-                if (snap.empty) {
-                     // ATENCIÓN: Esta consulta de comentarios en la ruta antigua NO tiene soporte de escritura con las reglas actuales.
-                     // Si los comentarios se crearon con la ruta antigua de post, también estarán en la subcolección antigua.
-                     const oldCommentsCollectionRef = collection(db, "posts", postId, "comments");
-                     const oldQ = query(oldCommentsCollectionRef, orderBy("createdAt", "asc"));
-                     onSnapshot(oldQ, oldSnap => {
-                         renderComments(oldSnap, document.getElementById('comments-list'));
-                     }, error => {
-                        console.error("Error al cargar comentarios de la ruta antigua:", error);
-                        document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error de permisos al cargar comentarios.</div>';
-                     });
-                } else {
-                    renderComments(snap, document.getElementById('comments-list'));
-                }
+                renderComments(snap, document.getElementById('comments-list'));
             }, error => {
-                console.error("Error al cargar comentarios de la nueva ruta:", error);
-                // Si falla la nueva, intentar la antigua (esto es redundante si ya se intentó en el empty, pero más robusto para errores directos)
-                 const oldCommentsCollectionRef = collection(db, "posts", postId, "comments");
-                 const oldQ = query(oldCommentsCollectionRef, orderBy("createdAt", "asc"));
-                 onSnapshot(oldQ, oldSnap => {
-                     renderComments(oldSnap, document.getElementById('comments-list'));
-                 }, error => {
-                    console.error("Error al cargar comentarios de la ruta antigua (segundo intento):", error);
-                    document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error de permisos al cargar comentarios.</div>';
-                 });
+                console.error("Error al cargar comentarios:", error);
+                document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error al cargar comentarios.</div>';
             });
         };
 
@@ -143,13 +259,17 @@
             listElement.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
             snap.forEach(d => {
                 const c = d.data();
+                const avatarSrc = c.photoURL 
+                    ? c.photoURL 
+                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.username || 'U')}&background=0077b6&color=fff`;
+
                 listElement.innerHTML += `
                     <div class="comment-item">
-                        <img src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.username||'U')+'&background=0077b6&color=fff'}">
+                        <img src="${avatarSrc}" alt="${c.username}'s avatar">
                         <div>
                             <div class="comment-user">@${c.username || 'Anónimo'}</div>
                             <div class="comment-text">${c.text}</div>
-                            <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : ''}</div>
+                            <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : 'Ahora'}</div>
                         </div>
                     </div>`;
             });
@@ -162,7 +282,6 @@
 
             try {
                 await runTransaction(db, async (transaction) => {
-                    // Siempre se intentará actualizar la nueva ruta (preferente)
                     const postRef = doc(db, "artifacts", appId, "public", "data", "posts", currentPostId);
                     
                     transaction.update(postRef, { commentsCount: increment(1) });
@@ -184,85 +303,23 @@
             }
         };
 
-        // 2. Ejecutar la autenticación y luego configurar el listener
+        // ====================================================
+        // INICIO DE LA APLICACIÓN
+        // ====================================================
         authenticate().then(() => {
-            onAuthStateChanged(auth, user => {
+            onAuthStateChanged(auth, async user => {
                 if (!user) {
                     return location.href = 'login.html';
                 }
 
+                // Cargar avatar del usuario en el modal de comentarios
                 document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
                 
-                // === CONSULTA DUAL PARA AMBAS RUTAS ===
-                const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-                const oldPostsCollectionRef = collection(db, "posts"); // Ruta antigua
+                // 1. Ejecutar migración
+                await migrateOldPosts();
 
-                const qNew = query(postsCollectionRef, orderBy("createdAt", "desc"));
-                const qOld = query(oldPostsCollectionRef, orderBy("createdAt", "desc"));
-
-                let allPosts = [];
-                let newPostsLoaded = false;
-                let oldPostsLoaded = false;
-
-                const renderAllPosts = () => {
-                    // Ordenar por fecha de creación (más reciente primero)
-                    allPosts.sort((a, b) => b.data.createdAt?.seconds - a.data.createdAt?.seconds);
-
-                    const container = document.getElementById('posts-container');
-                    container.innerHTML = allPosts.length === 0 ? '<div class="empty">Aún no hay publicaciones</div>' : '';
-
-                    let postHTML = '';
-                    allPosts.forEach(post => {
-                        const p = post.data;
-                        const postId = post.id;
-                        const commentsCount = p.commentsCount || 0;
-
-                        postHTML += `
-                            <div class="post">
-                                <div class="post-header">
-                                    <img class="post-avatar" src="${p.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(p.username||'U')+'&background=0077b6&color=fff'}">
-                                    <div class="post-username">@${p.username || 'Anónimo'}</div>
-                                </div>
-                                <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                                ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''} 
-                                <div class="post-footer">
-                                    <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
-                                    <button onclick="openComments('${postId}')">
-                                        <i class="far fa-comment"></i> ${commentsCount}
-                                    </button>
-                                    <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : ''}</small>
-                                </div>
-                            </div>`;
-                    });
-                    container.innerHTML = postHTML;
-                };
-
-                // Listener para publicaciones nuevas
-                onSnapshot(qNew, snap => {
-                    const newPosts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
-                    // Eliminar duplicados si una publicación antigua fue migrada o recargada.
-                    allPosts = allPosts.filter(p => !newPosts.some(np => np.id === p.id)).concat(newPosts);
-                    newPostsLoaded = true;
-                    if (oldPostsLoaded) renderAllPosts();
-                }, error => {
-                    console.error("Error al cargar el feed (nueva ruta):", error);
-                    newPostsLoaded = true;
-                    if (oldPostsLoaded) renderAllPosts(); // Intentar renderizar incluso con error en una ruta
-                });
-
-                // Listener para publicaciones antiguas
-                onSnapshot(qOld, snap => {
-                    const oldPosts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
-                    // Eliminar duplicados si una publicación nueva fue recargada en la antigua
-                    allPosts = allPosts.filter(p => !oldPosts.some(op => op.id === p.id)).concat(oldPosts);
-                    oldPostsLoaded = true;
-                    if (newPostsLoaded) renderAllPosts();
-                }, error => {
-                    console.error("Error al cargar el feed (ruta antigua):", error);
-                    oldPostsLoaded = true;
-                    if (newPostsLoaded) renderAllPosts(); // Intentar renderizar incluso con error en una ruta
-                });
-
+                // 2. Iniciar listener del feed (solo en la ruta nueva)
+                startFeedListener();
             });
         });
     </script>
