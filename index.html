@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -125,7 +125,9 @@
         async function migrateOldPosts() {
             if (!auth.currentUser) return 0;
 
+            // Ruta antigua (solo colección)
             const oldPostsRef = collection(db, "posts");
+            // Ruta nueva (dentro de Canvas artifact)
             const newPostsRef = collection(db, "artifacts", appId, "public", "data", "posts");
             
             try {
@@ -146,7 +148,6 @@
                     const newDocRef = doc(newPostsRef, oldId);
                     
                     // 3. Copiar los datos (usando setDoc para mantener el ID)
-                    // serverTimestamp no es necesario aquí, ya que usamos el createdAt original.
                     await setDoc(newDocRef, { 
                         ...oldData, 
                         // Asegurar la consistencia de los campos
@@ -210,6 +211,11 @@
                         ? p.photoURL 
                         : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=0077b6&color=fff`;
                     
+                    // Mostrar solo la fecha o "Ahora" si es un serverTimestamp pendiente
+                    const dateText = p.createdAt 
+                        ? (p.createdAt.seconds ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Ahora')
+                        : 'Fecha desconocida';
+
                     postHTML += `
                         <div class="post">
                             <div class="post-header">
@@ -223,7 +229,7 @@
                                 <button onclick="openComments('${postId}')">
                                     <i class="far fa-comment"></i> ${commentsCount}
                                 </button>
-                                <small>${p.createdAt ? new Date(p.createdAt.seconds*1000).toLocaleDateString() : 'Fecha desconocida'}</small>
+                                <small>${dateText}</small>
                             </div>
                         </div>`;
                 });
@@ -262,6 +268,11 @@
                 const avatarSrc = c.photoURL 
                     ? c.photoURL 
                     : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.username || 'U')}&background=0077b6&color=fff`;
+                
+                // Mostrar solo la fecha o "Ahora" si es un serverTimestamp pendiente
+                const dateText = c.createdAt 
+                    ? (c.createdAt.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleDateString() : 'Ahora')
+                    : 'Fecha desconocida';
 
                 listElement.innerHTML += `
                     <div class="comment-item">
@@ -269,7 +280,7 @@
                         <div>
                             <div class="comment-user">@${c.username || 'Anónimo'}</div>
                             <div class="comment-text">${c.text}</div>
-                            <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : 'Ahora'}</div>
+                            <div class="comment-date">${dateText}</div>
                         </div>
                     </div>`;
             });
@@ -316,6 +327,7 @@
                 document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
                 
                 // 1. Ejecutar migración
+                // Hacemos el await para asegurar que la migración termine antes de cargar el feed
                 await migrateOldPosts();
 
                 // 2. Iniciar listener del feed (solo en la ruta nueva)
