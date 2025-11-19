@@ -222,7 +222,7 @@
                 currentPhotoURL = currentUser.photoURL;
             } finally {
                 usernameDisplay.textContent = currentUsername;
-                previewUsername.textContent = `@${currentUsername}`;
+                document.getElementById('preview-username').textContent = `@${currentUsername}`;
                 
                 setAvatar(userAvatarEl, currentPhotoURL, currentUsername);
                 setAvatar(previewAvatarWrapEl, currentPhotoURL, currentUsername);
