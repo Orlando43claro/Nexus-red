@@ -6,7 +6,7 @@
     <title>Nexus | Feed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --o:#ff9900; }
+        :root { --p:#0077b6; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
@@ -16,21 +16,21 @@
         .post-header { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
         .post-avatar { width:42px; height:42px; border-radius:50%; object-fit:cover; }
         .post-username { font-weight:600; }
-        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; }
         .circle { background:#e0f7fa; color:var(--p); padding:5px 14px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
-        .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:#666; font-size:0.95em; gap:20px; }
+        .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:20px; color:#666; }
         .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#444; }
         .empty { text-align:center; padding:60px 20px; color:#888; }
 
         .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
         .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
-        .comment-header { padding:14px 20px; border-bottom:1px solid #eee; text-align:center; position:relative; font-weight:700; font-size:1.2em; }
+        .comment-header { padding:14px 20px; border-bottom:1px solid #eee; text-align:center; position:relative; font-weight:700; }
         .close-btn { position:absolute; left:16px; top:12px; background:none; border:none; font-size:2em; cursor:pointer; color:#333; }
         .comments-list { flex:1; overflow-y:auto; padding:10px 0; }
         .comment-item { display:flex; gap:12px; padding:12px 20px; border-bottom:1px solid #f0f0f0; }
         .comment-item img { width:38px; height:38px; border-radius:50%; object-fit:cover; }
         .comment-user { font-weight:600; font-size:0.95em; }
-        .comment-text { margin:4px 0; word-break:break-word; }
+        .comment-text { margin:4px 0; }
         .comment-date { font-size:0.8em; color:#888; }
         .comment-input { display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid #eee; background:#fafafa; }
         .mini-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; }
@@ -87,22 +87,16 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-
         let currentPostId = null;
-        const container = document.getElementById('posts-container');
 
-        // ABRIR Y CARGAR COMENTARIOS
         window.openComments = (postId) => {
             currentPostId = postId;
             document.getElementById('comment-modal').style.display = 'flex';
-            loadComments(postId);
-        };
-
-        function loadComments(postId) {
+            document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
             const q = query(collection(db, "posts", postId, "comments"), orderBy("createdAt", "asc"));
             onSnapshot(q, snap => {
                 const list = document.getElementById('comments-list');
-                list.innerHTML = snap.empty ? '<div style="text-align:center;padding:40px;color:#888;">Sé el primero en comentar</div>' : '';
+                list.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
                 snap.forEach(d => {
                     const c = d.data();
                     list.innerHTML += `
@@ -116,37 +110,28 @@
                         </div>`;
                 });
             });
-        }
+        };
 
-        // ENVIAR COMENTARIO + ACTUALIZAR CONTADOR
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
             if (!text || !currentPostId || !auth.currentUser) return;
 
-            try {
-                await runTransaction(db, async (transaction) => {
-                    const postRef = doc(db, "posts", currentPostId);
-                    const postSnap = await transaction.get(postRef);
-                    if (!postSnap.exists()) throw "Post no existe";
+            await runTransaction(db, async (transaction) => {
+                const postRef = doc(db, "posts", currentPostId);
+                transaction.update(postRef, { commentsCount: increment(1) });
 
-                    transaction.update(postRef, { commentsCount: increment(1) });
-
-                    const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
-                    transaction.set(commentRef, {
-                        text,
-                        username: auth.currentUser.displayName || 'Anónimo',
-                        photoURL: auth.currentUser.photoURL,
-                        userId: auth.currentUser.uid,
-                        createdAt: serverTimestamp()
-                    });
+                const commentRef = doc(collection(db, "posts", currentPostId, "comments"));
+                transaction.set(commentRef, {
+                    text,
+                    username: auth.currentUser.displayName || 'Anónimo',
+                    photoURL: auth.currentUser.photoURL,
+                    userId: auth.currentUser.uid,
+                    createdAt: serverTimestamp()
                 });
-                document.getElementById('comment-text').value = '';
-            } catch (e) {
-                console.error("Error:", e);
-            }
+            });
+            document.getElementById('comment-text').value = '';
         };
 
-        // CARGA DEL FEED (AHORA SÍ FUNCIONA AL INSTANTE)
         onAuthStateChanged(auth, user => {
             if (!user) return location.href = 'login.html';
 
@@ -154,12 +139,8 @@
 
             const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
             onSnapshot(q, snap => {
-                container.innerHTML = ''; // Limpiamos siempre
-
-                if (snap.empty) {
-                    container.innerHTML = '<div class="empty">Aún no hay publicaciones</div>';
-                    return;
-                }
+                const container = document.getElementById('posts-container');
+                container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones</div>' : '';
 
                 snap.forEach(doc => {
                     const p = doc.data();
