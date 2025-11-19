@@ -34,7 +34,6 @@
             color:white; font-weight:bold; font-size:1.3em;
             display:flex; align-items:center; justify-content:center;
             object-fit:cover;
-            /* Añadimos animación de carga */
             animation: pulse 1.5s infinite;
         }
         .avatar img {
@@ -123,6 +122,7 @@
             <div class="post-footer">
                 <select class="circle-selector" id="circle-select">
                     <option value="">Público (Todos)</option>
+                    <!-- Aquí se cargarían dinámicamente los círculos -->
                 </select>
 
                 <div>
@@ -184,7 +184,7 @@
         let authReady = false;
 
         function setAvatar(el, photoURL, username) {
-            el.style.animation = 'none'; // Detener animación de carga
+            el.style.animation = 'none'; 
             const initial = (username?.[0] || 'N').toUpperCase();
             if (photoURL) {
                 el.innerHTML = `<img src="${photoURL}" alt="Avatar" onerror="this.onerror=null;this.parentElement.textContent='${initial}'">`;
@@ -197,12 +197,11 @@
         async function loadUserData() {
             if (!currentUser) return;
 
-            // Mostrar estado de carga
             usernameDisplay.textContent = 'Cargando...';
             userAvatarEl.style.animation = 'pulse 1.5s infinite';
             previewAvatarWrapEl.style.animation = 'pulse 1.5s infinite';
             
-            // Usamos la ruta correcta para la colección de usuarios
+            // Ruta correcta para la colección de usuarios
             const userDocRef = doc(db, "artifacts", appId, "public", "data", "users", currentUser.uid);
             
             try {
@@ -213,18 +212,15 @@
                     currentUsername = data.username || 'Anónimo';
                     currentPhotoURL = data.photoURL;
                 } else {
-                    // Usar datos de auth si el documento de perfil no existe
                     currentUsername = currentUser.displayName || 'Anónimo';
                     currentPhotoURL = currentUser.photoURL;
                 }
                 
             } catch (error) {
                 console.error("Error al cargar datos del usuario:", error);
-                // Si falla, usar datos básicos para no bloquear la app
                 currentUsername = currentUser.displayName || 'Anónimo';
                 currentPhotoURL = currentUser.photoURL;
             } finally {
-                // Actualizar interfaz con los datos finales
                 usernameDisplay.textContent = currentUsername;
                 previewUsername.textContent = `@${currentUsername}`;
                 
@@ -235,7 +231,7 @@
             }
         }
 
-        // Vista previa en tiempo real (mantenida de tu versión)
+        // Vista previa en tiempo real
         textarea.addEventListener('input', () => {
             const text = textarea.value;
             const len = text.length;
@@ -284,6 +280,7 @@
                     username: currentUsername,
                     photoURL: currentPhotoURL,
                     text,
+                    // Dejamos la lógica de círculo simplificada para el público
                     circleTarget: circleSelect.value ? null : "Público", 
                     circleId: circleSelect.value || null,
                     createdAt: serverTimestamp(),
@@ -338,9 +335,8 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     currentUser = user;
-                    authReady = true; // La autenticación ha terminado
-                    await loadUserData(); // Cargar datos del usuario
-                    
+                    authReady = true; 
+                    await loadUserData();
                 } else {
                     location.href = 'login.html';
                 }
