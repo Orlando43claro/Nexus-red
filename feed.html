@@ -27,6 +27,12 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; display: none;
             font-size: 0.9em;
         }
+        /* ESTILO PARA INFORMACIÓN DE DEPURACIÓN */
+        #debug-info {
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            background: #fff3cd; color: #856404; padding: 5px 10px; 
+            font-size: 0.8em; border-top: 1px solid #ffeeba; z-index: 999;
+        }
 
         .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
         .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
@@ -60,8 +66,12 @@
     <div class="feed" id="posts-container">
         <div class="empty">Cargando feed...</div>
     </div>
-
     
+    <div id="debug-info">
+        Estado de Autenticación: <span id="auth-status">Cargando...</span> | 
+        UserID: <span id="user-id">N/A</span> | 
+        AppID: <span id="app-id">N/A</span>
+    </div>
 
 <div class="comment-modal" id="comment-modal">
         <div class="comment-content">
@@ -81,7 +91,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs, setDoc, deleteDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // === 1. CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -91,21 +101,34 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+        
+        // Habilitar logs detallados de Firestore
+        setLogLevel('debug');
+
         let currentPostId = null;
         let unsubscribeFeed = null;
         const migrationMsgEl = document.getElementById('migration-message');
+        
+        // Actualizar UI de depuración
+        document.getElementById('app-id').textContent = appId;
+        const authStatusEl = document.getElementById('auth-status');
+        const userIdEl = document.getElementById('user-id');
 
         // Función de autenticación inicial y manejo de errores
         async function authenticate() {
+            console.log("[AUTH] Intentando autenticación...");
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
+                    console.log("[AUTH] Autenticación con token personalizado exitosa.");
                 } else {
                     await signInAnonymously(auth);
+                    console.log("[AUTH] Autenticación anónima exitosa.");
                 }
             } catch (error) {
-                console.error("Error during authentication, redirecting to login:", error);
-                location.href = 'login.html'; 
+                console.error("[AUTH ERROR] Error durante la autenticación, redirigiendo a login:", error);
+                authStatusEl.textContent = 'ERROR';
+                // location.href = 'login.html'; // No redirigimos automáticamente para ver el error
             }
         }
         
@@ -114,30 +137,39 @@
             migrationMsgEl.textContent = text;
             migrationMsgEl.style.backgroundColor = isError ? 'var(--danger)' : 'var(--p)';
             migrationMsgEl.style.display = 'block';
+            console.log(`[UI MESSAGE] ${isError ? 'ERROR' : 'INFO'}: ${text}`);
             setTimeout(() => {
                 migrationMsgEl.style.display = 'none';
-            }, 3000);
+            }, 5000);
         }
 
         // ====================================================
-        // FUNCIÓN DE MIGRACIÓN DE DATOS
+        // FUNCIÓN DE MIGRACIÓN DE DATOS (Ruta antigua a nueva)
         // ====================================================
         async function migrateOldPosts() {
-            if (!auth.currentUser) return 0;
+            if (!auth.currentUser) {
+                console.log("[MIGRATION] Abortando migración: Usuario no autenticado.");
+                return 0;
+            }
 
             // Ruta antigua (solo colección)
             const oldPostsRef = collection(db, "posts");
             // Ruta nueva (dentro de Canvas artifact)
             const newPostsRef = collection(db, "artifacts", appId, "public", "data", "posts");
             
+            console.log(`[MIGRATION] Intentando leer posts antiguos de la colección: /posts`);
+            
             try {
                 // 1. Obtener todas las publicaciones de la colección antigua
                 const snapshot = await getDocs(oldPostsRef);
                 const oldPostsCount = snapshot.size;
 
-                if (oldPostsCount === 0) return 0;
+                if (oldPostsCount === 0) {
+                    console.log("[MIGRATION] No se encontraron publicaciones antiguas para migrar.");
+                    return 0;
+                }
 
-                showMessage(`Migrando ${oldPostsCount} publicaciones antiguas...`);
+                showMessage(`¡ATENCIÓN! Se encontraron ${oldPostsCount} publicaciones antiguas. Migrando...`);
                 let migratedCount = 0;
 
                 for (const oldDoc of snapshot.docs) {
@@ -150,7 +182,7 @@
                     // 3. Copiar los datos (usando setDoc para mantener el ID)
                     await setDoc(newDocRef, { 
                         ...oldData, 
-                        // Asegurar la consistencia de los campos
+                        // Asegurar la consistencia de los campos y establecer valores predeterminados
                         userId: oldData.userId || auth.currentUser.uid,
                         username: oldData.username || 'Usuario Migrado',
                         photoURL: oldData.photoURL || null,
@@ -164,16 +196,17 @@
                     // 4. Eliminar la publicación antigua
                     await deleteDoc(oldDoc.ref);
                     migratedCount++;
+                    console.log(`[MIGRATION] Migrado y borrado el post: ${oldId}`);
                 }
 
                 if (migratedCount > 0) {
-                    showMessage(`¡Migración exitosa! Se movieron ${migratedCount} publicaciones.`);
+                    showMessage(`¡Migración exitosa! Se movieron ${migratedCount} publicaciones.`, false);
                 }
                 return migratedCount;
 
             } catch (error) {
-                console.error("Error durante la migración de publicaciones:", error);
-                showMessage("ERROR: Falló la migración de posts. Revisa la consola.", true);
+                console.error("[MIGRATION ERROR] Error grave durante la migración (revisa los permisos en /posts):", error);
+                showMessage("ERROR: Falló la migración de posts. Revisa la CONSOLA y las reglas de seguridad (/posts).", true);
                 return -1;
             }
         }
@@ -181,7 +214,7 @@
 
 
         // ====================================================
-        // RENDERIZADO DEL FEED (AHORA SOLO EN LA RUTA NUEVA)
+        // RENDERIZADO DEL FEED (Solo la ruta nueva)
         // ====================================================
 
         function startFeedListener() {
@@ -189,13 +222,24 @@
             if (unsubscribeFeed) {
                 unsubscribeFeed();
             }
+            
+            console.log(`[FEED] Intentando conectar con la nueva ruta: /artifacts/${appId}/public/data/posts`);
 
             // AHORA SOLO CONSULTAMOS LA RUTA CORRECTA
             const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-            const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
+            // NOTA: No usamos orderBy para evitar problemas de índices, y ordenamos en el cliente si es necesario
+            const q = query(postsCollectionRef); // Usamos un query sin orderBy
 
             unsubscribeFeed = onSnapshot(q, snap => {
-                const posts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+                console.log(`[FEED] Listener activado. Documentos recibidos: ${snap.docs.length}`);
+                
+                // Ordenar los posts en el cliente (por timestamp) para evitar problemas de indexación
+                const posts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }))
+                    .sort((a, b) => {
+                        const timeA = a.data.createdAt?.seconds || 0;
+                        const timeB = b.data.createdAt?.seconds || 0;
+                        return timeB - timeA; // Orden descendente
+                    });
                 
                 const container = document.getElementById('posts-container');
                 container.innerHTML = posts.length === 0 ? '<div class="empty">Aún no hay publicaciones</div>' : '';
@@ -234,14 +278,15 @@
                         </div>`;
                 });
                 container.innerHTML = postHTML;
+                console.log("[FEED] Posts renderizados en pantalla.");
             }, error => {
-                console.error("Error al cargar el feed:", error);
-                document.getElementById('posts-container').innerHTML = '<div class="empty" style="color:var(--danger)">Error al cargar el feed. Revisa las reglas de seguridad.</div>';
+                console.error("[FEED ERROR] Error grave al cargar el feed (revisa permisos en /artifacts.../posts):", error);
+                document.getElementById('posts-container').innerHTML = '<div class="empty" style="color:var(--danger)">ERROR. No se pudo cargar el feed. Revisa la CONSOLA.</div>';
             });
         }
 
         // ====================================================
-        // LÓGICA DE COMENTARIOS (Solo para la ruta nueva)
+        // LÓGICA DE COMENTARIOS
         // ====================================================
         
         window.openComments = (postId) => {
@@ -249,14 +294,15 @@
             document.getElementById('comment-modal').style.display = 'flex';
             document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
             
-            // Consultar comentarios solo de la ruta nueva (ya que los posts antiguos se migraron)
+            // Consultar comentarios solo de la ruta nueva
             const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", postId, "comments");
             const q = query(commentsCollectionRef, orderBy("createdAt", "asc"));
             
             onSnapshot(q, snap => {
+                console.log(`[COMMENTS] Comentarios recibidos para post ${postId}: ${snap.docs.length}`);
                 renderComments(snap, document.getElementById('comments-list'));
             }, error => {
-                console.error("Error al cargar comentarios:", error);
+                console.error("[COMMENTS ERROR] Error al cargar comentarios:", error);
                 document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error al cargar comentarios.</div>';
             });
         };
@@ -293,10 +339,12 @@
 
             try {
                 await runTransaction(db, async (transaction) => {
+                    // Referencia del post en la nueva ruta
                     const postRef = doc(db, "artifacts", appId, "public", "data", "posts", currentPostId);
                     
                     transaction.update(postRef, { commentsCount: increment(1) });
 
+                    // Colección de comentarios en la nueva ruta
                     const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", currentPostId, "comments");
                     const commentRef = doc(commentsCollectionRef);
                     
@@ -309,8 +357,9 @@
                     });
                 });
                 document.getElementById('comment-text').value = '';
+                console.log("[COMMENTS] Comentario enviado y contador actualizado.");
             } catch (error) {
-                console.error("Error al enviar comentario:", error);
+                console.error("[COMMENTS ERROR] Error al enviar comentario:", error);
             }
         };
 
@@ -319,19 +368,28 @@
         // ====================================================
         authenticate().then(() => {
             onAuthStateChanged(auth, async user => {
-                if (!user) {
-                    return location.href = 'login.html';
+                if (user) {
+                    currentUser = user;
+                    authStatusEl.textContent = 'Autenticado';
+                    userIdEl.textContent = user.uid;
+                    console.log(`[AUTH READY] Usuario autenticado con UID: ${user.uid}`);
+                    
+                    // Cargar avatar del usuario en el modal de comentarios
+                    document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
+                    
+                    // 1. Ejecutar migración
+                    console.log("[APP FLOW] Iniciando proceso de migración...");
+                    await migrateOldPosts();
+
+                    // 2. Iniciar listener del feed (solo en la ruta nueva)
+                    console.log("[APP FLOW] Iniciando listener del feed...");
+                    startFeedListener();
+
+                } else {
+                    authStatusEl.textContent = 'No Autenticado';
+                    console.warn("[AUTH READY] Usuario no autenticado. Redirigiendo a login.");
+                    location.href = 'login.html';
                 }
-
-                // Cargar avatar del usuario en el modal de comentarios
-                document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
-                
-                // 1. Ejecutar migración
-                // Hacemos el await para asegurar que la migración termine antes de cargar el feed
-                await migrateOldPosts();
-
-                // 2. Iniciar listener del feed (solo en la ruta nueva)
-                startFeedListener();
             });
         });
     </script>
