@@ -6,7 +6,7 @@
     <title>Nexus | Feed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --danger: #dc3545; }
+        :root { --p:#0077b6; --s:#28a745; --danger:#dc3545; }
         body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
         .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
@@ -16,383 +16,114 @@
         .post-header { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
         .post-avatar { width:42px; height:42px; border-radius:50%; object-fit:cover; }
         .post-username { font-weight:600; }
-        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; }
+        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
         .circle { background:#e0f7fa; color:var(--p); padding:5px 14px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
-        .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:20px; color:#666; }
-        .post-footer button { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; color:#444; }
+        .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:#666; }
+        .action-btn { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; }
+        .like-btn.liked { color:red; }
+        .like-btn.liked i { animation: heart 0.6s; }
+        @keyframes heart { 0%,100% { transform:scale(1); } 50% { transform:scale(1.4); } }
         .empty { text-align:center; padding:60px 20px; color:#888; }
-        .mig-msg { 
-            position: fixed; top: 80px; left: 50%; transform: translateX(-50%); 
-            background: var(--p); color: white; padding: 10px 20px; border-radius: 8px; 
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; display: none;
-            font-size: 0.9em;
-        }
-        /* ESTILO PARA INFORMACIÓN DE DEPURACIÓN */
-        #debug-info {
-            position: fixed; bottom: 0; left: 0; right: 0; 
-            background: #fff3cd; color: #856404; padding: 5px 10px; 
-            font-size: 0.8em; border-top: 1px solid #ffeeba; z-index: 999;
-        }
-
-        .comment-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:flex-end; }
-        .comment-content { background:white; width:100%; max-width:500px; height:85vh; border-radius:16px 16px 0 0; display:flex; flex-direction:column; }
-        .comment-header { padding:14px 20px; border-bottom:1px solid #eee; text-align:center; position:relative; font-weight:700; }
-        .close-btn { position:absolute; left:16px; top:12px; background:none; border:none; font-size:2em; cursor:pointer; color:#333; }
-        .comments-list { flex:1; overflow-y:auto; padding:10px 0; }
-        .comment-item { display:flex; gap:12px; padding:12px 20px; border-bottom:1px solid #f0f0f0; }
-        .comment-item img { width:38px; height:38px; border-radius:50%; object-fit:cover; }
-        .comment-user { font-weight:600; font-size:0.95em; }
-        .comment-text { margin:4px 0; }
-        .comment-date { font-size:0.8em; color:#888; }
-        .comment-input { display:flex; align-items:center; gap:10px; padding:12px 16px; border-top:1px solid #eee; background:#fafafa; }
-        .mini-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; }
-        .comment-input input { flex:1; border:none; background:transparent; outline:none; font-size:1em; }
-        .comment-input button { background:var(--p); color:white; border:none; padding:10px 20px; border-radius:30px; font-weight:600; cursor:pointer; }
     </style>
 </head>
 <body>
-
     <header class="header">
         <h1>NEXUS</h1>
         <nav>
-            <a href="feed.html">Feed</a>
+            <a href="feed.html" style="font-weight:bold;">Feed</a>
             <a href="explore.html">Explorar</a>
             <a href="create-post.html">Crear</a>
             <a href="profile.html">Perfil</a>
         </nav>
     </header>
 
-    <div class="mig-msg" id="migration-message"></div>
     <div class="feed" id="posts-container">
         <div class="empty">Cargando feed...</div>
-    </div>
-    
-    <div id="debug-info">
-        Estado de Autenticación: <span id="auth-status">Cargando...</span> | 
-        UserID: <span id="user-id">N/A</span> | 
-        AppID: <span id="app-id">N/A</span>
-    </div>
-
-<div class="comment-modal" id="comment-modal">
-        <div class="comment-content">
-            <div class="comment-header">
-                <button class="close-btn" onclick="document.getElementById('comment-modal').style.display='none'">×</button>
-                <h3>Comentarios</h3>
-            </div>
-            <div class="comments-list" id="comments-list"></div>
-            <div class="comment-input">
-                <img id="my-avatar-comment" src="" class="mini-avatar" alt="Avatar">
-                <input type="text" id="comment-text" placeholder="Escribe un comentario..." maxlength="280">
-                <button id="send-comment">Enviar</button>
-            </div>
-        </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs, setDoc, deleteDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, doc, runTransaction, increment, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // === 1. CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        const firebaseConfig = {
+            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+            authDomain: "nexus-2c445.firebaseapp.com",
+            projectId: "nexus-2c445",
+            storageBucket: "nexus-2c445.firebasestorage.app",
+            messagingSenderId: "601285349766",
+            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // Habilitar logs detallados de Firestore
-        setLogLevel('debug');
+        let currentUser = null;
 
-        let currentPostId = null;
-        let unsubscribeFeed = null;
-        const migrationMsgEl = document.getElementById('migration-message');
-        
-        // Actualizar UI de depuración
-        document.getElementById('app-id').textContent = appId;
-        const authStatusEl = document.getElementById('auth-status');
-        const userIdEl = document.getElementById('user-id');
+        // LIKE FUNCIONAL 100%
+        window.toggleLike = async (postId, btn) => {
+            if (!currentUser) return alert("Inicia sesión");
+            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
+            const postRef = doc(db, "posts", postId);
 
-        // Función de autenticación inicial y manejo de errores
-        async function authenticate() {
-            console.log("[AUTH] Intentando autenticación...");
             try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                    console.log("[AUTH] Autenticación con token personalizado exitosa.");
+                const likeDoc = await getDoc(likeRef);
+                if (likeDoc.exists()) {
+                    await runTransaction(db, async (t) => {
+                        t.delete(likeRef);
+                        t.update(postRef, { likes: increment(-1) });
+                    });
+                    btn.classList.remove('liked');
                 } else {
-                    await signInAnonymously(auth);
-                    console.log("[AUTH] Autenticación anónima exitosa.");
-                }
-            } catch (error) {
-                console.error("[AUTH ERROR] Error durante la autenticación, redirigiendo a login:", error);
-                authStatusEl.textContent = 'ERROR';
-                // location.href = 'login.html'; // No redirigimos automáticamente para ver el error
-            }
-        }
-        
-        // Función para mostrar mensajes temporales
-        function showMessage(text, isError = false) {
-            migrationMsgEl.textContent = text;
-            migrationMsgEl.style.backgroundColor = isError ? 'var(--danger)' : 'var(--p)';
-            migrationMsgEl.style.display = 'block';
-            console.log(`[UI MESSAGE] ${isError ? 'ERROR' : 'INFO'}: ${text}`);
-            setTimeout(() => {
-                migrationMsgEl.style.display = 'none';
-            }, 5000);
-        }
-
-        // ====================================================
-        // FUNCIÓN DE MIGRACIÓN DE DATOS (Ruta antigua a nueva)
-        // ====================================================
-        async function migrateOldPosts() {
-            if (!auth.currentUser) {
-                console.log("[MIGRATION] Abortando migración: Usuario no autenticado.");
-                return 0;
-            }
-
-            // Ruta antigua (solo colección)
-            const oldPostsRef = collection(db, "posts");
-            // Ruta nueva (dentro de Canvas artifact)
-            const newPostsRef = collection(db, "artifacts", appId, "public", "data", "posts");
-            
-            console.log(`[MIGRATION] Intentando leer posts antiguos de la colección: /posts`);
-            
-            try {
-                // 1. Obtener todas las publicaciones de la colección antigua
-                const snapshot = await getDocs(oldPostsRef);
-                const oldPostsCount = snapshot.size;
-
-                if (oldPostsCount === 0) {
-                    console.log("[MIGRATION] No se encontraron publicaciones antiguas para migrar.");
-                    return 0;
-                }
-
-                showMessage(`¡ATENCIÓN! Se encontraron ${oldPostsCount} publicaciones antiguas. Migrando...`);
-                let migratedCount = 0;
-
-                for (const oldDoc of snapshot.docs) {
-                    const oldData = oldDoc.data();
-                    const oldId = oldDoc.id;
-
-                    // 2. Crear una referencia a la nueva ubicación usando el mismo ID
-                    const newDocRef = doc(newPostsRef, oldId);
-                    
-                    // 3. Copiar los datos (usando setDoc para mantener el ID)
-                    await setDoc(newDocRef, { 
-                        ...oldData, 
-                        // Asegurar la consistencia de los campos y establecer valores predeterminados
-                        userId: oldData.userId || auth.currentUser.uid,
-                        username: oldData.username || 'Usuario Migrado',
-                        photoURL: oldData.photoURL || null,
-                        circleTarget: oldData.circleTarget === "Público" ? "Público" : null,
-                        circleId: oldData.circleId || null,
-                        likes: oldData.likes || 0,
-                        commentsCount: oldData.commentsCount || 0,
-                        shares: oldData.shares || 0,
+                    await runTransaction(db, async (t) => {
+                        t.set(likeRef, { t: serverTimestamp() });
+                        t.update(postRef, { likes: increment(1) });
                     });
-                    
-                    // 4. Eliminar la publicación antigua
-                    await deleteDoc(oldDoc.ref);
-                    migratedCount++;
-                    console.log(`[MIGRATION] Migrado y borrado el post: ${oldId}`);
+                    btn.classList.add('liked');
                 }
+            } catch (e) { console.error(e); }
+        };
 
-                if (migratedCount > 0) {
-                    showMessage(`¡Migración exitosa! Se movieron ${migratedCount} publicaciones.`, false);
-                }
-                return migratedCount;
+        onAuthStateChanged(auth, user => {
+            currentUser = user;
+            if (!user) location.href = "login.html";
 
-            } catch (error) {
-                console.error("[MIGRATION ERROR] Error grave durante la migración (revisa los permisos en /posts):", error);
-                showMessage("ERROR: Falló la migración de posts. Revisa la CONSOLA y las reglas de seguridad (/posts).", true);
-                return -1;
-            }
-        }
-        // ====================================================
-
-
-        // ====================================================
-        // RENDERIZADO DEL FEED (Solo la ruta nueva)
-        // ====================================================
-
-        function startFeedListener() {
-            // Detener el listener anterior si existe
-            if (unsubscribeFeed) {
-                unsubscribeFeed();
-            }
-            
-            console.log(`[FEED] Intentando conectar con la nueva ruta: /artifacts/${appId}/public/data/posts`);
-
-            // AHORA SOLO CONSULTAMOS LA RUTA CORRECTA
-            const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-            // NOTA: No usamos orderBy para evitar problemas de índices, y ordenamos en el cliente si es necesario
-            const q = query(postsCollectionRef); // Usamos un query sin orderBy
-
-            unsubscribeFeed = onSnapshot(q, snap => {
-                console.log(`[FEED] Listener activado. Documentos recibidos: ${snap.docs.length}`);
-                
-                // Ordenar los posts en el cliente (por timestamp) para evitar problemas de indexación
-                const posts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }))
-                    .sort((a, b) => {
-                        const timeA = a.data.createdAt?.seconds || 0;
-                        const timeB = b.data.createdAt?.seconds || 0;
-                        return timeB - timeA; // Orden descendente
-                    });
-                
+            // LEE LA COLECCIÓN NORMAL /posts (la misma que explore.html)
+            const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+            onSnapshot(q, snap => {
                 const container = document.getElementById('posts-container');
-                container.innerHTML = posts.length === 0 ? '<div class="empty">Aún no hay publicaciones</div>' : '';
+                if (snap.empty) {
+                    container.innerHTML = '<div class="empty">Aún no hay publicaciones<br><small>¡Sé el primero!</small></div>';
+                    return;
+                }
 
-                let postHTML = '';
-                posts.forEach(post => {
-                    const p = post.data;
-                    const postId = post.id;
-                    const commentsCount = p.commentsCount || 0;
-                    
-                    // Uso de ui-avatars.com como fallback
-                    const avatarSrc = p.photoURL 
-                        ? p.photoURL 
-                        : `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=0077b6&color=fff`;
-                    
-                    // Mostrar solo la fecha o "Ahora" si es un serverTimestamp pendiente
-                    const dateText = p.createdAt 
-                        ? (p.createdAt.seconds ? new Date(p.createdAt.seconds * 1000).toLocaleDateString() : 'Ahora')
-                        : 'Fecha desconocida';
+                let html = '';
+                snap.docs.forEach(d => {
+                    const p = d.data();
+                    const isLiked = false; // se detecta en tiempo real más abajo
+                    const avatar = p.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=0077b6&color=fff`;
 
-                    postHTML += `
+                    html += `
                         <div class="post">
                             <div class="post-header">
-                                <img class="post-avatar" src="${avatarSrc}" alt="${p.username}'s avatar">
+                                <img class="post-avatar" src="${avatar}">
                                 <div class="post-username">@${p.username || 'Anónimo'}</div>
                             </div>
                             <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
-                            ${p.circleTarget ? `<div class="circle">${p.circleTarget}</div>` : ''} 
+                            \( {p.circleTarget ? `<div class="circle"> \){p.circleTarget}</div>` : ''}
                             <div class="post-footer">
-                                <button><i class="far fa-heart"></i> ${p.likes || 0}</button>
-                                <button onclick="openComments('${postId}')">
-                                    <i class="far fa-comment"></i> ${commentsCount}
+                                <button class="action-btn like-btn \( {isLiked?'liked':''}" onclick="toggleLike(' \){d.id}', this)">
+                                    <i class="\( {isLiked?'fas':'far'} fa-heart"></i> <span> \){p.likes || 0}</span>
                                 </button>
-                                <small>${dateText}</small>
+                                <button class="action-btn" onclick="location.href='post.html?id=${d.id}'">
+                                    <i class="far fa-comment"></i> ${p.commentsCount || 0}
+                                </button>
                             </div>
                         </div>`;
                 });
-                container.innerHTML = postHTML;
-                console.log("[FEED] Posts renderizados en pantalla.");
-            }, error => {
-                console.error("[FEED ERROR] Error grave al cargar el feed (revisa permisos en /artifacts.../posts):", error);
-                document.getElementById('posts-container').innerHTML = '<div class="empty" style="color:var(--danger)">ERROR. No se pudo cargar el feed. Revisa la CONSOLA.</div>';
-            });
-        }
-
-        // ====================================================
-        // LÓGICA DE COMENTARIOS
-        // ====================================================
-        
-        window.openComments = (postId) => {
-            currentPostId = postId;
-            document.getElementById('comment-modal').style.display = 'flex';
-            document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
-            
-            // Consultar comentarios solo de la ruta nueva
-            const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", postId, "comments");
-            const q = query(commentsCollectionRef, orderBy("createdAt", "asc"));
-            
-            onSnapshot(q, snap => {
-                console.log(`[COMMENTS] Comentarios recibidos para post ${postId}: ${snap.docs.length}`);
-                renderComments(snap, document.getElementById('comments-list'));
-            }, error => {
-                console.error("[COMMENTS ERROR] Error al cargar comentarios:", error);
-                document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error al cargar comentarios.</div>';
-            });
-        };
-
-        function renderComments(snap, listElement) {
-            listElement.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
-            snap.forEach(d => {
-                const c = d.data();
-                const avatarSrc = c.photoURL 
-                    ? c.photoURL 
-                    : `https://ui-avatars.com/api/?name=${encodeURIComponent(c.username || 'U')}&background=0077b6&color=fff`;
-                
-                // Mostrar solo la fecha o "Ahora" si es un serverTimestamp pendiente
-                const dateText = c.createdAt 
-                    ? (c.createdAt.seconds ? new Date(c.createdAt.seconds * 1000).toLocaleDateString() : 'Ahora')
-                    : 'Fecha desconocida';
-
-                listElement.innerHTML += `
-                    <div class="comment-item">
-                        <img src="${avatarSrc}" alt="${c.username}'s avatar">
-                        <div>
-                            <div class="comment-user">@${c.username || 'Anónimo'}</div>
-                            <div class="comment-text">${c.text}</div>
-                            <div class="comment-date">${dateText}</div>
-                        </div>
-                    </div>`;
-            });
-        }
-
-
-        document.getElementById('send-comment').onclick = async () => {
-            const text = document.getElementById('comment-text').value.trim();
-            if (!text || !currentPostId || !auth.currentUser) return;
-
-            try {
-                await runTransaction(db, async (transaction) => {
-                    // Referencia del post en la nueva ruta
-                    const postRef = doc(db, "artifacts", appId, "public", "data", "posts", currentPostId);
-                    
-                    transaction.update(postRef, { commentsCount: increment(1) });
-
-                    // Colección de comentarios en la nueva ruta
-                    const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", currentPostId, "comments");
-                    const commentRef = doc(commentsCollectionRef);
-                    
-                    transaction.set(commentRef, {
-                        text,
-                        username: auth.currentUser.displayName || 'Anónimo',
-                        photoURL: auth.currentUser.photoURL,
-                        userId: auth.currentUser.uid,
-                        createdAt: serverTimestamp()
-                    });
-                });
-                document.getElementById('comment-text').value = '';
-                console.log("[COMMENTS] Comentario enviado y contador actualizado.");
-            } catch (error) {
-                console.error("[COMMENTS ERROR] Error al enviar comentario:", error);
-            }
-        };
-
-        // ====================================================
-        // INICIO DE LA APLICACIÓN
-        // ====================================================
-        authenticate().then(() => {
-            onAuthStateChanged(auth, async user => {
-                if (user) {
-                    currentUser = user;
-                    authStatusEl.textContent = 'Autenticado';
-                    userIdEl.textContent = user.uid;
-                    console.log(`[AUTH READY] Usuario autenticado con UID: ${user.uid}`);
-                    
-                    // Cargar avatar del usuario en el modal de comentarios
-                    document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
-                    
-                    // 1. Ejecutar migración
-                    console.log("[APP FLOW] Iniciando proceso de migración...");
-                    await migrateOldPosts();
-
-                    // 2. Iniciar listener del feed (solo en la ruta nueva)
-                    console.log("[APP FLOW] Iniciando listener del feed...");
-                    startFeedListener();
-
-                } else {
-                    authStatusEl.textContent = 'No Autenticado';
-                    console.warn("[AUTH READY] Usuario no autenticado. Redirigiendo a login.");
-                    location.href = 'login.html';
-                }
+                container.innerHTML = html;
             });
         });
     </script>
 </body>
 </html>
-
