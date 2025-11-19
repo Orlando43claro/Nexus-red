@@ -54,8 +54,7 @@
         <div class="empty">Cargando feed...</div>
     </div>
 
-    <!-- MODAL COMENTARIOS -->
-    <div class="comment-modal" id="comment-modal">
+    <!-- MODAL COMENTARIOS --><div class="comment-modal" id="comment-modal">
         <div class="comment-content">
             <div class="comment-header">
                 <button class="close-btn" onclick="document.getElementById('comment-modal').style.display='none'">×</button>
@@ -73,9 +72,9 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { getFirestore, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, serverTimestamp, doc, runTransaction, increment, getDocs } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
-        // === CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
+        // === 1. CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
@@ -85,7 +84,7 @@
         const db = getFirestore(app);
         let currentPostId = null;
 
-        // Función de autenticación inicial
+        // Función de autenticación inicial y manejo de errores
         async function authenticate() {
             try {
                 if (initialAuthToken) {
@@ -94,9 +93,11 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Error during authentication:", error);
+                console.error("Error during authentication, redirecting to login:", error);
+                location.href = 'login.html'; 
             }
         }
+
         // ====================================================
 
         window.openComments = (postId) => {
@@ -104,27 +105,56 @@
             document.getElementById('comment-modal').style.display = 'flex';
             document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:#888;">Cargando comentarios...</div>';
             
-            // Usamos la ruta completa para la subcolección de comentarios
+            // Intentar leer comentarios de la nueva ruta
             const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", postId, "comments");
             const q = query(commentsCollectionRef, orderBy("createdAt", "asc"));
             
             onSnapshot(q, snap => {
-                const list = document.getElementById('comments-list');
-                list.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
-                snap.forEach(d => {
-                    const c = d.data();
-                    list.innerHTML += `
-                        <div class="comment-item">
-                            <img src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.username||'U')+'&background=0077b6&color=fff'}">
-                            <div>
-                                <div class="comment-user">@${c.username || 'Anónimo'}</div>
-                                <div class="comment-text">${c.text}</div>
-                                <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : ''}</div>
-                            </div>
-                        </div>`;
-                });
+                // Si la nueva ruta no tiene comentarios, intenta la antigua
+                if (snap.empty) {
+                     // ATENCIÓN: Esta consulta de comentarios en la ruta antigua NO tiene soporte de escritura con las reglas actuales.
+                     // Si los comentarios se crearon con la ruta antigua de post, también estarán en la subcolección antigua.
+                     const oldCommentsCollectionRef = collection(db, "posts", postId, "comments");
+                     const oldQ = query(oldCommentsCollectionRef, orderBy("createdAt", "asc"));
+                     onSnapshot(oldQ, oldSnap => {
+                         renderComments(oldSnap, document.getElementById('comments-list'));
+                     }, error => {
+                        console.error("Error al cargar comentarios de la ruta antigua:", error);
+                        document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error de permisos al cargar comentarios.</div>';
+                     });
+                } else {
+                    renderComments(snap, document.getElementById('comments-list'));
+                }
+            }, error => {
+                console.error("Error al cargar comentarios de la nueva ruta:", error);
+                // Si falla la nueva, intentar la antigua (esto es redundante si ya se intentó en el empty, pero más robusto para errores directos)
+                 const oldCommentsCollectionRef = collection(db, "posts", postId, "comments");
+                 const oldQ = query(oldCommentsCollectionRef, orderBy("createdAt", "asc"));
+                 onSnapshot(oldQ, oldSnap => {
+                     renderComments(oldSnap, document.getElementById('comments-list'));
+                 }, error => {
+                    console.error("Error al cargar comentarios de la ruta antigua (segundo intento):", error);
+                    document.getElementById('comments-list').innerHTML = '<div style="text-align:center;padding:50px;color:red;">Error de permisos al cargar comentarios.</div>';
+                 });
             });
         };
+
+        function renderComments(snap, listElement) {
+            listElement.innerHTML = snap.empty ? '<div style="text-align:center;padding:60px;color:#888;">Sé el primero en comentar</div>' : '';
+            snap.forEach(d => {
+                const c = d.data();
+                listElement.innerHTML += `
+                    <div class="comment-item">
+                        <img src="${c.photoURL || 'https://ui-avatars.com/api/?name='+encodeURIComponent(c.username||'U')+'&background=0077b6&color=fff'}">
+                        <div>
+                            <div class="comment-user">@${c.username || 'Anónimo'}</div>
+                            <div class="comment-text">${c.text}</div>
+                            <div class="comment-date">${c.createdAt ? new Date(c.createdAt.seconds*1000).toLocaleDateString() : ''}</div>
+                        </div>
+                    </div>`;
+            });
+        }
+
 
         document.getElementById('send-comment').onclick = async () => {
             const text = document.getElementById('comment-text').value.trim();
@@ -132,12 +162,11 @@
 
             try {
                 await runTransaction(db, async (transaction) => {
-                    // Referencia al post principal
+                    // Siempre se intentará actualizar la nueva ruta (preferente)
                     const postRef = doc(db, "artifacts", appId, "public", "data", "posts", currentPostId);
                     
                     transaction.update(postRef, { commentsCount: increment(1) });
 
-                    // Referencia a la nueva subcolección de comentarios
                     const commentsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts", currentPostId, "comments");
                     const commentRef = doc(commentsCollectionRef);
                     
@@ -155,29 +184,39 @@
             }
         };
 
-        // 1. Llamar a authenticate antes de configurar el listener
+        // 2. Ejecutar la autenticación y luego configurar el listener
         authenticate().then(() => {
             onAuthStateChanged(auth, user => {
-                if (!user) return location.href = 'login.html';
+                if (!user) {
+                    return location.href = 'login.html';
+                }
 
                 document.getElementById('my-avatar-comment').src = user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName||'U')}&background=0077b6&color=fff`;
                 
-                // === RUTA DE CONSULTA CORREGIDA ===
+                // === CONSULTA DUAL PARA AMBAS RUTAS ===
                 const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-                const q = query(postsCollectionRef, orderBy("createdAt", "desc"));
-                // ==================================
+                const oldPostsCollectionRef = collection(db, "posts"); // Ruta antigua
 
-                onSnapshot(q, snap => {
+                const qNew = query(postsCollectionRef, orderBy("createdAt", "desc"));
+                const qOld = query(oldPostsCollectionRef, orderBy("createdAt", "desc"));
+
+                let allPosts = [];
+                let newPostsLoaded = false;
+                let oldPostsLoaded = false;
+
+                const renderAllPosts = () => {
+                    // Ordenar por fecha de creación (más reciente primero)
+                    allPosts.sort((a, b) => b.data.createdAt?.seconds - a.data.createdAt?.seconds);
+
                     const container = document.getElementById('posts-container');
-                    container.innerHTML = snap.empty ? '<div class="empty">Aún no hay publicaciones</div>' : '';
+                    container.innerHTML = allPosts.length === 0 ? '<div class="empty">Aún no hay publicaciones</div>' : '';
 
                     let postHTML = '';
-                    snap.forEach(doc => {
-                        const p = doc.data();
-                        const postId = doc.id;
+                    allPosts.forEach(post => {
+                        const p = post.data;
+                        const postId = post.id;
                         const commentsCount = p.commentsCount || 0;
 
-                        // === ERROR DE SINTAXIS CORREGIDO AQUÍ ===
                         postHTML += `
                             <div class="post">
                                 <div class="post-header">
@@ -196,7 +235,34 @@
                             </div>`;
                     });
                     container.innerHTML = postHTML;
+                };
+
+                // Listener para publicaciones nuevas
+                onSnapshot(qNew, snap => {
+                    const newPosts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+                    // Eliminar duplicados si una publicación antigua fue migrada o recargada.
+                    allPosts = allPosts.filter(p => !newPosts.some(np => np.id === p.id)).concat(newPosts);
+                    newPostsLoaded = true;
+                    if (oldPostsLoaded) renderAllPosts();
+                }, error => {
+                    console.error("Error al cargar el feed (nueva ruta):", error);
+                    newPostsLoaded = true;
+                    if (oldPostsLoaded) renderAllPosts(); // Intentar renderizar incluso con error en una ruta
                 });
+
+                // Listener para publicaciones antiguas
+                onSnapshot(qOld, snap => {
+                    const oldPosts = snap.docs.map(doc => ({ id: doc.id, data: doc.data() }));
+                    // Eliminar duplicados si una publicación nueva fue recargada en la antigua
+                    allPosts = allPosts.filter(p => !oldPosts.some(op => op.id === p.id)).concat(oldPosts);
+                    oldPostsLoaded = true;
+                    if (newPostsLoaded) renderAllPosts();
+                }, error => {
+                    console.error("Error al cargar el feed (ruta antigua):", error);
+                    oldPostsLoaded = true;
+                    if (newPostsLoaded) renderAllPosts(); // Intentar renderizar incluso con error en una ruta
+                });
+
             });
         });
     </script>
