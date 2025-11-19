@@ -6,9 +6,9 @@
     <title>Nexus | Feed</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
-        :root { --p:#0077b6; --s:#28a745; --danger:#dc3545; }
-        body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
-        .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
+        :root { --p:#0077b6; }
+        body { margin:0; background:#f0f2f5; font-family:system-ui; }
+        .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; position:sticky; top:0; z-index:100; }
         .header h1 { margin:0; font-size:1.8em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
         .feed { max-width:600px; margin:0 auto; padding:16px; }
@@ -16,13 +16,11 @@
         .post-header { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
         .post-avatar { width:42px; height:42px; border-radius:50%; object-fit:cover; }
         .post-username { font-weight:600; }
-        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+        .post-text { font-size:1.05em; line-height:1.6; white-space:pre-wrap; }
         .circle { background:#e0f7fa; color:var(--p); padding:5px 14px; border-radius:20px; font-size:0.9em; margin:8px 0; display:inline-block; }
-        .post-footer { display:flex; justify-content:space-between; align-items:center; margin-top:12px; color:#666; }
+        .post-footer { display:flex; justify-content:space-between; margin-top:12px; color:#666; }
         .action-btn { background:none; border:none; cursor:pointer; font-size:1.5em; display:flex; align-items:center; gap:6px; }
-        .like-btn.liked { color:red; }
-        .like-btn.liked i { animation: heart 0.6s; }
-        @keyframes heart { 0%,100% { transform:scale(1); } 50% { transform:scale(1.4); } }
+        .like-btn.liked i { color:red; }
         .empty { text-align:center; padding:60px 20px; color:#888; }
     </style>
 </head>
@@ -43,7 +41,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
         import { getFirestore, collection, query, orderBy, onSnapshot, doc, runTransaction, increment, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -58,38 +56,19 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        let currentUser = null;
 
-        // LIKE FUNCIONAL 100%
-        window.toggleLike = async (postId, btn) => {
-            if (!currentUser) return alert("Inicia sesión");
-            const likeRef = doc(db, "posts", postId, "likes", currentUser.uid);
-            const postRef = doc(db, "posts", postId);
-
-            try {
-                const likeDoc = await getDoc(likeRef);
-                if (likeDoc.exists()) {
-                    await runTransaction(db, async (t) => {
-                        t.delete(likeRef);
-                        t.update(postRef, { likes: increment(-1) });
-                    });
-                    btn.classList.remove('liked');
-                } else {
-                    await runTransaction(db, async (t) => {
-                        t.set(likeRef, { t: serverTimestamp() });
-                        t.update(postRef, { likes: increment(1) });
-                    });
-                    btn.classList.add('liked');
-                }
-            } catch (e) { console.error(e); }
-        };
-
+        // FORZAR AUTENTICACIÓN ANÓNIMA (esto soluciona tu problema)
         onAuthStateChanged(auth, user => {
-            currentUser = user;
-            if (!user) location.href = "login.html";
+            if (user) {
+                cargarFeed(user);
+            } else {
+                signInAnonymously(auth).catch(err => console.error("Error auth:", err));
+            }
+        });
 
-            // LEE LA COLECCIÓN NORMAL /posts (la misma que explore.html)
+        function cargarFeed(user) {
             const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
+            
             onSnapshot(q, snap => {
                 const container = document.getElementById('posts-container');
                 if (snap.empty) {
@@ -98,10 +77,9 @@
                 }
 
                 let html = '';
-                snap.docs.forEach(d => {
+                snap.forEach(d => {
                     const p = d.data();
-                    const isLiked = false; // se detecta en tiempo real más abajo
-                    const avatar = p.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.username || 'U')}&background=0077b6&color=fff`;
+                    const avatar = p.photoURL || `https://ui-avatars.com/api/?name=${p.username||'U'}&background=0077b6&color=fff`;
 
                     html += `
                         <div class="post">
@@ -112,10 +90,10 @@
                             <div class="post-text">${p.text.replace(/\n/g, '<br>')}</div>
                             \( {p.circleTarget ? `<div class="circle"> \){p.circleTarget}</div>` : ''}
                             <div class="post-footer">
-                                <button class="action-btn like-btn \( {isLiked?'liked':''}" onclick="toggleLike(' \){d.id}', this)">
-                                    <i class="\( {isLiked?'fas':'far'} fa-heart"></i> <span> \){p.likes || 0}</span>
+                                <button class="action-btn like-btn" onclick="toggleLike('${d.id}', this)">
+                                    <i class="far fa-heart"></i> <span>${p.likes || 0}</span>
                                 </button>
-                                <button class="action-btn" onclick="location.href='post.html?id=${d.id}'">
+                                <button class="action-btn">
                                     <i class="far fa-comment"></i> ${p.commentsCount || 0}
                                 </button>
                             </div>
@@ -123,7 +101,28 @@
                 });
                 container.innerHTML = html;
             });
-        });
+        }
+
+        window.toggleLike = async (postId, btn) => {
+            if (!auth.currentUser) return;
+            const likeRef = doc(db, "posts", postId, "likes", auth.currentUser.uid);
+            const postRef = doc(db, "posts", postId);
+            const existe = (await getDoc(likeRef)).exists();
+
+            if (existe) {
+                await runTransaction(db, t => {
+                    t.delete(likeRef);
+                    t.update(postRef, { likes: increment(-1) });
+                });
+                btn.innerHTML = `<i class="far fa-heart"></i> <span>${parseInt(btn.querySelector('span').textContent)-1}</span>`;
+            } else {
+                await runTransaction(db, t => {
+                    t.set(likeRef, { t: serverTimestamp() });
+                    t.update(postRef, { likes: increment(1) });
+                });
+                btn.innerHTML = `<i class="fas fa-heart" style="color:red"></i> <span>${parseInt(btn.querySelector('span').textContent)+1}</span>`;
+            }
+        };
     </script>
 </body>
 </html>
