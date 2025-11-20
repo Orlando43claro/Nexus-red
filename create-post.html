@@ -3,97 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Crear Publicación</title>
+    <title>Nexus | Crear Post</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        :root { --primary: #0077b6; --success: #28a745; --gray: #666; }
-        body { margin:0; background:#f0f2f5; font-family:system-ui,-apple-system,sans-serif; }
-        .header {
-            background:var(--primary); color:white; padding:15px 20px;
-            display:flex; justify-content:space-between; align-items:center;
-            position:sticky; top:0; z-index:100;
-        }
-        .header h1 { margin:0; font-size:1.7em; font-weight:700; }
+        :root { --p:#0077b6; }
+        body { font-family:system-ui,-apple-system,sans-serif; background:#f0f2f5; }
+        .header { background:var(--p); color:white; padding:15px 20px; display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; }
+        .header h1 { margin:0; font-size:1.8em; font-weight:700; }
         .header nav a { color:white; text-decoration:none; margin-left:20px; font-weight:500; }
-
-        .container {
-            max-width:600px; margin:20px auto; padding:0 16px;
-        }
-
-        .post-card {
-            background:white; border-radius:16px; overflow:hidden;
-            box-shadow:0 4px 20px rgba(0,0,0,0.1); margin-bottom:20px;
-        }
-
-        .post-header {
-            padding:16px 20px; display:flex; align-items:center; gap:14px;
-            border-bottom:1px solid #eee;
-        }
-        .avatar {
-            width:48px; height:48px; border-radius:50%; background:var(--primary);
-            color:white; font-weight:bold; font-size:1.3em;
-            display:flex; align-items:center; justify-content:center;
-            object-fit:cover;
-            animation: pulse 1.5s infinite;
-        }
-        .avatar img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-        }
+        .post-card { max-width:600px; margin:20px auto; padding:20px; background:white; border-radius:16px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+        .avatar { width:48px; height:48px; border-radius:50%; object-fit:cover; }
+        textarea { resize:none; border:none; outline:none; font-size:1.1em; line-height:1.6; }
+        .publish-btn { background:var(--p); color:white; font-weight:600; padding:12px 24px; border-radius:9999px; transition:opacity 0.2s; }
+        .publish-btn:disabled { opacity:0.6; cursor:not-allowed; }
+        .char-counter { font-size:0.85em; color:#888; }
         
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 119, 182, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(0, 119, 182, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 119, 182, 0); }
+        /* ESTILO PARA INFORMACIÓN DE DEPURACIÓN */
+        #debug-info {
+            position: fixed; bottom: 0; left: 0; right: 0; 
+            background: #fff3cd; color: #856404; padding: 5px 10px; 
+            font-size: 0.8em; border-top: 1px solid #ffeeba; z-index: 999;
         }
 
-        textarea {
-            width:100%; min-height:140px; padding:16px 20px; border:none;
-            font-size:1.1em; resize:none; outline:none; font-family:inherit;
-        }
-
-        .post-footer {
-            padding:12px 20px; background:#fafafa; display:flex;
-            justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;
-        }
-
-        .circle-selector {
-            padding:10px 16px; border:1px solid #ddd; border-radius:30px;
-            background:white; font-size:0.95em; min-width:180px;
-        }
-
-        .char-counter {
-            color:var(--gray); font-size:0.9em;
-        }
-        .char-counter.warning { color:#ff6b00; }
-        .char-counter.danger { color:#e91e63; }
-
-        .publish-btn {
-            background:var(--success); color:white; border:none; padding:12px 32px;
-            border-radius:30px; font-weight:600; font-size:1.05em; cursor:pointer;
-            transition:0.3s; display:flex; align-items:center; gap:8px;
-        }
-        .publish-btn:disabled {
-            background:#aaa; cursor:not-allowed;
-        }
-        .publish-btn:hover:not(:disabled) { background:#1e7e34; transform:scale(1.03); }
-
-        .preview {
-            background:white; border-radius:16px; padding:16px; margin-top:20px;
-            box-shadow:0 2px 10px rgba(0,0,0,0.08); display:none;
-        }
-        .preview-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
-        .preview-content { font-size:1.05em; line-height:1.6; white-space:pre-wrap; }
-        .preview-circle { font-size:0.85em; background:#e0f7fa; color:var(--primary);
-            padding:4px 12px; border-radius:20px; display:inline-block; margin-top:8px; }
-
-        .success-msg {
-            position:fixed; top:100px; left:50%; transform:translateX(-50%);
-            background:var(--success); color:white; padding:16px 32px; border-radius:50px;
-            box-shadow:0 10px 30px rgba(0,0,0,0.2); z-index:1000; animation:pop 0.4s;
-        }
-        @keyframes pop { from{transform:translateX(-50%) scale(0);opacity:0} to{transform:translateX(-50%) scale(1);opacity:1} }
+        /* Modal y Mensajes */
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.8); z-index:2000; justify-content:center; align-items:center; }
+        .modal-content { background:white; padding:30px; border-radius:12px; text-align:center; max-width:350px; }
+        .modal-success { color:#10b981; font-size:2em; margin-bottom:10px; }
+        .modal-error { color:#ef4444; font-size:2em; margin-bottom:10px; }
     </style>
 </head>
 <body>
@@ -103,59 +41,59 @@
         <nav>
             <a href="feed.html">Feed</a>
             <a href="explore.html">Explorar</a>
+            <a href="create-post.html">Crear</a>
             <a href="profile.html">Perfil</a>
         </nav>
     </header>
 
-    <div class="container">
-        <div class="post-card">
-            <div class="post-header">
-                <div class="avatar" id="user-avatar"></div>
-                <div>
-                    <div style="font-weight:600;" id="username-display">Cargando...</div>
-                    <div style="font-size:0.9em; color:#666;">Publicando como</div>
-                </div>
-            </div>
-
-            <textarea id="post-text" placeholder="¿Qué estás pensando hoy?" maxlength="500"></textarea>
-
-            <div class="post-footer">
-                <select class="circle-selector" id="circle-select">
-                    <option value="">Público (Todos)</option>
-                    <!-- Aquí se cargarían dinámicamente los círculos -->
-                </select>
-
-                <div>
-                    <span class="char-counter" id="char-counter">0/500</span>
-                    <button class="publish-btn" id="publish-btn" disabled>
-                        <i class="fas fa-paper-plane"></i> Publicar
-                    </button>
-                </div>
+    <div class="post-card">
+        <div class="flex items-center space-x-4 mb-4 pb-4 border-b">
+            <img id="user-avatar" class="avatar" src="" alt="Avatar">
+            <div>
+                <div id="user-display-name" class="font-bold text-lg">Cargando...</div>
+                <div class="text-gray-500 text-sm">Publicando como <span id="user-handle">@Anonimo</span></div>
             </div>
         </div>
 
-        <!-- Vista previa en tiempo real -->
-        <div class="preview" id="preview">
-            <div class="preview-header">
-                <div class="avatar" id="preview-avatar-wrap"></div>
-                <div>
-                    <strong id="preview-username">@usuario</strong>
-                    <span style="color:#666; font-size:0.9em;">· Ahora</span>
-                </div>
-            </div>
-            <div class="preview-content" id="preview-text"></div>
-            <div id="preview-circle"></div>
+        <textarea id="post-text" class="w-full h-40" placeholder="¿Qué estás pensando hoy?" maxlength="500"></textarea>
+
+        <div class="flex justify-between items-center mt-4">
+            <div class="char-counter" id="char-count">0/500</div>
+            <select id="circle-select" class="p-2 border rounded-lg bg-gray-50 text-gray-700">
+                <option value="publico" data-target="Público">Público (Todos)</option>
+                <!-- Opciones de círculos se añadirán dinámicamente -->
+            </select>
+        </div>
+
+        <div class="mt-6 flex justify-end">
+            <button id="publish-btn" class="publish-btn" disabled>
+                <i class="fa fa-paper-plane mr-2"></i> Publicar
+            </button>
         </div>
     </div>
+    
+    <div id="debug-info">
+        Estado de Autenticación: <span id="auth-status">Cargando...</span> | 
+        UserID: <span id="user-id">N/A</span> | 
+        AppID: <span id="app-id">N/A</span>
+    </div>
 
-    <div class="success-msg" id="success-msg" style="display:none;">¡Publicado con éxito!</div>
+    <!-- Modal de confirmación -->
+    <div id="status-modal" class="modal">
+        <div class="modal-content">
+            <i id="modal-icon" class="modal-success"></i>
+            <h4 id="modal-title" class="text-xl font-semibold mb-2"></h4>
+            <p id="modal-message" class="text-gray-600 mb-4"></p>
+            <button onclick="document.getElementById('status-modal').style.display='none'; window.location.href = 'feed.html';" class="publish-btn py-2 px-6">
+                Aceptar
+            </button>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        import { 
-            getFirestore, collection, addDoc, serverTimestamp, doc, getDoc
-        } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, serverTimestamp, getDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js";
 
         // === 1. CONFIGURACIÓN GLOBAL DE FIREBASE (MANDATORIO) ===
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
@@ -165,161 +103,49 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        // =======================================================
         
-        const textarea = document.getElementById('post-text');
-        const circleSelect = document.getElementById('circle-select');
-        const publishBtn = document.getElementById('publish-btn');
-        const charCounter = document.getElementById('char-counter');
-        const preview = document.getElementById('preview');
-        const previewText = document.getElementById('preview-text');
-        const previewCircle = document.getElementById('preview-circle');
-        const usernameDisplay = document.getElementById('username-display');
-        const userAvatarEl = document.getElementById('user-avatar');
-        const previewAvatarWrapEl = document.getElementById('preview-avatar-wrap');
+        // Habilitar logs detallados de Firestore
+        setLogLevel('debug');
 
         let currentUser = null;
-        let currentUsername = 'Anónimo';
-        let currentPhotoURL = null;
-        let authReady = false;
+        let authAttempted = false;
+        let userProfile = null; // Para almacenar el perfil del usuario
 
-        function setAvatar(el, photoURL, username) {
-            el.style.animation = 'none'; 
-            const initial = (username?.[0] || 'N').toUpperCase();
-            if (photoURL) {
-                el.innerHTML = `<img src="${photoURL}" alt="Avatar" onerror="this.onerror=null;this.parentElement.textContent='${initial}'">`;
-            } else {
-                el.textContent = initial;
-            }
+        // Referencias del DOM
+        const postTextarea = document.getElementById('post-text');
+        const charCountEl = document.getElementById('char-count');
+        const publishBtn = document.getElementById('publish-btn');
+        const circleSelect = document.getElementById('circle-select');
+        const modal = document.getElementById('status-modal');
+        const modalIcon = document.getElementById('modal-icon');
+        const modalTitle = document.getElementById('modal-title');
+        const modalMessage = document.getElementById('modal-message');
+
+        // === Funciones de UI y Depuración ===
+        document.getElementById('app-id').textContent = appId;
+        const authStatusEl = document.getElementById('auth-status');
+        const userIdEl = document.getElementById('user-id');
+
+        function showModal(isSuccess, title, message) {
+            modalIcon.className = isSuccess ? 'modal-success fa fa-check-circle' : 'modal-error fa fa-times-circle';
+            modalTitle.textContent = title;
+            modalMessage.textContent = message;
+            modal.style.display = 'flex';
         }
 
-        // Cargar datos del usuario
-        async function loadUserData() {
-            if (!currentUser) return;
-
-            usernameDisplay.textContent = 'Cargando...';
-            userAvatarEl.style.animation = 'pulse 1.5s infinite';
-            previewAvatarWrapEl.style.animation = 'pulse 1.5s infinite';
-            
-            // Ruta correcta para la colección de usuarios
-            const userDocRef = doc(db, "artifacts", appId, "public", "data", "users", currentUser.uid);
-            
-            try {
-                const userDoc = await getDoc(userDocRef);
-                
-                if (userDoc.exists()) {
-                    const data = userDoc.data();
-                    currentUsername = data.username || 'Anónimo';
-                    currentPhotoURL = data.photoURL;
-                } else {
-                    currentUsername = currentUser.displayName || 'Anónimo';
-                    currentPhotoURL = currentUser.photoURL;
-                }
-                
-            } catch (error) {
-                console.error("Error al cargar datos del usuario:", error);
-                currentUsername = currentUser.displayName || 'Anónimo';
-                currentPhotoURL = currentUser.photoURL;
-            } finally {
-                usernameDisplay.textContent = currentUsername;
-                document.getElementById('preview-username').textContent = `@${currentUsername}`;
-                
-                setAvatar(userAvatarEl, currentPhotoURL, currentUsername);
-                setAvatar(previewAvatarWrapEl, currentPhotoURL, currentUsername);
-                
-                publishBtn.disabled = textarea.value.trim() === '' || !authReady;
-            }
-        }
-
-        // Vista previa en tiempo real
-        textarea.addEventListener('input', () => {
-            const text = textarea.value;
-            const len = text.length;
-
-            charCounter.textContent = `${len}/500`;
-            charCounter.className = 'char-counter';
-            if (len > 450) charCounter.className += ' warning';
-            if (len > 480) charCounter.className += ' danger';
-
-            publishBtn.disabled = len === 0 || len > 500 || !authReady;
-
-            if (len > 0) {
-                preview.style.display = 'block';
-                previewText.innerHTML = text.replace(/\n/g, '<br>');
-                const selectedOption = circleSelect.selectedOptions[0];
-                const selectedText = selectedOption?.textContent || "Público (Todos)";
-                
-                if (selectedOption?.value) {
-                    previewCircle.innerHTML = `<span class="preview-circle">${selectedText.replace("Círculo: ", "")}</span>`;
-                } else {
-                    previewCircle.innerHTML = '';
-                }
-            } else {
-                preview.style.display = 'none';
-            }
+        postTextarea.addEventListener('input', () => {
+            const currentLength = postTextarea.value.length;
+            charCountEl.textContent = `${currentLength}/500`;
+            // El botón se habilita si hay texto y el usuario está autenticado
+            publishBtn.disabled = currentLength === 0 || !currentUser;
         });
 
-        circleSelect.addEventListener('change', () => textarea.dispatchEvent(new Event('input')));
-
-        // Publicar
-        publishBtn.addEventListener('click', async () => {
-            if (!currentUser || !authReady) return;
-
-            const text = textarea.value.trim();
-            if (!text) return;
-
-            publishBtn.disabled = true;
-            publishBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Publicando...';
-
-            try {
-                // RUTA DE COLECCIÓN CORREGIDA
-                const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
-                
-                const postData = {
-                    userId: currentUser.uid,
-                    username: currentUsername,
-                    photoURL: currentPhotoURL,
-                    text,
-                    // Dejamos la lógica de círculo simplificada para el público
-                    circleTarget: circleSelect.value ? null : "Público", 
-                    circleId: circleSelect.value || null,
-                    createdAt: serverTimestamp(),
-                    likes: 0,
-                    commentsCount: 0,
-                    shares: 0
-                };
-
-                await addDoc(postsCollectionRef, postData);
-
-                // Éxito
-                document.getElementById('success-msg').style.display = 'block';
-                textarea.value = ''; 
-                textarea.dispatchEvent(new Event('input'));
-                
-                setTimeout(() => {
-                    location.href = 'feed.html';
-                }, 1200);
-
-            } catch (err) {
-                console.error("Error al publicar:", err.message);
-                
-                document.getElementById('success-msg').textContent = "Error al publicar. Revisa la consola.";
-                document.getElementById('success-msg').style.background = '#e91e63';
-                document.getElementById('success-msg').style.display = 'block';
-                
-                setTimeout(() => {
-                    document.getElementById('success-msg').style.display = 'none';
-                    document.getElementById('success-msg').textContent = '¡Publicado con éxito!';
-                    document.getElementById('success-msg').style.background = var(--success);
-                }, 3000);
-
-                publishBtn.disabled = false;
-                publishBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Publicar';
-            }
-        });
-
-        // Autenticación inicial y carga de datos
-        async function authenticateAndLoad() {
+        // === Funciones de Autenticación ===
+        async function attemptSignIn() {
+            if (authAttempted) return;
+            authAttempted = true;
+            authStatusEl.textContent = 'Intentando iniciar sesión...';
+            
             try {
                 if (initialAuthToken) {
                     await signInWithCustomToken(auth, initialAuthToken);
@@ -327,23 +153,131 @@
                     await signInAnonymously(auth);
                 }
             } catch (error) {
-                console.error("Error durante la autenticación:", error);
-                location.href = 'login.html';
-                return;
+                console.error("[AUTH ERROR] Falló el intento de inicio de sesión:", error);
+                authStatusEl.textContent = `ERROR: ${error.code}`;
+                showModal(false, "Error de Conexión", "No se pudo iniciar sesión. Revisa la consola.");
             }
-
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    currentUser = user;
-                    authReady = true; 
-                    await loadUserData();
-                } else {
-                    location.href = 'login.html';
-                }
-            });
         }
+
+        // === 3. Lógica de Perfil y Círculos ===
+
+        async function fetchUserProfile(uid) {
+            try {
+                // Ruta privada del perfil: /artifacts/{appId}/users/{userId}/profile/data
+                const profileDocRef = doc(db, "artifacts", appId, "users", uid, "profile", "data");
+                const profileSnap = await getDoc(profileDocRef);
+
+                if (profileSnap.exists()) {
+                    userProfile = profileSnap.data();
+                    console.log("[PROFILE] Perfil de usuario cargado:", userProfile);
+                    // Actualizar UI
+                    const name = userProfile.username || 'Anónimo';
+                    document.getElementById('user-display-name').textContent = name;
+                    document.getElementById('user-handle').textContent = `@${name}`;
+                    document.getElementById('user-avatar').src = userProfile.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=0077b6&color=fff`;
+                    
+                    // Cargar círculos al select
+                    if (userProfile.firstCircleName) {
+                        const option = document.createElement('option');
+                        option.value = userProfile.firstCircleName;
+                        option.textContent = `Círculo: ${userProfile.firstCircleName}`;
+                        option.dataset.target = 'Círculo';
+                        circleSelect.appendChild(option);
+                    }
+                    
+                    // Si no hay círculos extra, el valor por defecto 'publico' es suficiente.
+                } else {
+                    // Si el perfil no existe, forzar redirección para crearlo
+                    console.warn("[PROFILE] Perfil no encontrado. Redirigiendo a /onboarding.html");
+                    window.location.href = 'onboarding.html'; 
+                }
+            } catch (error) {
+                console.error("[PROFILE ERROR] Error al cargar el perfil:", error);
+                showModal(false, "Error de Perfil", "No se pudo cargar tu perfil. Revisa permisos.");
+            }
+        }
+
+        // === 4. Lógica de Publicación ===
+        publishBtn.addEventListener('click', async () => {
+            const text = postTextarea.value.trim();
+            if (!currentUser || text.length === 0) return;
+
+            publishBtn.disabled = true;
+            publishBtn.textContent = 'Publicando...';
+
+            // Obtener datos del círculo
+            const selectedOption = circleSelect.options[circleSelect.selectedIndex];
+            const circleTarget = selectedOption.dataset.target; // 'Público' o 'Círculo'
+            const circleId = selectedOption.value === 'publico' ? null : selectedOption.value; // Nombre del círculo
+
+            try {
+                // *** CAMBIO CRÍTICO: RUTA PÚBLICA DE POSTS ***
+                const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
+                
+                const postData = {
+                    text: text,
+                    userId: currentUser.uid,
+                    username: userProfile.username || 'Anónimo',
+                    photoURL: userProfile.photoURL || null,
+                    circleTarget: circleTarget, // 'Público' o 'Círculo'
+                    circleId: circleId, // Nombre del círculo si no es público
+                    likes: 0,
+                    commentsCount: 0,
+                    shares: 0,
+                    createdAt: serverTimestamp()
+                };
+
+                // Guardar la publicación (Firestore asigna un ID automáticamente)
+                await setDoc(doc(postsCollectionRef), postData);
+
+                console.log("[POST] Publicación guardada exitosamente en la ruta pública.");
+                showModal(true, "¡Publicación Exitosa!", "Tu pensamiento ha sido compartido en Nexus.");
+                postTextarea.value = ''; // Limpiar
+                postTextarea.dispatchEvent(new Event('input')); // Resetear contador
+
+            } catch (error) {
+                console.error("[POST ERROR] Error al intentar publicar:", error);
+                showModal(false, "Error al Publicar", "Revisa los permisos de escritura en la consola (F12).");
+            } finally {
+                publishBtn.disabled = false;
+                publishBtn.textContent = 'Publicar';
+            }
+        });
+
+
+        // === 5. Inicio de la Aplicación (Auth Listener) ===
+        onAuthStateChanged(auth, async user => {
+            if (user) {
+                currentUser = user;
+                authStatusEl.textContent = 'Autenticado';
+                userIdEl.textContent = user.uid;
+                console.log(`[AUTH READY] UID: ${user.uid}. Cargando perfil...`);
+                
+                await fetchUserProfile(user.uid);
+                
+                // Habilitar botón si hay texto y usuario
+                if (postTextarea.value.length > 0) {
+                    publishBtn.disabled = false;
+                }
+
+            } else {
+                if (!authAttempted) {
+                    await attemptSignIn(); 
+                } else {
+                    authStatusEl.textContent = 'No Autenticado (Falló)';
+                    userIdEl.textContent = 'N/A';
+                    showModal(false, "Acceso Denegado", "Debes iniciar sesión para publicar.");
+                }
+            }
+        });
         
-        authenticateAndLoad();
+        // Timeout de seguridad: Forzar el intento si el listener no se dispara.
+        setTimeout(() => {
+            if (!currentUser && !authAttempted) {
+                attemptSignIn();
+            }
+        }, 5000);
+
     </script>
 </body>
 </html>
