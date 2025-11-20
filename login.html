@@ -1,124 +1,50 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Iniciar Sesión</title>
-    <style>
-        /* Estilos Mínimos y Responsivos */
-        body { 
-            font-family: sans-serif; margin: 0; background-color: #f0f2f5; 
-            display: flex; justify-content: center; align-items: center; 
-            min-height: 100vh; padding: 20px;
-        }
-        .login-container { 
-            background-color: white; padding: 40px; border-radius: 12px; 
-            max-width: 400px; width: 90%; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15); 
-            text-align: center; 
-        }
-        h2 { color: #0077b6; margin-bottom: 5px; }
-        p { color: #555; margin-bottom: 20px; }
-        input { 
-            width: 100%; padding: 12px; margin: 10px 0; 
-            border: 1px solid #ddd; border-radius: 8px; 
-            box-sizing: border-box; font-size: 16px;
-        }
-        button { 
-            background-color: #0077b6; color: white; padding: 14px 20px; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            width: 100%; margin-top: 15px; font-weight: bold; 
-            transition: background-color 0.3s;
-        }
-        button:hover { background-color: #005f93; }
-        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; }
-        .register-link { margin-top: 25px; font-size: 0.9em; }
-        .register-link a { color: #0077b6; text-decoration: none; font-weight: bold; }
-        .register-link a:hover { text-decoration: underline; }
-    </style>
-
-    <!-- 1. Carga de SDKs de Firebase -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        
-        // 2. Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
-
-        // 3. Inicializar Firebase y Authentication
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        // 4. Lógica de Manejo del Formulario de Inicio de Sesión
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('loginForm');
-            const errorDisplay = document.getElementById('errorMessage');
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                errorDisplay.textContent = ''; // Limpiar errores
-
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-
-                try {
-                    // A. Iniciar sesión con Email y Contraseña
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    
-                    // Éxito: El usuario está autenticado
-                    console.log("Inicio de Sesión Exitoso:", userCredential.user.uid);
-                    
-                    // B. Redirigir al index (el usuario ya está logueado)
-                    window.location.href = 'index.html'; 
-
-                } catch (error) {
-                    // Manejo de Errores de Firebase (Ej: contraseña incorrecta, usuario no encontrado)
-                    let message = 'Error de inicio de sesión.';
-                    
-                    switch (error.code) {
-                        case 'auth/user-not-found':
-                        case 'auth/wrong-password':
-                            message = 'Usuario o contraseña incorrectos.';
-                            break;
-                        case 'auth/invalid-email':
-                            message = 'El formato del correo es inválido.';
-                            break;
-                        default:
-                            message = 'Error desconocido. Intenta de nuevo.';
-                    }
-                    errorDisplay.textContent = message;
-                    console.error("Error de Firebase:", error.message);
-                }
-            });
-        });
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Iniciar sesión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{background:#f0f2f5;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
+    .card{background:white;padding:40px;width:90%;max-width:400px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.1);text-align:center;}
+    .logo{font-size:42px;font-weight:900;color:#1877f2;margin-bottom:30px;}
+    input,button{width:100%;padding:14px;margin:10px 0;border-radius:8px;border:1px solid #ddd;font-size:16px;}
+    .btn-google{background:#fff;border:1px solid #ddd;cursor:pointer;}
+    .btn-login{background:#1877f2;color:white;border:none;cursor:pointer;}
+    .or{margin:20px 0;color:#888;position:relative;}
+    .or::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:#ddd;}
+    .or span{background:white;padding:0 15px;}
+    .link{color:#1877f2;cursor:pointer;font-weight:600;}
+  </style>
 </head>
 <body>
+  <div class="card">
+    <div class="logo">NEXUS</div>
+    <button id="googleBtn" class="btn-google">Continuar con Google</button>
+    <div class="or"><span>o</span></div>
+    <input type="email" id="email" placeholder="Correo electrónico">
+    <input type="password" id="password" placeholder="Contraseña">
+    <button id="loginBtn" class="btn-login">Iniciar sesión</button>
+    <p>¿No tienes cuenta? <span class="link" onclick="location.href='register.html'">Regístrate</span></p>
+    <div id="error" style="color:#e74c3c;margin-top:10px;"></div>
+  </div>
 
-    <div class="login-container">
-        <h2>Iniciar Sesión en Nexus</h2>
-        <p>Conéctate y accede a tus Círculos de Influencia.</p>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 
-        <form id="loginForm">
-            <input type="email" id="email" placeholder="Correo Electrónico" required autocomplete="email">
-            <input type="password" id="password" placeholder="Contraseña" required autocomplete="current-password">
-            
-            <button type="submit">Entrar a Nexus</button>
-        </form>
+    const app = initializeApp({ /* misma config que arriba */ });
+    const auth = getAuth(app);
 
-        <p id="errorMessage" class="error-message"></p>
-        
-        <div class="register-link">
-            ¿No tienes cuenta? <a href="register.html">Crea tu Perfil Ahora</a>
-        </div>
-    </div>
+    document.getElementById("googleBtn").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).then(() => location.href = "index.html");
+    document.getElementById("loginBtn").onclick = () => {
+      const email = document.getElementById("email").value;
+      const pass = document.getElementById("password").value;
+      signInWithEmailAndPassword(auth, email, pass)
+        .then(() => location.href = "index.html")
+        .catch(err => document.getElementById("error").textContent = "Usuario o contraseña incorrectos");
+    };
+  </script>
 </body>
 </html>
-
