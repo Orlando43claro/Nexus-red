@@ -48,9 +48,9 @@
 
     <div class="post-card">
         <div class="flex items-center space-x-4 mb-4 pb-4 border-b">
-            <img id="user-avatar" class="avatar" src="" alt="Avatar">
+            <img id="user-avatar" class="avatar" src="https://ui-avatars.com/api/?name=Anonimo&background=0077b6&color=fff" alt="Avatar">
             <div>
-                <div id="user-display-name" class="font-bold text-lg">Cargando...</div>
+                <div id="user-display-name" class="font-bold text-lg">Cargando perfil...</div>
                 <div class="text-gray-500 text-sm">Publicando como <span id="user-handle">@Anonimo</span></div>
             </div>
         </div>
@@ -136,8 +136,8 @@
         postTextarea.addEventListener('input', () => {
             const currentLength = postTextarea.value.length;
             charCountEl.textContent = `${currentLength}/500`;
-            // El botón se habilita si hay texto y el usuario está autenticado
-            publishBtn.disabled = currentLength === 0 || !currentUser;
+            // El botón se habilita si hay texto y el usuario está autenticado Y EL PERFIL SE CARGÓ
+            publishBtn.disabled = currentLength === 0 || !currentUser || !userProfile;
         });
 
         // === Funciones de Autenticación ===
@@ -163,13 +163,14 @@
 
         async function fetchUserProfile(uid) {
             try {
-                // Ruta privada del perfil: /artifacts/{appId}/users/{userId}/profile/data
+                // RUTA CORRECTA Y ESTRICTA DEL PERFIL
                 const profileDocRef = doc(db, "artifacts", appId, "users", uid, "profile", "data");
                 const profileSnap = await getDoc(profileDocRef);
 
                 if (profileSnap.exists()) {
                     userProfile = profileSnap.data();
                     console.log("[PROFILE] Perfil de usuario cargado:", userProfile);
+                    
                     // Actualizar UI
                     const name = userProfile.username || 'Anónimo';
                     document.getElementById('user-display-name').textContent = name;
@@ -185,11 +186,15 @@
                         circleSelect.appendChild(option);
                     }
                     
-                    // Si no hay círculos extra, el valor por defecto 'publico' es suficiente.
+                    // Habilitar botón si hay texto y el perfil está listo
+                    if (postTextarea.value.length > 0) {
+                        publishBtn.disabled = false;
+                    }
                 } else {
-                    // Si el perfil no existe, forzar redirección para crearlo
-                    console.warn("[PROFILE] Perfil no encontrado. Redirigiendo a /onboarding.html");
-                    window.location.href = 'onboarding.html'; 
+                    // *** CRÍTICO: Si el perfil no existe, forzar redirección para crearlo ***
+                    console.error("[PROFILE] Perfil no encontrado. Redirigiendo a /onboarding.html");
+                    showModal(false, "Perfil Requerido", "Debes completar tu perfil para publicar. Redirigiendo...");
+                    setTimeout(() => window.location.href = 'onboarding.html', 3000); 
                 }
             } catch (error) {
                 console.error("[PROFILE ERROR] Error al cargar el perfil:", error);
@@ -200,10 +205,11 @@
         // === 4. Lógica de Publicación ===
         publishBtn.addEventListener('click', async () => {
             const text = postTextarea.value.trim();
-            if (!currentUser || text.length === 0) return;
+            // Deshabilitar si no hay usuario, texto o perfil
+            if (!currentUser || text.length === 0 || !userProfile) return; 
 
             publishBtn.disabled = true;
-            publishBtn.textContent = 'Publicando...';
+            publishBtn.innerHTML = '<i class="fa fa-spinner fa-spin mr-2"></i> Publicando...';
 
             // Obtener datos del círculo
             const selectedOption = circleSelect.options[circleSelect.selectedIndex];
@@ -211,16 +217,17 @@
             const circleId = selectedOption.value === 'publico' ? null : selectedOption.value; // Nombre del círculo
 
             try {
-                // *** CAMBIO CRÍTICO: RUTA PÚBLICA DE POSTS ***
+                // *** RUTA PÚBLICA DE POSTS ***
                 const postsCollectionRef = collection(db, "artifacts", appId, "public", "data", "posts");
                 
                 const postData = {
                     text: text,
                     userId: currentUser.uid,
-                    username: userProfile.username || 'Anónimo',
-                    photoURL: userProfile.photoURL || null,
-                    circleTarget: circleTarget, // 'Público' o 'Círculo'
-                    circleId: circleId, // Nombre del círculo si no es público
+                    // Usar datos del perfil cargado
+                    username: userProfile.username || 'Anónimo', 
+                    photoURL: userProfile.photoURL || null, 
+                    circleTarget: circleTarget, 
+                    circleId: circleId, 
                     likes: 0,
                     commentsCount: 0,
                     shares: 0,
@@ -237,10 +244,11 @@
 
             } catch (error) {
                 console.error("[POST ERROR] Error al intentar publicar:", error);
-                showModal(false, "Error al Publicar", "Revisa los permisos de escritura en la consola (F12).");
+                // Si hay error, mostrar el modal de error y el mensaje de permisos
+                showModal(false, "Error al Publicar", `Revisa los permisos de escritura. Error: ${error.code || error.message}`);
             } finally {
                 publishBtn.disabled = false;
-                publishBtn.textContent = 'Publicar';
+                publishBtn.innerHTML = '<i class="fa fa-paper-plane mr-2"></i> Publicar';
             }
         });
 
@@ -255,11 +263,6 @@
                 
                 await fetchUserProfile(user.uid);
                 
-                // Habilitar botón si hay texto y usuario
-                if (postTextarea.value.length > 0) {
-                    publishBtn.disabled = false;
-                }
-
             } else {
                 if (!authAttempted) {
                     await attemptSignIn(); 
