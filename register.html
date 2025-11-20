@@ -1,129 +1,104 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus | Crear Cuenta</title>
-    <style>
-        /* Estilos Mínimos y Responsivos */
-        body { font-family: sans-serif; margin: 0; background-color: #f0f2f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        .register-container { 
-            background-color: white; padding: 40px; border-radius: 12px; 
-            max-width: 400px; width: 90%; 
-            box-shadow: 0 6px 15px rgba(0,0,0,0.15); 
-            text-align: center; 
-        }
-        h2 { color: #0077b6; margin-bottom: 5px; }
-        p { color: #555; margin-bottom: 20px; }
-        input { 
-            width: 100%; padding: 12px; margin: 10px 0; 
-            border: 1px solid #ddd; border-radius: 8px; 
-            box-sizing: border-box; font-size: 16px;
-        }
-        button { 
-            background-color: #0077b6; color: white; padding: 14px 20px; 
-            border: none; border-radius: 8px; cursor: pointer; 
-            width: 100%; margin-top: 15px; font-weight: bold; 
-            transition: background-color 0.3s;
-        }
-        button:hover { background-color: #005f93; }
-        .error-message { color: #d9534f; margin-top: 15px; font-weight: 500; }
-        .login-link { margin-top: 25px; font-size: 0.9em; }
-        .login-link a { color: #0077b6; text-decoration: none; font-weight: bold; }
-        .login-link a:hover { text-decoration: underline; }
-    </style>
-
-    <!-- 1. Carga de SDKs de Firebase (v10.12.3 es estable y compatible con type="module") -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js";
-        import { getAuth, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js";
-        
-        // 2. Configuración de Firebase (Tus Credenciales)
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
-            authDomain: "nexus-2c445.firebaseapp.com",
-            projectId: "nexus-2c445",
-            storageBucket: "nexus-2c445.firebasestorage.app",
-            messagingSenderId: "601285349766",
-            appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
-        };
-
-        // 3. Inicializar Firebase y Authentication
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-
-        // 4. Lógica de Manejo del Formulario
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('registrationForm');
-            const errorDisplay = document.getElementById('errorMessage');
-
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                errorDisplay.textContent = ''; // Limpiar errores
-
-                const email = document.getElementById('email').value;
-                const password = document.getElementById('password').value;
-                const username = document.getElementById('username').value;
-                
-                // Validación básica
-                if (password.length < 6) {
-                    errorDisplay.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-                    return;
-                }
-
-                try {
-                    // A. Crear el usuario en Firebase Authentication
-                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
-
-                    // B. Guardar el nombre de usuario (@) en el perfil de Firebase
-                    await updateProfile(user, {
-                        displayName: username
-                    });
-
-                    // Éxito: El usuario está registrado y autenticado
-                    console.log("Registro Exitoso:", user.uid);
-                    
-                    // C. Redirigir al usuario para que complete su perfil (biografía, círculos)
-                    window.location.href = 'profile-setup.html'; 
-
-                } catch (error) {
-                    // Manejo de Errores de Firebase
-                    let message = 'Ocurrió un error al registrarte.';
-                    if (error.code === 'auth/email-already-in-use') {
-                        message = 'Este correo ya está registrado.';
-                    } else if (error.code === 'auth/weak-password') {
-                        message = 'La contraseña es demasiado débil.';
-                    } else if (error.code === 'auth/invalid-email') {
-                        message = 'El formato del correo es inválido.';
-                    }
-                    errorDisplay.textContent = message;
-                    console.error("Error de Firebase:", error.message);
-                }
-            });
-        });
-    </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus – Crear cuenta</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{background:#f0f2f5;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;}
+    .card{background:white;padding:40px;width:90%;max-width:400px;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,0.1);text-align:center;}
+    .logo{font-size:42px;font-weight:900;color:#1877f2;margin-bottom:30px;}
+    input,button{width:100%;padding:14px;margin:10px 0;border-radius:8px;border:1px solid #ddd;font-size:16px;}
+    .btn-google{background:#fff;border:1px solid #ddd;cursor:pointer;font-weight:600;}
+    .btn-register{background:#42b72a;color:white;border:none;cursor:pointer;font-weight:600;}
+    .or{margin:20px 0;color:#888;position:relative;}
+    .or::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:#ddd;}
+    .or span{background:white;padding:0 15px;}
+    .link{color:#1877f2;cursor:pointer;font-weight:600;}
+    .loading{display:none;color:#42b72a;margin-top:10px;font-weight:600;}
+  </style>
 </head>
 <body>
+  <div class="card">
+    <div class="logo">NEXUS</div>
+    <h2 style="margin-bottom:20px;color:#1c1e21;">Crea tu cuenta gratis</h2>
 
-    <div class="register-container">
-        <h2>Únete a Nexus</h2>
-        <p>Crea tu perfil y comienza a conectar con sentido.</p>
+    <button id="googleBtn" class="btn-google">
+      Registrarse con Google
+    </button>
 
-        <form id="registrationForm">
-            <input type="email" id="email" placeholder="Correo Electrónico" required autocomplete="email">
-            <input type="password" id="password" placeholder="Contraseña (mín. 6 caracteres)" required autocomplete="new-password">
-            <input type="text" id="username" placeholder="Nombre de Usuario (@minombre)" required>
-            
-            <button type="submit">Crear Cuenta y Unirme</button>
-        </form>
+    <div class="or"><span>o</span></div>
 
-        <p id="errorMessage" class="error-message"></p>
-        
-        <div class="login-link">
-            ¿Ya tienes una cuenta? <a href="login.html">Iniciar Sesión</a>
-        </div>
-    </div>
+    <input type="text" id="nombre" placeholder="Nombre completo (opcional)">
+    <input type="email" id="email" placeholder="Correo electrónico" required>
+    <input type="password" id="password" placeholder="Contraseña (mín. 6 caracteres)" required>
+
+    <button id="registerBtn" class="btn-register">Crear cuenta</button>
+
+    <div class="loading" id="loading">Creando tu cuenta...</div>
+    <div id="error" style="color:#e74c3c;margin-top:10px;"></div>
+
+    <p style="margin-top:25px;font-size:14px;">
+      ¿Ya tienes cuenta? <span class="link" onclick="location.href='login.html'">Iniciar sesión</span>
+    </p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, createUserWithEmailAndPassword, updateProfile } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCaJWbunJFLn2iZLopx-4bsZa0DapE8whc",
+      authDomain: "nexus-2c445.firebaseapp.com",
+      projectId: "nexus-2c445",
+      storageBucket: "nexus-2c445.firebasestorage.app",
+      messagingSenderId: "601285349766",
+      appId: "1:601285349766:web:b8c014910f82ebf2c45c07"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    // Registro con Google
+    document.getElementById("googleBtn").onclick = async () => {
+      document.getElementById("loading").style.display = "block";
+      const provider = new GoogleAuthProvider();
+      try {
+        await signInWithPopup(auth, provider);
+        location.href = "index.html";
+      } catch (err) {
+        document.getElementById("error").textContent = "Error con Google";
+        document.getElementById("loading").style.display = "none";
+      }
+    };
+
+    // Registro con email
+    document.getElementById("registerBtn").onclick = async () => {
+      const nombre = document.getElementById("nombre").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const pass = document.getElementById("password").value;
+
+      if (!email || !pass) return document.getElementById("error").textContent = "Completa email y contraseña";
+      if (pass.length < 6) return document.getElementById("error").textContent = "Contraseña muy corta (mín. 6)";
+
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("error").textContent = "";
+
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        // Guardar nombre (si puso uno)
+        await updateProfile(cred.user, { 
+          displayName: nombre || email.split("@")[0] 
+        });
+        location.href = "index.html";
+      } catch (err) {
+        const msg = err.code === "auth/email-already-in-use" ? "Este correo ya está registrado" :
+                    err.code === "auth/weak-password" ? "Contraseña muy débil" : "Error al crear cuenta";
+        document.getElementById("error").textContent = msg;
+        document.getElementById("loading").style.display = "none";
+      }
+    };
+  </script>
 </body>
 </html>
-
